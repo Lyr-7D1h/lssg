@@ -5,11 +5,10 @@ use std::{
     string,
 };
 
-use super::{CharReader, Readable};
-
 #[derive(Debug, PartialEq, Eq)]
 pub enum ParseErrorKind {
     Io,
+    EndOfFile,
     InvalidInput,
     Unsupported,
 }
@@ -38,28 +37,8 @@ impl ParseError {
         Self::new(message, ParseErrorKind::Unsupported)
     }
 
-    /// Add extra context from the bitreader used to parse something
-    pub fn with_context_from_bitreader(
-        mut self,
-        bitreader: &mut CharReader<impl Readable>,
-    ) -> ParseError {
-        match bitreader.eof() {
-            Ok(eof) => {
-                if eof {
-                    self.context = String::from("error occured after data has been read.");
-                } else {
-                    self.context = format!(
-                        "error occured while parsing at bit position: {:x}",
-                        bitreader.position()
-                    );
-                }
-                self
-            }
-            Err(e) => Self::invalid(format!(
-                "Failed to read eof of bitreader when trying to add context: {}",
-                e
-            )),
-        }
+    pub fn eof<S: Into<String>>(message: S) -> ParseError {
+        Self::new(message, ParseErrorKind::EndOfFile)
     }
 }
 

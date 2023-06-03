@@ -1,28 +1,27 @@
-use self::{
-    char_reader::{CharReader, Readable},
-    parse_error::ParseError,
-};
+use std::io::Read;
+
+use self::{char_reader::CharReader, parse_error::ParseError};
 
 pub mod char_reader;
 pub mod parse_error;
 
-pub struct Lexer<R: Readable> {
+pub struct Lexer<R> {
     reader: CharReader<R>,
 }
 
-impl<R: Readable> Lexer<R> {
+impl<R: Read> Lexer<R> {
     pub fn new(reader: CharReader<R>) -> Lexer<R> {
         Lexer { reader }
     }
 
     pub fn read_token(&mut self) -> Result<Token, ParseError> {
-        let result = match self.reader.peek_char() {
-            None => return Ok(Token::EOF),
-            Some(c) => match c {
-                // '#' => self.reader.read_char(),
-                _ => Token::Text {
-                    text: self.reader.read_until(|c| c == '\n')?,
-                },
+        let result = match self.reader.peek_char()? {
+            // '#' => {}
+            // '`' => {
+            //     self.reader.peek_string(2),
+            // },
+            _ => Token::Text {
+                text: self.reader.read_until(|c| c == '\n')?,
             },
         };
         return Ok(result);
@@ -31,7 +30,8 @@ impl<R: Readable> Lexer<R> {
 
 pub enum Token {
     Heading { depth: u8 },
-    Bold,
+    Bold { text: String },
+    Italic { text: String },
     Code { language: String, code: String },
     Link { url: String },
     Text { text: String },
@@ -41,16 +41,17 @@ pub enum Token {
 pub struct LMarkdown {}
 
 impl LMarkdown {
-    pub fn parse(input: impl Readable) -> Result<LMarkdown, ParseError> {
+    pub fn parse(input: impl Read) -> Result<LMarkdown, ParseError> {
         let mut lexer = Lexer::new(CharReader::new(input));
         loop {
             match lexer.read_token()? {
                 Token::EOF => break,
                 Token::Heading { depth } => todo!(),
-                Token::Bold => todo!(),
+                Token::Bold { text } => todo!(),
                 Token::Code { language, code } => todo!(),
                 Token::Link { url } => todo!(),
                 Token::Text { text } => todo!(),
+                Token::Italic { text } => todo!(),
             }
         }
         todo!()
