@@ -55,7 +55,10 @@ impl fmt::Display for ParseError {
 }
 impl From<io::Error> for ParseError {
     fn from(error: io::Error) -> Self {
-        Self::new(format!("Failed to read input: {error}"), ParseErrorKind::Io)
+        match error.kind() {
+            io::ErrorKind::UnexpectedEof => Self::eof(error.to_string()),
+            _ => Self::new(format!("Failed to read input: {error}"), ParseErrorKind::Io),
+        }
     }
 }
 impl From<TryFromIntError> for ParseError {

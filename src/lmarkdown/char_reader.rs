@@ -16,6 +16,7 @@ impl<R: Read> CharReader<R> {
         }
     }
 
+    /// Will try to fill the buffer until it is filled or eof is reached
     pub fn peek(&mut self, buf: &mut [u8]) -> Result<usize, ParseError> {
         // if buffer is already contained within peek buffer return it
         if self.peek_buffer.len() >= buf.len() {
@@ -26,12 +27,6 @@ impl<R: Read> CharReader<R> {
         let read = (&mut self.inner)
             .take(buf.len() as u64)
             .read_to_end(&mut self.peek_buffer)?;
-        if read == 0 {
-            return Err(ParseError::from(io::Error::new(
-                io::ErrorKind::UnexpectedEof,
-                "Unexpected EOF when peeking",
-            )));
-        }
         let mut cursor = Cursor::new(&mut self.peek_buffer);
         cursor.read(buf)?;
         return Ok(read);
@@ -52,7 +47,7 @@ impl<R: Read> CharReader<R> {
 
     pub fn peek_until(&mut self, op: fn(char) -> bool) -> Result<String, ParseError> {
         let mut buffer = vec![0; 1];
-        self.peek(&mut buffer);
+        self.peek(&mut buffer)?;
         while op(buffer[buffer.len() - 1] as char) {
             buffer.resize(buffer.len() + 1, 0);
         }
@@ -72,12 +67,21 @@ impl<R: Read> CharReader<R> {
         return Ok(buffer[0] as char);
     }
 
+    /// will read until eof or `op` is true
     pub fn read_until(&mut self, op: fn(char) -> bool) -> Result<String, ParseError> {
         let mut result = String::new();
-        let mut c = self.read_char()?;
-        while op(c) {
+        loop {
+            let c = match self.read_char() {
+                Ok(c) => c,
+                Err(e) => match e.kind {
+                    super::parse_error::ParseErrorKind::EndOfFile => break,
+                    _ => return Err(e),
+                },
+            };
+            if op(c) {
+                break;
+            }
             result.push(c);
-            c = self.read_char()?;
         }
         return Ok(result);
     }
