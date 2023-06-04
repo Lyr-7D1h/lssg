@@ -14,27 +14,50 @@ impl<R: Read> Lexer<R> {
         Lexer { reader }
     }
 
+    fn read_inline_tokens(&mut self, text: CharReader<R>) -> Result<Vec<Token>, ParseError> {}
+
     pub fn read_token(&mut self) -> Result<Token, ParseError> {
         let result = match self.reader.peek_char()? {
             // '#' => {}
             // '`' => {
             //     self.reader.peek_string(2),
             // },
-            _ => Token::Text {
-                text: self.reader.read_until(|c| c == '\n')?,
-            },
+            _ => {
+                let text = self.reader.read_until(|c| c == '\n')?;
+                let tokens = self.read_inline_tokens(CharReader::new(&text[..]))?;
+                Token::Text {
+                    text: self.reader.read_until(|c| c == '\n')?,
+                    tokens,
+                }
+            }
         };
         return Ok(result);
     }
 }
 
 pub enum Token {
-    Heading { depth: u8 },
-    Bold { text: String },
-    Italic { text: String },
-    Code { language: String, code: String },
-    Link { url: String },
-    Text { text: String },
+    Heading {
+        depth: u8,
+        text: String,
+        tokens: Vec<Token>,
+    },
+    Bold {
+        text: String,
+    },
+    Italic {
+        text: String,
+    },
+    Code {
+        language: String,
+        code: String,
+    },
+    Link {
+        url: String,
+    },
+    Text {
+        text: String,
+        tokens: Vec<Token>,
+    },
     EOF,
 }
 

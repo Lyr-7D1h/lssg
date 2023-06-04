@@ -2,6 +2,7 @@ use std::io::{self, Cursor, Read};
 
 use super::parse_error::ParseError;
 
+/// Character Reader with peeking functionality
 pub struct CharReader<R> {
     inner: R,
     peek_buffer: Vec<u8>,
@@ -47,6 +48,15 @@ impl<R: Read> CharReader<R> {
         let mut buffer = [0; 1];
         self.peek(&mut buffer)?;
         return Ok(buffer[0] as char);
+    }
+
+    pub fn peek_until(&mut self, op: fn(char) -> bool) -> Result<String, ParseError> {
+        let mut buffer = vec![0; 1];
+        self.peek(&mut buffer);
+        while op(buffer[buffer.len() - 1] as char) {
+            buffer.resize(buffer.len() + 1, 0);
+        }
+        return Ok(String::from_utf8(buffer)?);
     }
 
     pub fn read_string(&mut self, length: usize) -> Result<String, ParseError> {
@@ -115,5 +125,16 @@ fn test_peek() -> Result<(), ParseError> {
     assert_eq!(reader.read_char()?, ' ');
     assert_eq!(reader.read_string(7)?, "of text".to_owned());
     assert!(reader.read_char().is_err());
+    Ok(())
+}
+
+#[test]
+fn test_newline() -> Result<(), ParseError> {
+    let mut reader = CharReader::new(
+        "This is a
+Very important test"
+            .as_bytes(),
+    );
+    assert_eq!(reader.peek_string(11)?, "This is a\nV".to_owned());
     Ok(())
 }
