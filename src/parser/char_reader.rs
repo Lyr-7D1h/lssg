@@ -1,4 +1,4 @@
-use std::io::{self, Cursor, Read};
+use std::io::{Cursor, Read};
 
 use super::parse_error::ParseError;
 
@@ -24,14 +24,18 @@ impl<R: Read> CharReader<R> {
             cursor.read(buf)?;
         }
 
+        // fill peek buffer
         let read = (&mut self.inner)
             .take(buf.len() as u64)
             .read_to_end(&mut self.peek_buffer)?;
+        // println!("{}", String::from_utf8(self.peek_buffer.clone()).unwrap());
+        // read peek_buffer to buf
         let mut cursor = Cursor::new(&mut self.peek_buffer);
         cursor.read(buf)?;
         return Ok(read);
     }
 
+    /// Try to fill string with `length` bytes
     pub fn peek_string(&mut self, length: usize) -> Result<String, ParseError> {
         let mut buffer = vec![0; length];
         self.peek(&mut buffer)?;
@@ -39,20 +43,34 @@ impl<R: Read> CharReader<R> {
             .map_err(|_| ParseError::invalid("String contains invalid utf-8"))?);
     }
 
-    pub fn peek_char(&mut self) -> Result<char, ParseError> {
+    /// Read a character
+    pub fn peek_char(&mut self) -> Result<Option<char>, ParseError> {
         let mut buffer = [0; 1];
-        self.peek(&mut buffer)?;
+        let read = self.peek(&mut buffer)?;
+        if read == 0 {
+            return Ok(None);
+        }
+        return Ok(Some(buffer[0] as char));
+    }
+
+    /// Read a character, will error on eof
+    pub fn peek_char_exact(&mut self) -> Result<char, ParseError> {
+        let mut buffer = [0; 1];
+        let read = self.peek(&mut buffer)?;
+        if read == 0 {
+            return Err(ParseError::eof("Reached eof when peeking char"));
+        }
         return Ok(buffer[0] as char);
     }
 
-    pub fn peek_until(&mut self, op: fn(char) -> bool) -> Result<String, ParseError> {
-        let mut buffer = vec![0; 1];
-        self.peek(&mut buffer)?;
-        while op(buffer[buffer.len() - 1] as char) {
-            buffer.resize(buffer.len() + 1, 0);
-        }
-        return Ok(String::from_utf8(buffer)?);
-    }
+    // pub fn peek_until(&mut self, op: fn(char) -> bool) -> Result<String, ParseError> {
+    //     let mut buffer = vec![0; 1];
+    //     self.peek(&mut buffer)?;
+    //     while op(buffer[buffer.len() - 1] as char) {
+    //         buffer.resize(buffer.len() + 1, 0);
+    //     }
+    //     return Ok(String::from_utf8(buffer)?);
+    // }
 
     pub fn read_string(&mut self, length: usize) -> Result<String, ParseError> {
         let mut buffer = vec![0; length];
@@ -61,7 +79,15 @@ impl<R: Read> CharReader<R> {
             .map_err(|_| ParseError::invalid("String contains invalid utf-8"))?);
     }
 
-    pub fn read_char(&mut self) -> Result<char, ParseError> {
+    pub fn read_char(&mut self) -> Result<Option<char>, ParseError> {
+        let mut buffer = [0; 1];
+        let read = self.read(&mut buffer)?;
+        if read == 0 {
+            return Ok(None);
+        }
+        return Ok(Some(buffer[0] as char));
+    }
+    pub fn read_char_exact(&mut self) -> Result<char, ParseError> {
         let mut buffer = [0; 1];
         self.read_exact(&mut buffer)?;
         return Ok(buffer[0] as char);
@@ -71,17 +97,17 @@ impl<R: Read> CharReader<R> {
     pub fn read_until(&mut self, op: fn(char) -> bool) -> Result<String, ParseError> {
         let mut result = String::new();
         loop {
-            let c = match self.read_char() {
-                Ok(c) => c,
-                Err(e) => match e.kind {
-                    super::parse_error::ParseErrorKind::EndOfFile => break,
-                    _ => return Err(e),
-                },
+            let c = match self.peek_char()? {
+                Some(c) => c,
+                None => break,
             };
             if op(c) {
                 break;
             }
-            result.push(c);
+            match self.read_char()? {
+                Some(c) => result.push(c),
+                None => break,
+            }
         }
         return Ok(result);
     }
@@ -116,17 +142,17 @@ fn test_peek() -> Result<(), ParseError> {
     let mut reader = CharReader::new("This is a piece of text".as_bytes());
     assert_eq!(reader.peek_string(4)?, "This".to_owned());
     assert_eq!(reader.read_string(4)?, "This".to_owned());
-    assert_eq!(reader.read_char()?, ' ');
+    assert_eq!(reader.read_char_e()?, ' ');
 
     assert_eq!(reader.peek_string(3)?, "is ".to_owned());
     assert_eq!(reader.peek_string(2)?, "is".to_owned());
 
-    assert_eq!(reader.peek_char()?, 'i');
+    assert_eq!(reader.peek_char_exact()?, 'i');
     assert_eq!(reader.peek_string(2)?, "is".to_owned());
     assert_eq!(reader.read_string(10)?, "is a piece".to_owned());
 
-    assert_eq!(reader.peek_char()?, ' ');
-    assert_eq!(reader.read_char()?, ' ');
+    assert_eq!(reader.peek_char_exact()?, ' ');
+    assert_eq!(reader.read_char_exact()?, ' ');
     assert_eq!(reader.read_string(7)?, "of text".to_owned());
     assert!(reader.read_char().is_err());
     Ok(())

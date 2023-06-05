@@ -1,2 +1,4 @@
-# Lyr's Blog
-[asdf](http://asdf)
+# Lyr's Blog [asdf](http://asdf)
+
+[Test](./test.md)
+asdf
