@@ -48,16 +48,16 @@ impl Lssg {
         create_dir_all(output_directory)?;
 
         let file = File::open(input_markdown)?;
-        let tokens = Parser::parse(file)?;
+        let mut tokens = Parser::parse(file)?;
 
         fn render_pages(
-            tokens: &Vec<Token>,
+            tokens: &mut Vec<Token>,
             lssg: &Lssg,
             input_markdown: &Path,
             output_directory: &Path,
         ) -> Result<(), LssgError> {
             tokens
-                .iter()
+                .into_iter()
                 .map(|t| match t {
                     Token::Heading { tokens, .. } => {
                         render_pages(tokens, lssg, input_markdown, output_directory)
@@ -67,8 +67,9 @@ impl Lssg {
                     }
                     Token::Link { href, .. } => {
                         if href.starts_with("./") && href.ends_with(".md") {
-                            let path = input_markdown.parent().unwrap().join(Path::new(href));
+                            let path = input_markdown.parent().unwrap().join(Path::new(&href));
                             let output = output_directory.join(path.file_stem().unwrap());
+                            href.replace_range((href.len() - 3)..href.len(), "");
                             lssg.render_recursive(&path, &output)?;
                         }
                         Ok(())
@@ -78,7 +79,7 @@ impl Lssg {
                 .collect()
         }
 
-        render_pages(&tokens, self, input_markdown, output_directory)?;
+        render_pages(&mut tokens, self, input_markdown, output_directory)?;
 
         let html = DefaultHtmlRenderer::render(tokens);
         write(output_directory.join("index.html"), html)?;

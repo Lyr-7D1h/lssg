@@ -25,13 +25,13 @@ impl<R: Read> CharReader<R> {
         }
 
         // fill peek buffer
-        let read = (&mut self.inner)
+        (&mut self.inner)
             .take(buf.len() as u64)
             .read_to_end(&mut self.peek_buffer)?;
         // println!("{}", String::from_utf8(self.peek_buffer.clone()).unwrap());
         // read peek_buffer to buf
         let mut cursor = Cursor::new(&mut self.peek_buffer);
-        cursor.read(buf)?;
+        let read = cursor.read(buf)?;
         return Ok(read);
     }
 
@@ -142,7 +142,7 @@ fn test_peek() -> Result<(), ParseError> {
     let mut reader = CharReader::new("This is a piece of text".as_bytes());
     assert_eq!(reader.peek_string(4)?, "This".to_owned());
     assert_eq!(reader.read_string(4)?, "This".to_owned());
-    assert_eq!(reader.read_char_e()?, ' ');
+    assert_eq!(reader.read_char_exact()?, ' ');
 
     assert_eq!(reader.peek_string(3)?, "is ".to_owned());
     assert_eq!(reader.peek_string(2)?, "is".to_owned());
@@ -154,7 +154,7 @@ fn test_peek() -> Result<(), ParseError> {
     assert_eq!(reader.peek_char_exact()?, ' ');
     assert_eq!(reader.read_char_exact()?, ' ');
     assert_eq!(reader.read_string(7)?, "of text".to_owned());
-    assert!(reader.read_char().is_err());
+    assert!(reader.read_char_exact().is_err());
     Ok(())
 }
 
