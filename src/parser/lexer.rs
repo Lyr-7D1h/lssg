@@ -1,9 +1,6 @@
 use std::io::Read;
 
-use super::{
-    char_reader::CharReader,
-    parse_error::{ParseError, ParseErrorKind},
-};
+use super::{char_reader::CharReader, parse_error::ParseError};
 
 pub struct Lexer<R> {
     reader: CharReader<R>,
@@ -41,7 +38,7 @@ impl<R: Read> Lexer<R> {
                         tokens.push(Token::Text { text: text.clone() });
                         text.clear();
                     }
-                    tokens.push(Token::Link {
+                    tokens.push(Token::LinkRef {
                         text: chars[text_start..text_end].iter().collect(),
                         href: chars[href_start..href_end].iter().collect(),
                     });
@@ -67,7 +64,6 @@ impl<R: Read> Lexer<R> {
             None => return Ok(Token::EOF),
             Some(c) => {
                 // Heading
-                println!("{c}");
                 if c == '#' {
                     let chars: Vec<char> = self.reader.peek_string(7)?.chars().collect();
                     let mut ignore = false;
@@ -97,7 +93,6 @@ impl<R: Read> Lexer<R> {
 
                 if c == '\n' {
                     let raw = self.reader.read_until(|c| c != '\n')?;
-                    println!("{raw}");
                     return Ok(Token::Space { raw });
                 }
 
@@ -135,7 +130,12 @@ pub enum Token {
     Space {
         raw: String,
     },
+    LinkRef {
+        text: String,
+        href: String,
+    },
     Link {
+        rel: String,
         text: String,
         href: String,
     },

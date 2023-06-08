@@ -1,4 +1,5 @@
-# Lyr's Blog [asdf](http://asdf)
+<link rel="stylesheet" href="./main.css" />
 
+# LyrX
 [Test](./test.md)
 asdf

@@ -28,7 +28,6 @@ impl<R: Read> CharReader<R> {
         (&mut self.inner)
             .take(buf.len() as u64)
             .read_to_end(&mut self.peek_buffer)?;
-        // println!("{}", String::from_utf8(self.peek_buffer.clone()).unwrap());
         // read peek_buffer to buf
         let mut cursor = Cursor::new(&mut self.peek_buffer);
         let read = cursor.read(buf)?;

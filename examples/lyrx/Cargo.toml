@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 lssg = { path="../../" }
+simple_logger = "4.1.0"
