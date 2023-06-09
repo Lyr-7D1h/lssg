@@ -66,9 +66,9 @@ impl HtmlDocument {
                 Token::Italic { text } => format!("<i>{text}</i>"),
                 Token::Code { language, code } => format!("<cod>{code}</code>"),
                 Token::Space { raw } => format!("<br />"),
-                Token::LinkRef { text, href } => format!("<a href={href}>{text}</a>"),
+                Token::Link { text, href } => format!("<a href={href}>{text}</a>"),
                 Token::Text { text } => text,
-                Token::Link { rel, text, href } => {
+                Token::HtmlLink { rel, text, href } => {
                     if let Ok(rel) = Rel::try_from(rel) {
                         options.links.push(HtmlLink { rel, href })
                     }
@@ -82,6 +82,7 @@ impl HtmlDocument {
     }
 
     pub fn render(tokens: Vec<Token>, mut options: HtmlDocumentRenderOptions) -> String {
+        println!("{tokens:?}");
         let body_content = Self::render_body_content(tokens, &mut options);
         let body = format!("<body>{body_content}</body>");
 

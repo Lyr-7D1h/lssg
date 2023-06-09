@@ -1,5 +1,8 @@
 <link rel="stylesheet" href="./main.css" />
 
-# LyrX
+# [LyrX](./https://github.com/Lyr-7D1h/)
+<nav>
 [Test](./test.md)
-asdf
+</nav>
+
+kind of like SpaceX \n asdf

@@ -2,11 +2,12 @@ pub mod parser;
 pub mod renderer;
 
 use std::{
-    error::Error,
     fs::{copy, create_dir_all, write, File},
-    io,
+    io::{self, Read, Write},
     path::{Path, PathBuf},
 };
+
+const DEFAULT_STYLESHEET: &'static str = include_str!("default_stylesheet.css");
 
 use log::info;
 use parser::{lexer::Token, parse_error::ParseError, Parser};
@@ -30,7 +31,7 @@ impl From<io::Error> for LssgError {
 
 pub struct LssgOptions {
     pub output_directory: PathBuf,
-    pub global_stylesheet: PathBuf,
+    pub global_stylesheet: Option<PathBuf>,
     pub title: String,
     pub keywords: Vec<(String, String)>,
     pub language: String,
@@ -46,22 +47,31 @@ impl Lssg {
     }
 
     pub fn preview(&self, port: u32) {
-        info!("Listing on 0.0.0.0:{port}");
+        // info!("Listing on 0.0.0.0:{port}");
+        todo!()
     }
 
     pub fn render(&self, input_markdown: &Path) -> Result<(), LssgError> {
         info!("Creating {:?}", self.options.output_directory);
         create_dir_all(&self.options.output_directory)?;
 
-        let stylesheet_dest = &self
-            .options
-            .output_directory
-            .join(self.options.global_stylesheet.file_name().unwrap());
-        info!(
-            "Copying {:?} to {:?}",
-            self.options.global_stylesheet, stylesheet_dest
-        );
-        copy(&self.options.global_stylesheet, stylesheet_dest)?;
+        let stylesheet_dest = &self.options.output_directory.join("main.css");
+        let mut stylesheet_dest_file = File::create(&stylesheet_dest)?;
+        match &self.options.global_stylesheet {
+            Some(p) => {
+                info!(
+                    "Copying {:?} to {:?}",
+                    self.options.global_stylesheet, stylesheet_dest
+                );
+                let mut buf = vec![];
+                File::open(p)?.read(&mut buf)?;
+                stylesheet_dest_file.write(&buf)?;
+            }
+            None => {
+                info!("Using default stylesheet");
+                stylesheet_dest_file.write(DEFAULT_STYLESHEET.as_bytes())?;
+            }
+        }
 
         let render_options = HtmlDocumentRenderOptions {
             links: vec![HtmlLink {
@@ -129,7 +139,7 @@ impl Lssg {
                         output_directory,
                         render_options.clone(),
                     ),
-                    Token::LinkRef { href, .. } => {
+                    Token::Link { href, .. } => {
                         if href.starts_with("./") && href.ends_with(".md") {
                             let path = input_markdown.parent().unwrap().join(Path::new(&href));
                             let output = output_directory.join(path.file_stem().unwrap());

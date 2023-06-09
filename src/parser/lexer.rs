@@ -6,6 +6,16 @@ pub struct Lexer<R> {
     reader: CharReader<R>,
 }
 
+fn sanitize_text(text: String) -> String {
+    let mut chars: Vec<char> = text.chars().collect();
+    if let Some(c) = chars.last() {
+        if c == &'\n' {
+            chars.pop();
+        }
+    }
+    chars.into_iter().collect()
+}
+
 // https://github.com/markedjs/marked/blob/master/src/Lexer.js
 // https://github.com/songquanpeng/md2html/blob/main/lexer/lexer.go
 // https://marked.js.org/demo/
@@ -38,13 +48,32 @@ impl<R: Read> Lexer<R> {
                         tokens.push(Token::Text { text: text.clone() });
                         text.clear();
                     }
-                    tokens.push(Token::LinkRef {
+                    tokens.push(Token::Link {
                         text: chars[text_start..text_end].iter().collect(),
                         href: chars[href_start..href_end].iter().collect(),
                     });
                     pos = href_end + 1;
                     continue;
                 }
+            }
+
+            if c == '<' {
+                let (start_tag, mut start_tag_end) = (pos, 0);
+                for i in pos..chars.len() {
+                    match chars[i] {
+                        '\n' => break,
+                        '>' => start_tag_end = i,
+                        _ => {}
+                    }
+                }
+                let mut tag_kind = String::new();
+                for i in start_tag + 1..start_tag_end {
+                    match chars[i] {
+                        ' ' => break,
+                        c => tag_kind.push(c),
+                    };
+                }
+                println!("{tag_kind}");
             }
 
             text.push(chars[pos]);
@@ -75,12 +104,13 @@ impl<R: Read> Lexer<R> {
                             _ => ignore = true,
                         }
                     }
-                    let text = self
-                        .reader
-                        .read_until(|c| c == '\n')?
-                        .chars()
-                        .skip(depth as usize + 1)
-                        .collect();
+                    let text: String = sanitize_text(
+                        self.reader
+                            .read_until_inclusive(|c| c == '\n')?
+                            .chars()
+                            .skip(depth as usize + 1)
+                            .collect(),
+                    );
                     let tokens = self.read_inline_tokens(&text)?;
                     if ignore == false {
                         return Ok(Token::Heading {
@@ -92,11 +122,11 @@ impl<R: Read> Lexer<R> {
                 }
 
                 if c == '\n' {
-                    let raw = self.reader.read_until(|c| c != '\n')?;
+                    let raw = self.reader.read_until_exclusive(|c| c != '\n')?;
                     return Ok(Token::Space { raw });
                 }
 
-                let text = self.reader.read_until(|c| c == '\n')?;
+                let text = sanitize_text(self.reader.read_until_inclusive(|c| c == '\n')?);
                 let tokens = self.read_inline_tokens(&text)?;
                 return Ok(Token::Paragraph { tokens });
             }
@@ -130,11 +160,11 @@ pub enum Token {
     Space {
         raw: String,
     },
-    LinkRef {
+    Link {
         text: String,
         href: String,
     },
-    Link {
+    HtmlLink {
         rel: String,
         text: String,
         href: String,

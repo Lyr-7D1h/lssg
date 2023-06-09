@@ -92,8 +92,24 @@ impl<R: Read> CharReader<R> {
         return Ok(buffer[0] as char);
     }
 
-    /// will read until eof or `op` is true
-    pub fn read_until(&mut self, op: fn(char) -> bool) -> Result<String, ParseError> {
+    /// Will read until eof or `op` is true including the true match
+    pub fn read_until_inclusive(&mut self, op: fn(char) -> bool) -> Result<String, ParseError> {
+        let mut result = String::new();
+        loop {
+            let c = match self.read_char()? {
+                Some(c) => c,
+                None => break,
+            };
+            result.push(c);
+            if op(c) {
+                break;
+            }
+        }
+        return Ok(result);
+    }
+
+    /// will read until eof or `op` is true excluding the c that matched
+    pub fn read_until_exclusive(&mut self, op: fn(char) -> bool) -> Result<String, ParseError> {
         let mut result = String::new();
         loop {
             let c = match self.peek_char()? {
