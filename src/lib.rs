@@ -2,7 +2,7 @@ pub mod parser;
 pub mod renderer;
 
 use std::{
-    fs::{self, copy, create_dir_all, write, File},
+    fs::{create_dir_all, read_to_string, write, File},
     io::{self, Read, Write},
     path::{Path, PathBuf},
 };
@@ -11,7 +11,7 @@ const DEFAULT_STYLESHEET: &'static str = include_str!("default_stylesheet.css");
 
 use log::info;
 use parser::{lexer::Token, parse_error::ParseError, Parser};
-use renderer::{HtmlDocument, HtmlDocumentRenderOptions, HtmlLink, Meta};
+use renderer::{HtmlDocument, HtmlDocumentRenderOptions, HtmlLink, Meta, Rel};
 
 #[derive(Debug)]
 pub enum LssgError {
@@ -29,9 +29,17 @@ impl From<io::Error> for LssgError {
     }
 }
 
+#[derive(Debug)]
+pub struct Link {
+    pub rel: Rel,
+    pub path: PathBuf,
+}
+
+#[derive(Debug)]
 pub struct LssgOptions {
     pub output_directory: PathBuf,
     pub global_stylesheet: Option<PathBuf>,
+    pub links: Vec<Link>,
     pub title: String,
     pub keywords: Vec<(String, String)>,
     pub language: String,
@@ -47,7 +55,7 @@ impl Lssg {
     }
 
     pub fn preview(&self, port: u32) {
-        // info!("Listing on 0.0.0.0:{port}");
+        info!("Listing on 0.0.0.0:{port}");
         todo!()
     }
 
@@ -56,19 +64,17 @@ impl Lssg {
         create_dir_all(&self.options.output_directory)?;
 
         let stylesheet_dest = &self.options.output_directory.join("main.css");
-        let mut stylesheet_dest_file = File::create(&stylesheet_dest)?;
-        match &self.options.global_stylesheet {
-            Some(p) => {
-                info!("Copying {:?} to {:?}", p, stylesheet_dest);
-                let mut buf = vec![];
-                File::open(p)?.read_to_end(&mut buf)?;
-                stylesheet_dest_file.write(&buf)?;
-            }
-            None => {
-                info!("Using default stylesheet");
-                stylesheet_dest_file.write(DEFAULT_STYLESHEET.as_bytes())?;
+        let mut stylesheet = if let Some(p) = &self.options.global_stylesheet {
+            read_to_string(p)?
+        } else {
+            DEFAULT_STYLESHEET.to_owned()
+        };
+        for l in self.options.links.iter() {
+            if let Rel::Stylesheet = l.rel {
+                stylesheet += &read_to_string(&l.path)?;
             }
         }
+        write(stylesheet_dest, stylesheet)?;
 
         let render_options = HtmlDocumentRenderOptions {
             links: vec![HtmlLink {
@@ -167,7 +173,9 @@ impl Lssg {
         } else {
             rel_path.chars().filter(|c| c == &'/').count() + 1
         };
-        render_options.links[0].href = "../".repeat(folder_depth) + "main.css";
+        let new_path = "../".repeat(folder_depth) + "main.css";
+        info!("Updating {} to {}", render_options.links[0].href, new_path);
+        render_options.links[0].href = new_path;
 
         let html = HtmlDocument::render(tokens, render_options);
         let html_output_path = output_directory.join("index.html");

@@ -73,7 +73,6 @@ impl<R: Read> Lexer<R> {
                         c => tag_kind.push(c),
                     };
                 }
-                println!("{tag_kind}");
             }
 
             text.push(chars[pos]);
