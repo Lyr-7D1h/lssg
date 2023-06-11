@@ -2,7 +2,7 @@ pub mod parser;
 pub mod renderer;
 
 use std::{
-    fs::{copy, create_dir_all, write, File},
+    fs::{self, copy, create_dir_all, write, File},
     io::{self, Read, Write},
     path::{Path, PathBuf},
 };
@@ -59,12 +59,9 @@ impl Lssg {
         let mut stylesheet_dest_file = File::create(&stylesheet_dest)?;
         match &self.options.global_stylesheet {
             Some(p) => {
-                info!(
-                    "Copying {:?} to {:?}",
-                    self.options.global_stylesheet, stylesheet_dest
-                );
+                info!("Copying {:?} to {:?}", p, stylesheet_dest);
                 let mut buf = vec![];
-                File::open(p)?.read(&mut buf)?;
+                File::open(p)?.read_to_end(&mut buf)?;
                 stylesheet_dest_file.write(&buf)?;
             }
             None => {
@@ -108,7 +105,7 @@ impl Lssg {
         &self,
         input_markdown: &Path,
         output_directory: &Path,
-        render_options: HtmlDocumentRenderOptions,
+        mut render_options: HtmlDocumentRenderOptions,
     ) -> Result<(), LssgError> {
         create_dir_all(output_directory)?;
         let file = File::open(input_markdown)?;
@@ -160,6 +157,17 @@ impl Lssg {
             output_directory,
             render_options.clone(),
         )?;
+
+        let rel_path = output_directory
+            .strip_prefix(&self.options.output_directory)
+            .map_err(|_| io::Error::new(io::ErrorKind::Other, "failed to strip prefix"))?
+            .to_string_lossy();
+        let folder_depth = if rel_path.is_empty() {
+            0
+        } else {
+            rel_path.chars().filter(|c| c == &'/').count() + 1
+        };
+        render_options.links[0].href = "../".repeat(folder_depth) + "main.css";
 
         let html = HtmlDocument::render(tokens, render_options);
         let html_output_path = output_directory.join("index.html");

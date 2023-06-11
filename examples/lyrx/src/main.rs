@@ -7,7 +7,7 @@ fn main() {
     SimpleLogger::new().init().unwrap();
     let lssg = Lssg::new(LssgOptions {
         output_directory: PathBuf::from("./build"),
-        global_stylesheet: None,
+        global_stylesheet: Some(PathBuf::from("./content/main.css")),
         title: "LyrX".into(),
         language: "en".into(),
         keywords: vec![],
