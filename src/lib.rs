@@ -1,21 +1,23 @@
 pub mod parser;
 pub mod renderer;
+mod stylesheet;
 
 use std::{
-    fs::{create_dir_all, read_to_string, write, File},
-    io::{self, Read, Write},
+    fs::{copy, create_dir_all, read_to_string, remove_dir_all, write, File},
+    io::{self},
     path::{Path, PathBuf},
 };
-
-const DEFAULT_STYLESHEET: &'static str = include_str!("default_stylesheet.css");
 
 use log::info;
 use parser::{lexer::Token, parse_error::ParseError, Parser};
 use renderer::{HtmlDocument, HtmlDocumentRenderOptions, HtmlLink, Meta, Rel};
 
+use crate::stylesheet::Stylesheet;
+
 #[derive(Debug)]
 pub enum LssgError {
     ParseError(ParseError),
+    Regex(regex::Error),
     Io(io::Error),
 }
 impl From<ParseError> for LssgError {
@@ -28,6 +30,11 @@ impl From<io::Error> for LssgError {
         Self::Io(error)
     }
 }
+impl From<regex::Error> for LssgError {
+    fn from(error: regex::Error) -> Self {
+        Self::Regex(error)
+    }
+}
 
 #[derive(Debug)]
 pub struct Link {
@@ -38,10 +45,14 @@ pub struct Link {
 #[derive(Debug)]
 pub struct LssgOptions {
     pub output_directory: PathBuf,
+    /// Overwrite the default stylesheet with your own
     pub global_stylesheet: Option<PathBuf>,
+    /// Add extra resources
     pub links: Vec<Link>,
     pub title: String,
+    /// Translates to meta tags <https://www.w3schools.com/tags/tag_meta.asp>
     pub keywords: Vec<(String, String)>,
+    /// Lang attribute ("en") <https://www.w3schools.com/tags/ref_language_codes.asp>
     pub language: String,
 }
 
@@ -59,34 +70,47 @@ impl Lssg {
         todo!()
     }
 
-    pub fn render(&self, input_markdown: &Path) -> Result<(), LssgError> {
+    pub fn stylesheet_path(&self) -> PathBuf {
+        self.options.output_directory.join("main.css")
+    }
+
+    // create all needed resources used by markdown (folders, stylesheets)
+    fn create_resources(&self) -> Result<(), LssgError> {
+        info!("Removing {:?}", self.options.output_directory);
+        remove_dir_all(&self.options.output_directory)?;
         info!("Creating {:?}", self.options.output_directory);
         create_dir_all(&self.options.output_directory)?;
 
-        let stylesheet_dest = &self.options.output_directory.join("main.css");
         let mut stylesheet = if let Some(p) = &self.options.global_stylesheet {
-            read_to_string(p)?
+            let mut s = Stylesheet::new();
+            s.load(p)?;
+            s
         } else {
-            DEFAULT_STYLESHEET.to_owned()
+            Stylesheet::default()
         };
         for l in self.options.links.iter() {
             if let Rel::Stylesheet = l.rel {
-                stylesheet += &read_to_string(&l.path)?;
+                stylesheet.load(&l.path)?;
             }
         }
-        write(stylesheet_dest, stylesheet)?;
+        info!(
+            "Writing concatinated stylesheet {:?}",
+            self.stylesheet_path()
+        );
+        write(self.stylesheet_path(), stylesheet.to_string())?;
+        // FIXME create resources so concatenated css works
+        println!("{:?}", stylesheet.resources());
+
+        Ok(())
+    }
+
+    pub fn render(&self, input_markdown: &Path) -> Result<(), LssgError> {
+        self.create_resources()?;
 
         let render_options = HtmlDocumentRenderOptions {
             links: vec![HtmlLink {
                 rel: renderer::Rel::Stylesheet,
-                href: "./".to_string()
-                    + stylesheet_dest
-                        .strip_prefix(&self.options.output_directory)
-                        .map_err(|_| {
-                            io::Error::new(io::ErrorKind::Other, "failed to strip prefix")
-                        })?
-                        .to_str()
-                        .unwrap(),
+                href: self.stylesheet_path().to_str().unwrap().to_owned(),
             }],
             title: self.options.title.clone(),
             meta: self
@@ -174,7 +198,10 @@ impl Lssg {
             rel_path.chars().filter(|c| c == &'/').count() + 1
         };
         let new_path = "../".repeat(folder_depth) + "main.css";
-        info!("Updating {} to {}", render_options.links[0].href, new_path);
+        info!(
+            "Updating html link {} to {}",
+            render_options.links[0].href, new_path
+        );
         render_options.links[0].href = new_path;
 
         let html = HtmlDocument::render(tokens, render_options);
