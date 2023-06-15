@@ -1,5 +1,6 @@
 pub mod parser;
 pub mod renderer;
+pub mod sitemap;
 mod stylesheet;
 
 use std::{
@@ -11,6 +12,7 @@ use std::{
 use log::info;
 use parser::{lexer::Token, parse_error::ParseError, Parser};
 use renderer::{HtmlDocument, HtmlDocumentRenderOptions, HtmlLink, Meta, Rel};
+use sitemap::SiteMap;
 
 use crate::stylesheet::Stylesheet;
 
@@ -44,6 +46,7 @@ pub struct Link {
 
 #[derive(Debug)]
 pub struct LssgOptions {
+    pub index: PathBuf,
     pub output_directory: PathBuf,
     /// Overwrite the default stylesheet with your own
     pub global_stylesheet: Option<PathBuf>,
@@ -104,8 +107,29 @@ impl Lssg {
         Ok(())
     }
 
-    pub fn render(&self, input_markdown: &Path) -> Result<(), LssgError> {
-        self.create_resources()?;
+    pub fn render(&self) -> Result<(), LssgError> {
+        let mut stylesheet = if let Some(p) = &self.options.global_stylesheet {
+            let mut s = Stylesheet::new();
+            s.load(p)?;
+            s
+        } else {
+            Stylesheet::default()
+        };
+        for l in self.options.links.iter() {
+            if let Rel::Stylesheet = l.rel {
+                stylesheet.load(&l.path)?;
+            }
+        }
+        // info!(
+        //     "Writing concatinated stylesheet {:?}",
+        //     self.stylesheet_path()
+        // );
+        // write(self.stylesheet_path(), stylesheet.to_string())?;
+        let mut site_map = SiteMap::from_index(self.options.index.clone())?;
+        site_map.add_stylesheet(stylesheet, site_map.root())?;
+        println!("{site_map:?}");
+
+        // self.create_resources()?;
 
         let render_options = HtmlDocumentRenderOptions {
             links: vec![HtmlLink {
@@ -125,7 +149,7 @@ impl Lssg {
             language: self.options.language.clone(),
         };
         self.render_recursive(
-            input_markdown,
+            &self.options.index,
             &self.options.output_directory,
             render_options,
         )
@@ -169,8 +193,11 @@ impl Lssg {
                     Token::Link { href, .. } => {
                         if href.starts_with("./") && href.ends_with(".md") {
                             let path = input_markdown.parent().unwrap().join(Path::new(&href));
-                            let output = output_directory.join(path.file_stem().unwrap());
+                            let output = output_directory
+                                .join(path.parent().unwrap().join(path.file_stem().unwrap()));
+                            // remove file extension
                             href.replace_range((href.len() - 3)..href.len(), "");
+                            println!("{output:?}");
                             lssg.render_recursive(&path, &output, render_options.clone())?;
                         }
                         Ok(())

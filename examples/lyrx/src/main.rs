@@ -1,11 +1,12 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use lssg::{renderer::Rel, Link, Lssg, LssgOptions};
 use simple_logger::SimpleLogger;
 
 fn main() {
     SimpleLogger::new().init().unwrap();
-    let lssg = Lssg::new(LssgOptions {
+    Lssg::new(LssgOptions {
+        index: PathBuf::from("./content/index.md"),
         output_directory: PathBuf::from("./build"),
         global_stylesheet: None,
         links: vec![Link {
@@ -15,6 +16,7 @@ fn main() {
         title: "LyrX".into(),
         language: "en".into(),
         keywords: vec![],
-    });
-    lssg.render(Path::new("./content/index.md")).unwrap();
+    })
+    .render()
+    .unwrap();
 }

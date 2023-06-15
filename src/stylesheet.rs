@@ -11,6 +11,7 @@ use crate::LssgError;
 const DEFAULT_STYLESHEET: &'static str = include_str!("default_stylesheet.css");
 
 /// Stylesheet representation for resource discovering and condensing multiple stylesheets into one
+#[derive(Debug)]
 pub struct Stylesheet {
     content: String,
     resources: HashSet<PathBuf>,
@@ -38,10 +39,6 @@ impl Stylesheet {
         }
     }
 
-    pub fn resources(&self) -> &HashSet<PathBuf> {
-        &self.resources
-    }
-
     /// Load stylesheet and discover local referenced resources
     pub fn load(&mut self, path: &Path) -> Result<(), LssgError> {
         let content = read_to_string(path)?;
@@ -52,6 +49,10 @@ impl Stylesheet {
         }
         self.content += &content;
         Ok(())
+    }
+
+    pub fn resources(&self) -> &HashSet<PathBuf> {
+        &self.resources
     }
 }
 
