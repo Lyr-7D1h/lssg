@@ -7,6 +7,7 @@
 Here have some links
 <nav>
 [Projects](./projects.md)
+[Blog](./blog.md)
 [<i class="fa-regular fa-envelope"></i> Email](mailto:lyr-7d1h@pm.me)
 [Ivelthoven](https://ivelthoven.nl)
 [Github](https://github.com/Lyr-7D1h)
