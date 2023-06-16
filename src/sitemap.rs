@@ -2,7 +2,7 @@ use core::fmt;
 use std::{
     fs::File,
     io,
-    path::{Display, Path, PathBuf},
+    path::{Path, PathBuf},
 };
 
 use crate::{
@@ -12,19 +12,43 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub enum Node {
+pub enum NodeType {
     Stylesheet(Stylesheet),
-    Page {
-        children: Vec<usize>,
-        tokens: Vec<Token>,
-        input: PathBuf,
-    },
-    Resource {
-        path: PathBuf,
-    },
-    Folder {
-        childeren: Vec<usize>,
-    },
+    Page { tokens: Vec<Token>, input: PathBuf },
+    Resource { input: PathBuf },
+    Folder,
+}
+
+#[derive(Debug)]
+pub struct Node {
+    name: String,
+    children: Vec<usize>,
+    node_type: NodeType,
+}
+
+impl Node {
+    pub fn new(name: String, children: Vec<usize>, node_type: NodeType) -> Node {
+        Node {
+            name,
+            children,
+            node_type,
+        }
+    }
+}
+
+fn name_from_path(path: &Path) -> Result<String, LssgError> {
+    Ok(path
+        .file_stem()
+        .ok_or(LssgError::Io(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("{path:?} does not have a filename"),
+        )))?
+        .to_str()
+        .ok_or(LssgError::Io(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("{path:?} is non unicode"),
+        )))?
+        .to_owned())
 }
 
 /// Code representation of all nodes within the site (hiarchy and how nodes are related)
@@ -71,10 +95,10 @@ impl SiteMap {
             }
         }
 
-        nodes.push(Node::Page {
+        nodes.push(Node {
+            name: name_from_path(&input)?,
             children,
-            tokens,
-            input,
+            node_type: NodeType::Page { tokens, input },
         });
         return Ok(nodes.len() - 1);
     }
@@ -98,6 +122,7 @@ impl SiteMap {
     /// Add a stylesheet and all resources needed by the stylesheet
     pub fn add_stylesheet(
         &mut self,
+        name: String,
         stylesheet: Stylesheet,
         parent_id: usize,
     ) -> Result<usize, LssgError> {
@@ -113,22 +138,33 @@ impl SiteMap {
                 .map_err(|_| io::Error::new(io::ErrorKind::Other, "failed to strip prefix"))?;
 
             let mut parent_id = parent_id.clone();
-            for name in relative.to_str().unwrap_or("").split("/") {
-                if name == "." {
+            for path_part in relative.to_str().unwrap_or("").split("/") {
+                if path_part == "." {
                     continue;
                 }
                 // assume file when there is a file extenstion (there is a ".")
-                if name.contains(".") {
+                if path_part.contains(".") {
                     self.add(
-                        Node::Resource {
-                            path: resource.clone(),
+                        Node {
+                            name: name_from_path(&resource)?,
+                            children: vec![],
+                            node_type: NodeType::Resource {
+                                input: resource.clone(),
+                            },
                         },
                         parent_id,
                     )?;
                     break;
                 }
 
-                parent_id = self.add(Node::Folder { childeren: vec![] }, parent_id)?;
+                parent_id = self.add(
+                    Node {
+                        name: name.clone(),
+                        children: vec![],
+                        node_type: NodeType::Folder,
+                    },
+                    parent_id,
+                )?;
             }
         }
 
@@ -138,6 +174,26 @@ impl SiteMap {
 
 impl fmt::Display for SiteMap {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+        let mut out: String = String::new();
+
+        let mut current_depth = 0;
+        let mut queue = vec![(self.root, 0)];
+        while let Some((n, depth)) = queue.pop() {
+            let node = &self.nodes[n];
+            for c in &node.children {
+                queue.push((c.clone(), depth + 1))
+            }
+            if depth < current_depth {
+                out.push('\n');
+            }
+            if current_depth != 0 {
+                out += "\t - \t"
+            }
+            out += &node.name;
+            current_depth = depth + 1;
+        }
+
+        f.write_str(&out)?;
+        Ok(())
     }
 }
