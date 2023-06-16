@@ -4,7 +4,7 @@ pub mod sitemap;
 mod stylesheet;
 
 use std::{
-    fs::{copy, create_dir_all, read_to_string, remove_dir_all, write, File},
+    fs::{copy, create_dir, create_dir_all, read_to_string, remove_dir_all, write, File},
     io::{self},
     path::{Path, PathBuf},
 };
@@ -73,40 +73,6 @@ impl Lssg {
         todo!()
     }
 
-    pub fn stylesheet_path(&self) -> PathBuf {
-        self.options.output_directory.join("main.css")
-    }
-
-    // create all needed resources used by markdown (folders, stylesheets)
-    fn create_resources(&self) -> Result<(), LssgError> {
-        info!("Removing {:?}", self.options.output_directory);
-        remove_dir_all(&self.options.output_directory)?;
-        info!("Creating {:?}", self.options.output_directory);
-        create_dir_all(&self.options.output_directory)?;
-
-        let mut stylesheet = if let Some(p) = &self.options.global_stylesheet {
-            let mut s = Stylesheet::new();
-            s.load(p)?;
-            s
-        } else {
-            Stylesheet::default()
-        };
-        for l in self.options.links.iter() {
-            if let Rel::Stylesheet = l.rel {
-                stylesheet.load(&l.path)?;
-            }
-        }
-        info!(
-            "Writing concatinated stylesheet {:?}",
-            self.stylesheet_path()
-        );
-        write(self.stylesheet_path(), stylesheet.to_string())?;
-        // FIXME create resources so concatenated css works
-        println!("{:?}", stylesheet.resources());
-
-        Ok(())
-    }
-
     pub fn render(&self) -> Result<(), LssgError> {
         let mut stylesheet = if let Some(p) = &self.options.global_stylesheet {
             let mut s = Stylesheet::new();
@@ -120,22 +86,14 @@ impl Lssg {
                 stylesheet.load(&l.path)?;
             }
         }
-        // info!(
-        //     "Writing concatinated stylesheet {:?}",
-        //     self.stylesheet_path()
-        // );
-        // write(self.stylesheet_path(), stylesheet.to_string())?;
+
         let mut site_map = SiteMap::from_index(self.options.index.clone())?;
-        site_map.add_stylesheet("main".into(), stylesheet, site_map.root())?;
+        let stylesheet_id =
+            site_map.add_stylesheet("main.css".into(), stylesheet, site_map.root())?;
         println!("{site_map}");
 
-        // self.create_resources()?;
-
         let render_options = HtmlDocumentRenderOptions {
-            links: vec![HtmlLink {
-                rel: renderer::Rel::Stylesheet,
-                href: self.stylesheet_path().to_str().unwrap().to_owned(),
-            }],
+            links: vec![],
             title: self.options.title.clone(),
             meta: self
                 .options
@@ -148,93 +106,42 @@ impl Lssg {
                 .collect(),
             language: self.options.language.clone(),
         };
-        self.render_recursive(
-            &self.options.index,
-            &self.options.output_directory,
-            render_options,
-        )
-    }
 
-    fn render_recursive(
-        &self,
-        input_markdown: &Path,
-        output_directory: &Path,
-        mut render_options: HtmlDocumentRenderOptions,
-    ) -> Result<(), LssgError> {
-        create_dir_all(output_directory)?;
-        let file = File::open(input_markdown)?;
-        let mut tokens = Parser::parse(file)?;
+        info!("Removing {:?}", self.options.output_directory);
+        remove_dir_all(&self.options.output_directory)?;
+        info!("Creating {:?}", self.options.output_directory);
+        create_dir_all(&self.options.output_directory)?;
 
-        /// Render any links to local markdown files too
-        fn render_pages(
-            tokens: &mut Vec<Token>,
-            lssg: &Lssg,
-            input_markdown: &Path,
-            output_directory: &Path,
-            render_options: HtmlDocumentRenderOptions,
-        ) -> Result<(), LssgError> {
-            tokens
-                .into_iter()
-                .map(|t| match t {
-                    Token::Heading { tokens, .. } => render_pages(
-                        tokens,
-                        lssg,
-                        input_markdown,
-                        output_directory,
-                        render_options.clone(),
-                    ),
-                    Token::Paragraph { tokens, .. } => render_pages(
-                        tokens,
-                        lssg,
-                        input_markdown,
-                        output_directory,
-                        render_options.clone(),
-                    ),
-                    Token::Link { href, .. } => {
-                        if href.starts_with("./") && href.ends_with(".md") {
-                            let path = input_markdown.parent().unwrap().join(Path::new(&href));
-                            let output = output_directory
-                                .join(path.parent().unwrap().join(path.file_stem().unwrap()));
-                            // remove file extension
-                            href.replace_range((href.len() - 3)..href.len(), "");
-                            println!("{output:?}");
-                            lssg.render_recursive(&path, &output, render_options.clone())?;
-                        }
-                        Ok(())
-                    }
-                    _ => Ok(()),
-                })
-                .collect()
+        let mut queue: Vec<usize> = vec![site_map.root()];
+        while let Some(id) = queue.pop() {
+            let node = site_map.get(id)?;
+            queue.append(&mut node.children.clone());
+            let path = self.options.output_directory.join(site_map.path(id));
+            match &node.node_type {
+                sitemap::NodeType::Stylesheet(s) => {
+                    info!("Writing concatinated stylesheet {path:?}",);
+                    write(path, s.to_string())?;
+                }
+                sitemap::NodeType::Resource { input } => {
+                    copy(input, path)?;
+                }
+                sitemap::NodeType::Folder => {
+                    create_dir(path)?;
+                }
+                sitemap::NodeType::Page { tokens, .. } => {
+                    let mut options = render_options.clone();
+                    options.links.push(HtmlLink {
+                        rel: renderer::Rel::Stylesheet,
+                        href: site_map.rel_path(id, stylesheet_id),
+                    });
+                    let html = HtmlDocument::render(tokens, options);
+                    create_dir_all(&path)?;
+                    let html_output_path = path.join("index.html");
+                    info!("Writing to {html_output_path:?}");
+                    write(html_output_path, html)?;
+                }
+            }
         }
-
-        render_pages(
-            &mut tokens,
-            self,
-            input_markdown,
-            output_directory,
-            render_options.clone(),
-        )?;
-
-        let rel_path = output_directory
-            .strip_prefix(&self.options.output_directory)
-            .map_err(|_| io::Error::new(io::ErrorKind::Other, "failed to strip prefix"))?
-            .to_string_lossy();
-        let folder_depth = if rel_path.is_empty() {
-            0
-        } else {
-            rel_path.chars().filter(|c| c == &'/').count() + 1
-        };
-        let new_path = "../".repeat(folder_depth) + "main.css";
-        info!(
-            "Updating html link {} to {}",
-            render_options.links[0].href, new_path
-        );
-        render_options.links[0].href = new_path;
-
-        let html = HtmlDocument::render(tokens, render_options);
-        let html_output_path = output_directory.join("index.html");
-        info!("Writing to {html_output_path:?}");
-        write(html_output_path, html)?;
 
         Ok(())
     }

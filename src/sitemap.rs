@@ -1,5 +1,6 @@
 use core::fmt;
 use std::{
+    collections::{HashMap, HashSet},
     fs::File,
     io,
     path::{Path, PathBuf},
@@ -21,19 +22,10 @@ pub enum NodeType {
 
 #[derive(Debug)]
 pub struct Node {
-    name: String,
-    children: Vec<usize>,
-    node_type: NodeType,
-}
-
-impl Node {
-    pub fn new(name: String, children: Vec<usize>, node_type: NodeType) -> Node {
-        Node {
-            name,
-            children,
-            node_type,
-        }
-    }
+    pub name: String,
+    pub parent: Option<usize>,
+    pub children: Vec<usize>,
+    pub node_type: NodeType,
 }
 
 fn filestem_from_path(path: &Path) -> Result<String, LssgError> {
@@ -77,7 +69,7 @@ pub struct SiteMap {
 impl SiteMap {
     pub fn from_index(index: PathBuf) -> Result<SiteMap, LssgError> {
         let mut nodes = vec![];
-        let root = Self::from_index_recursive(&mut nodes, index.clone())?;
+        let root = Self::from_index_recursive(&mut nodes, index.clone(), None)?;
         Ok(SiteMap {
             nodes,
             root,
@@ -85,9 +77,22 @@ impl SiteMap {
         })
     }
 
-    fn from_index_recursive(nodes: &mut Vec<Node>, input: PathBuf) -> Result<usize, LssgError> {
+    fn from_index_recursive(
+        nodes: &mut Vec<Node>,
+        input: PathBuf,
+        parent: Option<usize>,
+    ) -> Result<usize, LssgError> {
         let file = File::open(&input)?;
         let mut tokens = Parser::parse(file)?;
+
+        // create early because of the need of an parent id
+        nodes.push(Node {
+            name: filestem_from_path(&input)?,
+            parent,
+            children: vec![],            // filling later
+            node_type: NodeType::Folder, // hack changing after children created
+        });
+        let id = nodes.len() - 1;
 
         let mut children = vec![];
         let mut queue = vec![&mut tokens];
@@ -101,7 +106,7 @@ impl SiteMap {
                             let path = input.parent().unwrap().join(Path::new(&href));
                             // remove file extension
                             href.replace_range((href.len() - 3)..href.len(), "");
-                            let id = Self::from_index_recursive(nodes, path)?;
+                            let id = Self::from_index_recursive(nodes, path, Some(id))?;
                             children.push(id)
                         }
                     }
@@ -110,12 +115,9 @@ impl SiteMap {
             }
         }
 
-        nodes.push(Node {
-            name: filestem_from_path(&input)?,
-            children,
-            node_type: NodeType::Page { tokens, input },
-        });
-        return Ok(nodes.len() - 1);
+        nodes[id].children = children;
+        nodes[id].node_type = NodeType::Page { tokens, input };
+        return Ok(id);
     }
 
     pub fn root(&self) -> usize {
@@ -127,6 +129,54 @@ impl SiteMap {
             io::ErrorKind::NotFound,
             format!("Could not find {id} in SiteMap"),
         )))
+    }
+
+    pub fn path(&self, mut id: usize) -> String {
+        if id == self.root {
+            return String::new();
+        }
+
+        let mut path = vec![self.nodes[id].name.clone()];
+        while let Some(i) = self.nodes[id].parent {
+            if i == self.root {
+                break;
+            }
+            path.push(self.nodes[i].name.clone());
+            id = i;
+        }
+        path.reverse();
+        path.join("/")
+    }
+
+    pub fn rel_path(&self, mut from: usize, mut to: usize) -> String {
+        let mut visited = HashMap::new();
+        let mut to_path = vec![self.nodes[to].name.clone()];
+
+        let mut depth = 1;
+        while let Some(i) = self.nodes[to].parent {
+            visited.insert(i, depth);
+            depth += 1;
+            to = i;
+            if i != self.root {
+                to_path.push(self.nodes[i].name.clone())
+            }
+        }
+
+        depth = 0;
+        let mut to_depth = to_path.len();
+        while let Some(i) = self.nodes[from].parent {
+            depth += 1;
+            from = i;
+            if let Some(f_depth) = visited.get(&i) {
+                to_depth = *f_depth;
+                break;
+            }
+        }
+
+        to_path.reverse();
+        let path = format!("{}{}", "../".repeat(depth), to_path[0..to_depth].join("/"));
+
+        path
     }
 
     pub fn add(&mut self, node: Node, parent_id: usize) -> Result<usize, LssgError> {
@@ -173,6 +223,7 @@ impl SiteMap {
                     self.add(
                         Node {
                             name: filename_from_path(&resource)?,
+                            parent: Some(parent_id),
                             children: vec![],
                             node_type: NodeType::Resource {
                                 input: resource.clone(),
@@ -186,6 +237,7 @@ impl SiteMap {
                 parent_id = self.add(
                     Node {
                         name: path_part.to_owned(),
+                        parent: Some(parent_id),
                         children: vec![],
                         node_type: NodeType::Folder,
                     },
@@ -197,6 +249,7 @@ impl SiteMap {
         self.add(
             Node {
                 name,
+                parent: Some(parent_id),
                 children: vec![],
                 node_type: NodeType::Stylesheet(stylesheet),
             },
@@ -213,12 +266,14 @@ impl fmt::Display for SiteMap {
         let mut queue = vec![(self.root, 0)];
         while let Some((n, depth)) = queue.pop() {
             let node = &self.nodes[n];
-            println!("{}", node.name);
             for c in &node.children {
                 queue.push((c.clone(), depth + 1))
             }
             if depth < current_depth {
                 out.push('\n');
+                for _ in 0..(depth - 1) * 2 {
+                    out.push('\t')
+                }
             }
             if current_depth != 0 {
                 out += "\t - \t"

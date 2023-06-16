@@ -9,10 +9,10 @@ pub enum Rel {
     Stylesheet,
     Icon,
 }
-impl TryFrom<String> for Rel {
+impl TryFrom<&String> for Rel {
     type Error = Box<dyn Error>;
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
+    fn try_from(value: &String) -> Result<Self, Self::Error> {
         match &value[..] {
             "stylesheet" => Ok(Rel::Stylesheet),
             _ => Err(format!("Invalid rel value given {value}").into()),
@@ -51,7 +51,7 @@ pub struct HtmlDocumentRenderOptions {
 pub struct HtmlDocument {}
 
 impl HtmlDocument {
-    fn render_body_content(tokens: Vec<Token>, options: &mut HtmlDocumentRenderOptions) -> String {
+    fn render_body_content(tokens: &Vec<Token>, options: &mut HtmlDocumentRenderOptions) -> String {
         let mut body_content = String::new();
         for t in tokens.into_iter() {
             let html = match t {
@@ -71,10 +71,13 @@ impl HtmlDocument {
                 Token::Code { language, code } => format!("<code>{code}</code>"),
                 Token::Space { raw } => format!("<br />"),
                 Token::Link { text, href } => format!(r#"<a href="{href}">{text}</a>"#),
-                Token::Text { text } => text,
+                Token::Text { text } => text.clone(),
                 Token::HtmlLink { rel, text, href } => {
                     if let Ok(rel) = Rel::try_from(rel) {
-                        options.links.push(HtmlLink { rel, href })
+                        options.links.push(HtmlLink {
+                            rel,
+                            href: href.clone(),
+                        })
                     }
                     String::new()
                 }
@@ -85,7 +88,7 @@ impl HtmlDocument {
         body_content
     }
 
-    pub fn render(tokens: Vec<Token>, mut options: HtmlDocumentRenderOptions) -> String {
+    pub fn render(tokens: &Vec<Token>, mut options: HtmlDocumentRenderOptions) -> String {
         let body_content = Self::render_body_content(tokens, &mut options);
         let body = format!("<body>{body_content}{WATERMARK}</body>");
 
