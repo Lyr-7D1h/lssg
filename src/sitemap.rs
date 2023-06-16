@@ -131,6 +131,7 @@ impl SiteMap {
         )))
     }
 
+    // Get the path of a node
     pub fn path(&self, mut id: usize) -> String {
         if id == self.root {
             return String::new();
@@ -148,6 +149,7 @@ impl SiteMap {
         path.join("/")
     }
 
+    // Get the relative path between two nodes
     pub fn rel_path(&self, mut from: usize, mut to: usize) -> String {
         let mut visited = HashMap::new();
         let mut to_path = vec![self.nodes[to].name.clone()];

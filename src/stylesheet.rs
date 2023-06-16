@@ -14,6 +14,7 @@ const DEFAULT_STYLESHEET: &'static str = include_str!("default_stylesheet.css");
 #[derive(Debug)]
 pub struct Stylesheet {
     content: String,
+    // absolute path to resources
     resources: HashSet<PathBuf>,
 }
 
