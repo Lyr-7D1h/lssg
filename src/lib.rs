@@ -126,8 +126,8 @@ impl Lssg {
         // );
         // write(self.stylesheet_path(), stylesheet.to_string())?;
         let mut site_map = SiteMap::from_index(self.options.index.clone())?;
-        println!("{site_map}");
         site_map.add_stylesheet("main".into(), stylesheet, site_map.root())?;
+        println!("{site_map}");
 
         // self.create_resources()?;
 

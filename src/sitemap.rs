@@ -36,9 +36,24 @@ impl Node {
     }
 }
 
-fn name_from_path(path: &Path) -> Result<String, LssgError> {
+fn filestem_from_path(path: &Path) -> Result<String, LssgError> {
     Ok(path
         .file_stem()
+        .ok_or(LssgError::Io(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("{path:?} does not have a filename"),
+        )))?
+        .to_str()
+        .ok_or(LssgError::Io(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            format!("{path:?} is non unicode"),
+        )))?
+        .to_owned())
+}
+
+fn filename_from_path(path: &Path) -> Result<String, LssgError> {
+    Ok(path
+        .file_name()
         .ok_or(LssgError::Io(io::Error::new(
             io::ErrorKind::InvalidInput,
             format!("{path:?} does not have a filename"),
@@ -96,7 +111,7 @@ impl SiteMap {
         }
 
         nodes.push(Node {
-            name: name_from_path(&input)?,
+            name: filestem_from_path(&input)?,
             children,
             node_type: NodeType::Page { tokens, input },
         });
@@ -115,8 +130,19 @@ impl SiteMap {
     }
 
     pub fn add(&mut self, node: Node, parent_id: usize) -> Result<usize, LssgError> {
+        // return id if already exists
+        if let Some(id) = self.nodes[parent_id]
+            .children
+            .iter()
+            .find(|n| self.nodes[**n].name == node.name)
+        {
+            return Ok(*id);
+        }
+
         self.nodes.push(node);
-        Ok(self.nodes.len() - 1)
+        let id = self.nodes.len() - 1;
+        self.nodes[parent_id].children.push(id);
+        Ok(id)
     }
 
     /// Add a stylesheet and all resources needed by the stylesheet
@@ -146,7 +172,7 @@ impl SiteMap {
                 if path_part.contains(".") {
                     self.add(
                         Node {
-                            name: name_from_path(&resource)?,
+                            name: filename_from_path(&resource)?,
                             children: vec![],
                             node_type: NodeType::Resource {
                                 input: resource.clone(),
@@ -159,7 +185,7 @@ impl SiteMap {
 
                 parent_id = self.add(
                     Node {
-                        name: name.clone(),
+                        name: path_part.to_owned(),
                         children: vec![],
                         node_type: NodeType::Folder,
                     },
@@ -168,7 +194,14 @@ impl SiteMap {
             }
         }
 
-        todo!()
+        self.add(
+            Node {
+                name,
+                children: vec![],
+                node_type: NodeType::Stylesheet(stylesheet),
+            },
+            parent_id,
+        )
     }
 }
 
@@ -180,6 +213,7 @@ impl fmt::Display for SiteMap {
         let mut queue = vec![(self.root, 0)];
         while let Some((n, depth)) = queue.pop() {
             let node = &self.nodes[n];
+            println!("{}", node.name);
             for c in &node.children {
                 queue.push((c.clone(), depth + 1))
             }
