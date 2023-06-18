@@ -154,6 +154,7 @@ impl SiteMap {
         let mut visited = HashMap::new();
         let mut to_path = vec![self.nodes[to].name.clone()];
 
+        // discover all parents from destination
         let mut depth = 1;
         while let Some(i) = self.nodes[to].parent {
             visited.insert(i, depth);
@@ -164,6 +165,7 @@ impl SiteMap {
             }
         }
 
+        // find shared parent and go back till that point
         depth = 0;
         let mut to_depth = to_path.len();
         while let Some(i) = self.nodes[from].parent {
@@ -175,6 +177,7 @@ impl SiteMap {
             }
         }
 
+        // get remaining path
         to_path.reverse();
         let path = format!("{}{}", "../".repeat(depth), to_path[0..to_depth].join("/"));
 
