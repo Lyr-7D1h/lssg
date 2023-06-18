@@ -204,7 +204,7 @@ impl SiteMap {
     pub fn add_stylesheet(
         &mut self,
         name: String,
-        stylesheet: Stylesheet,
+        mut stylesheet: Stylesheet,
         parent_id: usize,
     ) -> Result<usize, LssgError> {
         let root_path = self
@@ -214,6 +214,7 @@ impl SiteMap {
             .to_owned();
 
         for resource in stylesheet.resources() {
+            let resource = resource.clone();
             let relative = resource
                 .strip_prefix(&root_path)
                 .map_err(|_| io::Error::new(io::ErrorKind::Other, "failed to strip prefix"))?;
@@ -225,7 +226,7 @@ impl SiteMap {
                 }
                 // assume file when there is a file extenstion (there is a ".")
                 if path_part.contains(".") {
-                    self.add(
+                    let id = self.add(
                         Node {
                             name: filename_from_path(&resource)?,
                             parent: Some(parent_id),
@@ -236,6 +237,7 @@ impl SiteMap {
                         },
                         parent_id,
                     )?;
+                    stylesheet.update_resource(&resource, PathBuf::from(self.path(id)));
                     break;
                 }
 

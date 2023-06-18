@@ -48,8 +48,9 @@ pub struct Link {
 pub struct LssgOptions {
     pub index: PathBuf,
     pub output_directory: PathBuf,
-    /// Overwrite the default stylesheet with your own
     pub global_stylesheet: Option<PathBuf>,
+    /// Overwrite the default stylesheet with your own
+    pub overwrite_default_stylesheet: bool,
     /// Add extra resources
     pub links: Vec<Link>,
     pub title: String,
@@ -75,15 +76,19 @@ impl Lssg {
 
     pub fn render(&self) -> Result<(), LssgError> {
         let mut stylesheet = if let Some(p) = &self.options.global_stylesheet {
-            let mut s = Stylesheet::new();
-            s.load(p)?;
+            let mut s = if self.options.overwrite_default_stylesheet {
+                Stylesheet::new()
+            } else {
+                Stylesheet::default()
+            };
+            s.append(p)?;
             s
         } else {
             Stylesheet::default()
         };
         for l in self.options.links.iter() {
             if let Rel::Stylesheet = l.rel {
-                stylesheet.load(&l.path)?;
+                stylesheet.append(&l.path)?;
             }
         }
 

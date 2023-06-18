@@ -1,5 +1,5 @@
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fs::read_to_string,
     path::{Path, PathBuf},
 };
@@ -14,13 +14,7 @@ const DEFAULT_STYLESHEET: &'static str = include_str!("default_stylesheet.css");
 #[derive(Debug)]
 pub struct Stylesheet {
     content: String,
-    // absolute path to resources
-    resources: HashSet<PathBuf>,
-}
-
-pub fn urls(content: &String) -> Result<Vec<String>, LssgError> {
-    let re = Regex::new(r#"url\("(\.[^)"]*)"\)"#)?;
-    Ok(re.captures_iter(content).map(|m| m[1].to_owned()).collect())
+    resources: HashMap<PathBuf, HashSet<String>>,
 }
 
 impl Stylesheet {
@@ -28,7 +22,7 @@ impl Stylesheet {
     pub fn default() -> Stylesheet {
         Stylesheet {
             content: DEFAULT_STYLESHEET.to_owned(),
-            resources: HashSet::new(),
+            resources: HashMap::new(),
         }
     }
 
@@ -36,24 +30,57 @@ impl Stylesheet {
     pub fn new() -> Stylesheet {
         Stylesheet {
             content: String::new(),
-            resources: HashSet::new(),
+            resources: HashMap::new(),
         }
     }
 
-    /// Load stylesheet and discover local referenced resources
-    pub fn load(&mut self, path: &Path) -> Result<(), LssgError> {
+    pub fn add_resource(&mut self, input: PathBuf, raw: String) {
+        if let Some(r) = self.resources.get_mut(&input) {
+            r.insert(raw);
+        } else {
+            let mut set = HashSet::new();
+            set.insert(raw);
+            self.resources.insert(input, set);
+        }
+    }
+
+    /// Append stylesheet and discover local referenced resources
+    pub fn append(&mut self, path: &Path) -> Result<(), LssgError> {
         let content = read_to_string(path)?;
 
-        for r in urls(&content)?.into_iter() {
-            self.resources
-                .insert(path.parent().unwrap_or(Path::new("/")).join(r));
+        let re = Regex::new(r#"url\("?(\.[^)"]*)"?\)"#)?;
+        for r in re.captures_iter(&content).into_iter() {
+            self.add_resource(
+                path.parent().unwrap_or(Path::new("/")).join(&r[1]),
+                r[0].to_owned(),
+            );
         }
         self.content += &content;
         Ok(())
     }
 
-    pub fn resources(&self) -> &HashSet<PathBuf> {
-        &self.resources
+    pub fn resources(&self) -> Vec<PathBuf> {
+        Vec::from_iter(self.resources.keys().map(|k| k.clone()))
+    }
+
+    /// Update a resource input path to a new one
+    pub fn update_resource(&mut self, resource: &Path, updated_resource: PathBuf) -> bool {
+        let updated_resource = updated_resource.to_string_lossy().to_string();
+        match self.resources.get_mut(resource) {
+            None => false,
+            Some(raw) => {
+                for r in raw.iter() {
+                    self.content = self
+                        .content
+                        .replace(r, &format!("url(\"{}\")", updated_resource));
+                }
+                let mut new_raw = HashSet::new();
+                new_raw.insert(updated_resource);
+                *raw = new_raw;
+
+                true
+            }
+        }
     }
 }
 
