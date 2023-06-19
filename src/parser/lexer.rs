@@ -73,6 +73,7 @@ impl<R: Read> Lexer<R> {
                         c => tag_kind.push(c),
                     };
                 }
+                // FIXME support for html tokens
             }
 
             text.push(chars[pos]);
@@ -91,7 +92,7 @@ impl<R: Read> Lexer<R> {
         match self.reader.peek_char()? {
             None => return Ok(Token::EOF),
             Some(c) => {
-                // Heading
+                // Heading (#*{depth} {text})
                 if c == '#' {
                     let chars: Vec<char> = self.reader.peek_string(7)?.chars().collect();
                     let mut ignore = false;
@@ -103,15 +104,15 @@ impl<R: Read> Lexer<R> {
                             _ => ignore = true,
                         }
                     }
-                    let text: String = sanitize_text(
-                        self.reader
-                            .read_until_inclusive(|c| c == '\n')?
-                            .chars()
-                            .skip(depth as usize + 1)
-                            .collect(),
-                    );
-                    let tokens = self.read_inline_tokens(&text)?;
                     if ignore == false {
+                        let text: String = sanitize_text(
+                            self.reader
+                                .read_until_inclusive(|c| c == '\n')?
+                                .chars()
+                                .skip(depth as usize + 1)
+                                .collect(),
+                        );
+                        let tokens = self.read_inline_tokens(&text)?;
                         return Ok(Token::Heading {
                             depth,
                             text,
@@ -134,7 +135,7 @@ impl<R: Read> Lexer<R> {
 }
 
 /// https://github.com/markedjs/marked/blob/master/src/Tokenizer.js
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Token {
     Heading {
         /// 0-6
