@@ -1,4 +1,4 @@
-use std::io::Read;
+use std::{collections::HashMap, io::Read};
 
 use super::{char_reader::CharReader, parse_error::ParseError};
 
@@ -6,6 +6,7 @@ pub struct Lexer<R> {
     reader: CharReader<R>,
 }
 
+/// Remove any tailing new line
 fn sanitize_text(text: String) -> String {
     let mut chars: Vec<char> = text.chars().collect();
     if let Some(c) = chars.last() {
@@ -73,7 +74,33 @@ impl<R: Read> Lexer<R> {
                         c => tag_kind.push(c),
                     };
                 }
-                // FIXME support for html tokens
+
+                let (mut end_tag_start, mut end_tag_end) = (0, 0);
+                if !tag_kind.is_empty() {
+                    for i in start_tag_end..chars.len() {
+                        if chars[i] == '<' {
+                            if let Some(c) = chars.get(i + 1) {
+                                if c == &'/' {
+                                    let exit_tag = chars[i..i + tag_kind.len()]
+                                        .into_iter()
+                                        .collect::<String>();
+                                    println!("{exit_tag}");
+                                    if exit_tag == tag_kind {
+                                        end_tag_start = i;
+                                        end_tag_end = i + tag_kind.len();
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if start_tag < start_tag_end && end_tag_start < end_tag_end {
+                    let tag: String = chars[start_tag + 1..start_tag_end].into_iter().collect();
+                    // pos = end_tag_end;
+                    println!("Kind {tag_kind}");
+                }
             }
 
             text.push(chars[pos]);
@@ -121,6 +148,41 @@ impl<R: Read> Lexer<R> {
                     }
                 }
 
+                if c == '<' {
+                    let start_tag = self.reader.read_until_inclusive(|c| c == '>')?;
+
+                    let mut kind = String::new();
+                    for c in start_tag[1..start_tag.len() - 1].chars() {
+                        match c {
+                            ' ' => break,
+                            '\n' => break,
+                            _ => kind.push(c),
+                        }
+                    }
+
+                    let mut content = String::new();
+                    while let Some(c) = self.reader.read_char()? {
+                        if c == '<' {
+                            let end_tag_kind = self.reader.peek_string(kind.len() + 2)?;
+                            if end_tag_kind == format!("/{kind}>") {
+                                self.reader.read_string(kind.len() + 2)?;
+                                break;
+                            }
+                        }
+
+                        content.push(c)
+                    }
+
+                    CharReader::new(content.as_bytes());
+
+                    let tokens = self.read_inline_tokens(&content)?;
+                    return Ok(Token::Html {
+                        kind,
+                        attributes: HashMap::new(),
+                        tokens,
+                    });
+                }
+
                 if c == '\n' {
                     let raw = self.reader.read_until_exclusive(|c| c != '\n')?;
                     return Ok(Token::Space { raw });
@@ -164,13 +226,13 @@ pub enum Token {
         text: String,
         href: String,
     },
-    HtmlLink {
-        rel: String,
-        text: String,
-        href: String,
-    },
     Text {
         text: String,
+    },
+    Html {
+        kind: String,
+        attributes: HashMap<String, String>,
+        tokens: Vec<Token>,
     },
     EOF,
 }

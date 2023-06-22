@@ -71,7 +71,16 @@ impl<R: Read> CharReader<R> {
     //     return Ok(String::from_utf8(buffer)?);
     // }
 
+    /// Read {length} bytes returning a smaller string on EOF
     pub fn read_string(&mut self, length: usize) -> Result<String, ParseError> {
+        let mut buffer = vec![0; length];
+        self.read(&mut buffer)?;
+        return Ok(String::from_utf8(buffer)
+            .map_err(|_| ParseError::invalid("String contains invalid utf-8"))?);
+    }
+
+    /// Read exactly {length} bytes otherwise errors
+    pub fn read_string_exact(&mut self, length: usize) -> Result<String, ParseError> {
         let mut buffer = vec![0; length];
         self.read_exact(&mut buffer)?;
         return Ok(String::from_utf8(buffer)
@@ -156,7 +165,7 @@ impl<R: Read> Read for CharReader<R> {
 fn test_peek() -> Result<(), ParseError> {
     let mut reader = CharReader::new("This is a piece of text".as_bytes());
     assert_eq!(reader.peek_string(4)?, "This".to_owned());
-    assert_eq!(reader.read_string(4)?, "This".to_owned());
+    assert_eq!(reader.read_string_exact(4)?, "This".to_owned());
     assert_eq!(reader.read_char_exact()?, ' ');
 
     assert_eq!(reader.peek_string(3)?, "is ".to_owned());
@@ -164,11 +173,11 @@ fn test_peek() -> Result<(), ParseError> {
 
     assert_eq!(reader.peek_char_exact()?, 'i');
     assert_eq!(reader.peek_string(2)?, "is".to_owned());
-    assert_eq!(reader.read_string(10)?, "is a piece".to_owned());
+    assert_eq!(reader.read_string_exact(10)?, "is a piece".to_owned());
 
     assert_eq!(reader.peek_char_exact()?, ' ');
     assert_eq!(reader.read_char_exact()?, ' ');
-    assert_eq!(reader.read_string(7)?, "of text".to_owned());
+    assert_eq!(reader.read_string_exact(7)?, "of text".to_owned());
     assert!(reader.read_char_exact().is_err());
     Ok(())
 }

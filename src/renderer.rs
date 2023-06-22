@@ -72,14 +72,28 @@ impl HtmlDocument {
                 Token::Space { raw } => format!("<br />"),
                 Token::Link { text, href } => format!(r#"<a href="{href}">{text}</a>"#),
                 Token::Text { text } => text.clone(),
-                Token::HtmlLink { rel, text, href } => {
-                    if let Ok(rel) = Rel::try_from(rel) {
-                        options.links.push(HtmlLink {
-                            rel,
-                            href: href.clone(),
-                        })
-                    }
-                    String::new()
+                Token::Html {
+                    kind,
+                    attributes,
+                    tokens,
+                } => {
+                    let attributes = attributes
+                        .into_iter()
+                        .map(|(k, v)| format!("{k}='{v}'"))
+                        .collect::<Vec<String>>()
+                        .join(" ");
+
+                    let spacing = if attributes.len() > 0 {
+                        String::from(" ")
+                    } else {
+                        String::new()
+                    };
+
+                    format!(
+                        "<{kind}{spacing}{}>{}</{kind}>",
+                        attributes,
+                        Self::render_body_content(tokens, options)
+                    )
                 }
                 Token::EOF => continue,
             };

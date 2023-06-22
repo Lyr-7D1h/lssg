@@ -101,6 +101,7 @@ impl SiteMap {
                 match t {
                     Token::Heading { tokens, .. } => queue.push(tokens),
                     Token::Paragraph { tokens, .. } => queue.push(tokens),
+                    Token::Html { tokens, .. } => queue.push(tokens),
                     Token::Link { href, .. } => {
                         if href.starts_with("./") && href.ends_with(".md") {
                             let path = input.parent().unwrap().join(Path::new(&href));
