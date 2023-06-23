@@ -9,7 +9,20 @@ h1 a {
 }
 
 h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: auto 20vw;
+}
+
 p {
-  padding-left: 20vw;
-  padding-right: 20vw;
+  margin: 0 20vw;
+  text-align: left;
+}
+
+.breadcrumbs {
+  margin: 20px;
+  text-align: left;
 }

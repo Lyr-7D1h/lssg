@@ -17,4 +17,5 @@ So what you are going to learn depends on what you want to use it for. However t
 ## Advanced
 
 ## When you get stuck
+
 So you're definitely going to get stuck or have trouble understanding some topic. It is very important NOT to ignore this topic and to move on. This will most likely haunt you in the future when you're working on a more advanced topic using something that you might have ignored (Math is all about building on previously taught topics).

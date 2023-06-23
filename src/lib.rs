@@ -11,7 +11,7 @@ use std::{
 
 use log::info;
 use parser::{lexer::Token, parse_error::ParseError, Parser};
-use renderer::{HtmlDocument, HtmlDocumentRenderOptions, HtmlLink, Meta, Rel};
+use renderer::{HtmlDocumentRenderOptions, HtmlLink, HtmlRenderer, Meta, Rel};
 use sitemap::SiteMap;
 
 use crate::stylesheet::Stylesheet;
@@ -20,7 +20,13 @@ use crate::stylesheet::Stylesheet;
 pub enum LssgError {
     ParseError(ParseError),
     Regex(regex::Error),
+    Render(String),
     Io(io::Error),
+}
+impl LssgError {
+    pub fn render(error: &str) -> LssgError {
+        LssgError::Render(error.into())
+    }
 }
 impl From<ParseError> for LssgError {
     fn from(error: ParseError) -> Self {
@@ -118,6 +124,7 @@ impl Lssg {
         create_dir_all(&self.options.output_directory)?;
 
         let mut queue: Vec<usize> = vec![site_map.root()];
+        let renderer = HtmlRenderer::new(&site_map);
         while let Some(id) = queue.pop() {
             let node = site_map.get(id)?;
             queue.append(&mut node.children.clone());
@@ -133,13 +140,13 @@ impl Lssg {
                 sitemap::NodeType::Folder => {
                     create_dir(path)?;
                 }
-                sitemap::NodeType::Page { tokens, .. } => {
+                sitemap::NodeType::Page { .. } => {
                     let mut options = render_options.clone();
                     options.links.push(HtmlLink {
                         rel: renderer::Rel::Stylesheet,
                         href: site_map.rel_path(id, stylesheet_id),
                     });
-                    let html = HtmlDocument::render(tokens, options);
+                    let html = renderer.render(id, options)?;
                     create_dir_all(&path)?;
                     let html_output_path = path.join("index.html");
                     info!("Writing to {html_output_path:?}");
