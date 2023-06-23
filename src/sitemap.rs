@@ -57,6 +57,44 @@ fn filename_from_path(path: &Path) -> Result<String, LssgError> {
         )))?
         .to_owned())
 }
+// Get the relative path between two nodes
+fn rel_path(nodes: &Vec<Node>, from: usize, mut to: usize) -> String {
+    let mut visited = HashMap::new();
+    let mut to_path = vec![nodes[to].name.clone()];
+
+    // discover all parents from destination
+    let mut depth = 0;
+    while let Some(i) = nodes[to].parent {
+        visited.insert(i, depth);
+        depth += 1;
+        to = i;
+        // if not root (root doesn't have a parent) add to file directories
+        if let Some(_) = nodes[i].parent {
+            to_path.push(nodes[i].name.clone())
+        }
+    }
+
+    // find shared parent and go back till that point
+    depth = 0;
+    let mut to_depth = to_path.len() - 1;
+    let mut node = Some(from);
+    while let Some(i) = node {
+        if let Some(d) = visited.get(&i) {
+            to_depth = *d;
+            break;
+        }
+        depth += 1;
+        node = nodes[i].parent;
+    }
+
+    // get remaining path
+    to_path.reverse();
+    return format!(
+        "{}{}",
+        "../".repeat(depth),
+        to_path[to_path.len() - 1 - to_depth..to_path.len()].join("/")
+    );
+}
 
 /// Code representation of all nodes within the site (hiarchy and how nodes are related)
 #[derive(Debug)]
@@ -77,6 +115,7 @@ impl SiteMap {
         })
     }
 
+    /// parse a markdown file and any markdown references, updates corresponding links
     fn from_index_recursive(
         nodes: &mut Vec<Node>,
         input: PathBuf,
@@ -106,9 +145,10 @@ impl SiteMap {
                         if href.starts_with("./") && href.ends_with(".md") {
                             let path = input.parent().unwrap().join(Path::new(&href));
                             // remove file extension
-                            href.replace_range((href.len() - 3)..href.len(), "");
-                            let id = Self::from_index_recursive(nodes, path, Some(id))?;
-                            children.push(id)
+                            // href.replace_range((href.len() - 3)..href.len(), "");
+                            let child_id = Self::from_index_recursive(nodes, path, Some(id))?;
+                            *href = rel_path(nodes, id, child_id);
+                            children.push(child_id)
                         }
                     }
                     _ => {}
@@ -151,38 +191,8 @@ impl SiteMap {
     }
 
     // Get the relative path between two nodes
-    pub fn rel_path(&self, mut from: usize, mut to: usize) -> String {
-        let mut visited = HashMap::new();
-        let mut to_path = vec![self.nodes[to].name.clone()];
-
-        // discover all parents from destination
-        let mut depth = 1;
-        while let Some(i) = self.nodes[to].parent {
-            visited.insert(i, depth);
-            depth += 1;
-            to = i;
-            if i != self.root {
-                to_path.push(self.nodes[i].name.clone())
-            }
-        }
-
-        // find shared parent and go back till that point
-        depth = 0;
-        let mut to_depth = to_path.len();
-        while let Some(i) = self.nodes[from].parent {
-            depth += 1;
-            from = i;
-            if let Some(f_depth) = visited.get(&i) {
-                to_depth = *f_depth;
-                break;
-            }
-        }
-
-        // get remaining path
-        to_path.reverse();
-        let path = format!("{}{}", "../".repeat(depth), to_path[0..to_depth].join("/"));
-
-        path
+    pub fn rel_path(&self, from: usize, to: usize) -> String {
+        rel_path(&self.nodes, from, to)
     }
 
     pub fn add(&mut self, node: Node, parent_id: usize) -> Result<usize, LssgError> {
@@ -287,6 +297,7 @@ impl fmt::Display for SiteMap {
                 out += "\t - \t"
             }
             out += &node.name;
+            out += &format!("({})", n);
             current_depth = depth + 1;
         }
 

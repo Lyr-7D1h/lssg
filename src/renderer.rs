@@ -102,6 +102,7 @@ impl HtmlDocument {
         body_content
     }
 
+    /// Transform tokens into a html page
     pub fn render(tokens: &Vec<Token>, mut options: HtmlDocumentRenderOptions) -> String {
         let body_content = Self::render_body_content(tokens, &mut options);
         let body = format!("<body>{body_content}{WATERMARK}</body>");

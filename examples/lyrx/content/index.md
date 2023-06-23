@@ -1,9 +1,9 @@
 # LyrX
 
-
+<h1>Test</h1>
 
 Here have some links
-<nav>
+<nav asdf>
 [Projects](./projects.md)
 [Blog](./blog.md)
 [<i class="fa-solid fa-paper-plane"></i> Email](mailto:lyr-7d1h@pm.me)
