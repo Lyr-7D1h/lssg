@@ -6,7 +6,7 @@ use simple_logger::SimpleLogger;
 fn main() {
     SimpleLogger::new().init().unwrap();
     Lssg::new(LssgOptions {
-        index: PathBuf::from("./content/index.md"),
+        index: PathBuf::from("./content/home.md"),
         output_directory: PathBuf::from("./build"),
         global_stylesheet: Some(PathBuf::from("./content/main.css")),
         overwrite_default_stylesheet: false,

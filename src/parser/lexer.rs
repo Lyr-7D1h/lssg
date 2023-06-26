@@ -151,6 +151,22 @@ impl<R: Read> Lexer<R> {
                 if c == '<' {
                     let start_tag = self.reader.read_until_inclusive(|c| c == '>')?;
 
+                    if let Some("!--") = start_tag.get(1..4) {
+                        if let Some("-->") = start_tag.get(start_tag.len() - 3..start_tag.len()) {
+                            let mut map = HashMap::new();
+                            for l in start_tag[5..start_tag.len() - 3].lines() {
+                                let mut parts = l.splitn(2, " ");
+                                if let Some(key) = parts.next() {
+                                    map.insert(key.into(), parts.collect());
+                                }
+                            }
+                            return Ok(Token::Comment {
+                                text: start_tag,
+                                map,
+                            });
+                        }
+                    }
+
                     let mut kind = String::new();
                     for c in start_tag[1..start_tag.len() - 1].chars() {
                         match c {
@@ -233,6 +249,11 @@ pub enum Token {
         kind: String,
         attributes: HashMap<String, String>,
         tokens: Vec<Token>,
+    },
+    Comment {
+        text: String,
+        /// Starting a comment line with a certain key will be used as keyword later in the renderer
+        map: HashMap<String, String>,
     },
     EOF,
 }

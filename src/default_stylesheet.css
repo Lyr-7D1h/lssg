@@ -18,7 +18,21 @@ h6 {
 }
 
 p {
+  text-align: center;
+  font-size: 1.2em;
+}
+
+.post > h1 {
+  text-align: left;
+  margin-bottom: 10px;
+}
+.post > p {
+  margin: 0 25vw;
+  text-align: left;
+}
+.post > .post-updated-on {
   margin: 0 20vw;
+  font-size: 1.2em;
   text-align: left;
 }
 

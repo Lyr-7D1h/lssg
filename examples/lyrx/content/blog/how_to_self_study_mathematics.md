@@ -1,3 +1,4 @@
+<!---post-->
 # How to self study mathematics
 
 ## Introduction

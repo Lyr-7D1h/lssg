@@ -1,8 +1,15 @@
+use chrono::{
+    prelude::{DateTime, Utc},
+    Datelike,
+};
 use std::{
+    collections::HashMap,
     error::Error,
     ffi::OsStr,
     fmt::Display,
     path::{Path, PathBuf},
+    time,
+    time::SystemTime,
 };
 
 use crate::{
@@ -125,9 +132,15 @@ impl<'n> HtmlRenderer<'n> {
         mut options: HtmlDocumentRenderOptions,
     ) -> Result<String, LssgError> {
         let node = self.site_map.get(id)?;
-        let (tokens, input) = match &node.node_type {
-            NodeType::Page { tokens, input } => (tokens, input),
+        let (mut tokens, input) = match &node.node_type {
+            NodeType::Page { tokens, input } => (tokens.clone(), input),
             _ => return Err(LssgError::render("Invalid node type given")),
+        };
+
+        let metadata = if let Some(Token::Comment { text, map }) = tokens.first() {
+            map.clone()
+        } else {
+            HashMap::new()
         };
 
         let breadcrumbs = if id == self.site_map.root() {
@@ -147,18 +160,38 @@ impl<'n> HtmlRenderer<'n> {
             breadcrumbs.reverse();
             breadcrumbs.join("/") + "/"
         };
-        // let path: String = self
-        //     .site_map
-        //     .path(id)
-        //     .split("/")
-        //     .into_iter()
-        //     .map(|p| format!(r#"<a href="">{p}</a>"#))
-        //     .collect::<Vec<String>>()
-        //     .join("/");
-        let nav = format!(r#"<nav class="breadcrumbs">{}</nav>"#, breadcrumbs);
+        let breadcrumbs = format!(r#"<nav class="breadcrumbs">{}</nav>"#, breadcrumbs);
 
-        let body_content = Self::render_body_content(tokens, &mut options);
-        let body = format!("<body>{nav}{body_content}{WATERMARK}</body>");
+        if metadata.contains_key("post") {
+            if let Some(Token::Heading { depth: 1, .. }) = tokens.get(2) {
+                if let Ok(m) = input.metadata() {
+                    if let Ok(date) = m.modified() {
+                        let date: DateTime<Utc> = date.into();
+                        let date = date.format("Updated on %B %d, %Y").to_string();
+                        tokens.insert(
+                            3,
+                            Token::Html {
+                                kind: "div".into(),
+                                attributes: HashMap::from([(
+                                    "class".into(),
+                                    "post-updated-on".into(),
+                                )]),
+                                tokens: vec![Token::Text { text: date }],
+                            },
+                        )
+                    }
+                }
+            }
+        }
+
+        let mut body_content = Self::render_body_content(&tokens, &mut options);
+        body_content = format!("{breadcrumbs}{body_content}{WATERMARK}");
+
+        if metadata.contains_key("post") {
+            body_content = format!(r#"<div class="post">{body_content}</div>"#);
+        }
+
+        let body = format!("<body>{body_content}</body>");
 
         let links = options
             .links
