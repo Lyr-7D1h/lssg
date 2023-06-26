@@ -92,7 +92,15 @@ impl<'n> HtmlRenderer<'n> {
                 Token::Italic { text } => format!("<i>{text}</i>"),
                 Token::Code { language, code } => format!("<code>{code}</code>"),
                 Token::Space { raw } => format!("<br />"),
-                Token::Link { text, href } => format!(r#"<a href="{href}">{text}</a>"#),
+                Token::Link { text, href } => {
+                    if href.starts_with("http") || href.starts_with("mailto:") {
+                        format!(
+                            r#"<a href="{href}">{text} <i class="fas fa-external-link-alt" style="font-size: 0.8em"></i></a>"#
+                        )
+                    } else {
+                        format!(r#"<a href="{href}">{text}</a>"#)
+                    }
+                }
                 Token::Text { text } => text.clone(),
                 Token::Html {
                     kind,
