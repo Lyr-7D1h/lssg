@@ -1,4 +1,9 @@
-use std::{error::Error, fmt::Display};
+use std::{
+    error::Error,
+    ffi::OsStr,
+    fmt::Display,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     parser::lexer::Token,
@@ -105,6 +110,7 @@ impl<'n> HtmlRenderer<'n> {
                         Self::render_body_content(tokens, options)
                     )
                 }
+                Token::Comment { .. } => continue,
                 Token::EOF => continue,
             };
             body_content.push_str(&html);
@@ -123,15 +129,33 @@ impl<'n> HtmlRenderer<'n> {
             NodeType::Page { tokens, input } => (tokens, input),
             _ => return Err(LssgError::render("Invalid node type given")),
         };
-        let path: String = self
-            .site_map
-            .path(id)
-            .split("/")
-            .into_iter()
-            .map(|p| format!(r#"<a href="">{p}</a>"#))
-            .collect::<Vec<String>>()
-            .join("/");
-        let nav = format!(r#"<nav class="breadcrumbs">{}</nav>"#, path);
+
+        let breadcrumbs = if id == self.site_map.root() {
+            "".into()
+        } else {
+            let mut breadcrumbs = vec![];
+            let mut cur = node.parent;
+            while let Some(n) = cur {
+                let node = self.site_map.get(n)?.parent;
+                breadcrumbs.push(format!(
+                    r#"<a href="{}">{}</a>"#,
+                    self.site_map.rel_path(id, n),
+                    self.site_map.get(n)?.name
+                ));
+                cur = node;
+            }
+            breadcrumbs.reverse();
+            breadcrumbs.join("/") + "/"
+        };
+        // let path: String = self
+        //     .site_map
+        //     .path(id)
+        //     .split("/")
+        //     .into_iter()
+        //     .map(|p| format!(r#"<a href="">{p}</a>"#))
+        //     .collect::<Vec<String>>()
+        //     .join("/");
+        let nav = format!(r#"<nav class="breadcrumbs">{}</nav>"#, breadcrumbs);
 
         let body_content = Self::render_body_content(tokens, &mut options);
         let body = format!("<body>{nav}{body_content}{WATERMARK}</body>");

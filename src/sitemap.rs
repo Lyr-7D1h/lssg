@@ -58,16 +58,17 @@ fn filename_from_path(path: &Path) -> Result<String, LssgError> {
         .to_owned())
 }
 // Get the relative path between two nodes
-fn rel_path(nodes: &Vec<Node>, from: usize, mut to: usize) -> String {
+fn rel_path(nodes: &Vec<Node>, from: usize, to: usize) -> String {
     let mut visited = HashMap::new();
     let mut to_path = vec![nodes[to].name.clone()];
 
     // discover all parents from destination
     let mut depth = 0;
-    while let Some(i) = nodes[to].parent {
+    let mut node = nodes[to].parent;
+    while let Some(i) = node {
         visited.insert(i, depth);
         depth += 1;
-        to = i;
+        node = nodes[i].parent;
         // if not root (root doesn't have a parent) add to file directories
         if let Some(_) = nodes[i].parent {
             to_path.push(nodes[i].name.clone())
@@ -87,13 +88,17 @@ fn rel_path(nodes: &Vec<Node>, from: usize, mut to: usize) -> String {
         node = nodes[i].parent;
     }
 
-    // get remaining path
+    // don't add anything to path traversal if root
     to_path.reverse();
-    return format!(
-        "{}{}",
-        "../".repeat(depth),
+    let to_path = if nodes[to].parent.is_some() {
         to_path[to_path.len() - 1 - to_depth..to_path.len()].join("/")
-    );
+    } else {
+        depth -= 1;
+        "".into()
+    };
+
+    // get remaining path
+    return format!("{}{}", "../".repeat(depth), to_path);
 }
 
 /// Code representation of all nodes within the site (hiarchy and how nodes are related)
