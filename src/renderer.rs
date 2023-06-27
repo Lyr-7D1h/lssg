@@ -107,6 +107,9 @@ impl<'n> HtmlRenderer<'n> {
                     attributes,
                     tokens,
                 } => {
+                    if kind == "nav" {
+                        tokens
+                    }
                     let attributes = attributes
                         .into_iter()
                         .map(|(k, v)| format!("{k}='{v}'"))
