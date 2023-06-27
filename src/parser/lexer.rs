@@ -59,48 +59,48 @@ impl<R: Read> Lexer<R> {
             }
 
             if c == '<' {
-                let (start_tag, mut start_tag_end) = (pos, 0);
-                for i in pos..chars.len() {
-                    match chars[i] {
-                        '\n' => break,
-                        '>' => start_tag_end = i,
-                        _ => {}
-                    }
-                }
-                let mut tag_kind = String::new();
-                for i in start_tag + 1..start_tag_end {
-                    match chars[i] {
-                        ' ' => break,
-                        c => tag_kind.push(c),
-                    };
-                }
+                // TODO support inline html and comments
+                // let (start_tag, mut start_tag_end) = (pos, 0);
+                // for i in pos..chars.len() {
+                //     match chars[i] {
+                //         '\n' => break,
+                //         '>' => start_tag_end = i,
+                //         _ => {}
+                //     }
+                // }
+                // let mut tag_kind = String::new();
+                // for i in start_tag + 1..start_tag_end {
+                //     match chars[i] {
+                //         ' ' => break,
+                //         c => tag_kind.push(c),
+                //     };
+                // }
 
-                let (mut end_tag_start, mut end_tag_end) = (0, 0);
-                if !tag_kind.is_empty() {
-                    for i in start_tag_end..chars.len() {
-                        if chars[i] == '<' {
-                            if let Some(c) = chars.get(i + 1) {
-                                if c == &'/' {
-                                    let exit_tag = chars[i..i + tag_kind.len()]
-                                        .into_iter()
-                                        .collect::<String>();
-                                    println!("{exit_tag}");
-                                    if exit_tag == tag_kind {
-                                        end_tag_start = i;
-                                        end_tag_end = i + tag_kind.len();
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+                // let (mut end_tag_start, mut end_tag_end) = (0, 0);
+                // if !tag_kind.is_empty() {
+                //     for i in start_tag_end..chars.len() {
+                //         if chars[i] == '<' {
+                //             if let Some(c) = chars.get(i + 1) {
+                //                 if c == &'/' {
+                //                     let exit_tag = chars[i..i + tag_kind.len()]
+                //                         .into_iter()
+                //                         .collect::<String>();
+                //                     if exit_tag == tag_kind {
+                //                         end_tag_start = i;
+                //                         end_tag_end = i + tag_kind.len();
+                //                         break;
+                //                     }
+                //                 }
+                //             }
+                //         }
+                //     }
+                // }
 
-                if start_tag < start_tag_end && end_tag_start < end_tag_end {
-                    let tag: String = chars[start_tag + 1..start_tag_end].into_iter().collect();
-                    // pos = end_tag_end;
-                    println!("Kind {tag_kind}");
-                }
+                // if start_tag < start_tag_end && end_tag_start < end_tag_end {
+                //     let tag: String = chars[start_tag + 1..start_tag_end].into_iter().collect();
+                //     // pos = end_tag_end;
+                //     println!("Kind {tag_kind}");
+                // }
             }
 
             text.push(chars[pos]);
@@ -154,7 +154,7 @@ impl<R: Read> Lexer<R> {
                     if let Some("!--") = start_tag.get(1..4) {
                         if let Some("-->") = start_tag.get(start_tag.len() - 3..start_tag.len()) {
                             let mut map = HashMap::new();
-                            for l in start_tag[5..start_tag.len() - 3].lines() {
+                            for l in start_tag[4..start_tag.len() - 3].lines() {
                                 let mut parts = l.splitn(2, " ");
                                 if let Some(key) = parts.next() {
                                     map.insert(key.into(), parts.collect());
@@ -176,6 +176,16 @@ impl<R: Read> Lexer<R> {
                         }
                     }
 
+                    let mut attributes = HashMap::new();
+                    for a in start_tag[1 + kind.len()..start_tag.len() - 1].split(" ") {
+                        let mut parts = a.splitn(2, "=");
+                        if let Some(k) = parts.next() {
+                            if let Some(v) = parts.next() {
+                                attributes.insert(k.into(), v.replace("\"", ""));
+                            }
+                        }
+                    }
+
                     let mut content = String::new();
                     while let Some(c) = self.reader.read_char()? {
                         if c == '<' {
@@ -194,7 +204,7 @@ impl<R: Read> Lexer<R> {
                     let tokens = self.read_inline_tokens(&content)?;
                     return Ok(Token::Html {
                         kind,
-                        attributes: HashMap::new(),
+                        attributes,
                         tokens,
                     });
                 }

@@ -1,6 +1,8 @@
 # LyrX
 
+<p class="small">
 Hello this is my online space! This is where I share my projects, code, information, art and articles. Feel free to have a look around :)
+</p>
 
 <nav>
 [Blog](./blog.md)

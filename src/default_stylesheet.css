@@ -2,6 +2,32 @@
   text-align: center;
   font-family: monospace;
 }
+body,
+html {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+#content {
+  margin: 0;
+  min-height: 100%;
+  position: relative;
+  /* Firefox */
+  min-height: -moz-calc(100% - 30px);
+  /* WebKit */
+  min-height: -webkit-calc(100% - 30px);
+  /* Opera */
+  min-height: -o-calc(100% - 30px);
+  /* Standard */
+  min-height: calc(100% - 30px);
+}
+#watermark {
+  height: 30px;
+  margin: 0;
+  clear: both;
+  width: 100%;
+  position: relative;
+}
 
 h1 a {
   text-decoration: none;
@@ -26,6 +52,11 @@ p {
   text-align: left;
   margin-bottom: 10px;
 }
+.post > h2,
+.post > h3,
+.post > h4,
+.post > h5,
+.post > h6,
 .post > p {
   margin: 0 25vw;
   text-align: left;
@@ -35,8 +66,24 @@ p {
   font-size: 1.2em;
   text-align: left;
 }
+@media only screen and (max-width: 768px) {
+  .post > h1,
+  .post > .post-updated-on,
+  .post > p {
+    margin: 0;
+  }
+}
 
 .breadcrumbs {
-  margin: 20px;
+  padding: 20px;
   text-align: left;
+}
+
+p.small {
+  margin: 0 35vw;
+}
+@media only screen and (max-width: 768px) {
+  p.small {
+    margin: 0;
+  }
 }
