@@ -101,7 +101,8 @@ impl Lssg {
         let mut site_map = SiteMap::from_index(self.options.index.clone())?;
         let stylesheet_id =
             site_map.add_stylesheet("main.css".into(), stylesheet, site_map.root())?;
-        println!("{site_map}");
+
+        info!("SiteMap:\n{site_map}");
 
         let render_options = HtmlDocumentRenderOptions {
             links: vec![],

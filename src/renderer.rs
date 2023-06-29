@@ -91,7 +91,7 @@ impl<'n> HtmlRenderer<'n> {
                 Token::Bold { text } => format!("<b>{text}</b>"),
                 Token::Italic { text } => format!("<i>{text}</i>"),
                 Token::Code { language, code } => format!("<code>{code}</code>"),
-                Token::Space { raw } => format!("<br />"),
+                Token::Space { raw } => format!(""),
                 Token::Link { text, href } => {
                     if href.starts_with("http") || href.starts_with("mailto:") {
                         format!(
@@ -106,28 +106,40 @@ impl<'n> HtmlRenderer<'n> {
                     kind,
                     attributes,
                     tokens,
-                } => {
-                    if kind == "nav" {
-                        tokens
+                } => match kind.as_str() {
+                    "nav" if attributes.contains_key("links") => {
+                        let blocks = tokens
+                            .into_iter()
+                            .map(|t| match t {
+                                Token::Link { text, href } => {
+                                    format!(r#"<a href={href}><div class="card">{text}</div></a>"#)
+                                }
+                                _ => "".into(),
+                            })
+                            .collect::<Vec<String>>()
+                            .join("");
+                        format!(r#"<nav class="links">{blocks}</nav>"#)
                     }
-                    let attributes = attributes
-                        .into_iter()
-                        .map(|(k, v)| format!("{k}='{v}'"))
-                        .collect::<Vec<String>>()
-                        .join(" ");
+                    _ => {
+                        let attributes = attributes
+                            .into_iter()
+                            .map(|(k, v)| format!("{k}='{v}'"))
+                            .collect::<Vec<String>>()
+                            .join(" ");
 
-                    let spacing = if attributes.len() > 0 {
-                        String::from(" ")
-                    } else {
-                        String::new()
-                    };
+                        let spacing = if attributes.len() > 0 {
+                            String::from(" ")
+                        } else {
+                            String::new()
+                        };
 
-                    format!(
-                        "<{kind}{spacing}{}>{}</{kind}>",
-                        attributes,
-                        Self::render_body_content(tokens, options)
-                    )
-                }
+                        format!(
+                            "<{kind}{spacing}{}>{}</{kind}>",
+                            attributes,
+                            Self::render_body_content(tokens, options)
+                        )
+                    }
+                },
                 Token::Comment { .. } => continue,
                 Token::EOF => continue,
             };
@@ -147,7 +159,6 @@ impl<'n> HtmlRenderer<'n> {
             NodeType::Page { tokens, input } => (tokens.clone(), input),
             _ => return Err(LssgError::render("Invalid node type given")),
         };
-        println!("{tokens:?}");
 
         let metadata = if let Some(Token::Comment { text, map }) = tokens.first() {
             map.clone()
@@ -170,9 +181,9 @@ impl<'n> HtmlRenderer<'n> {
                 cur = node;
             }
             breadcrumbs.reverse();
-            breadcrumbs.join("/") + "/"
+            let crumbs = breadcrumbs.join("/") + "/";
+            format!(r#"<nav class="breadcrumbs">{crumbs}</nav>"#)
         };
-        let breadcrumbs = format!(r#"<nav class="breadcrumbs">{}</nav>"#, breadcrumbs);
 
         if metadata.contains_key("post") {
             if let Some(Token::Heading { depth: 1, .. }) = tokens.get(2) {
