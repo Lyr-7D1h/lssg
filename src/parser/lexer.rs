@@ -182,6 +182,8 @@ impl<R: Read> Lexer<R> {
                         if let Some(k) = parts.next() {
                             if let Some(v) = parts.next() {
                                 attributes.insert(k.into(), v.replace("\"", ""));
+                            } else {
+                                attributes.insert(k.into(), "".into());
                             }
                         }
                     }
