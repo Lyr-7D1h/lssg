@@ -1,7 +1,7 @@
 # LyrX
 
 <p class="small">
-Hello this is my online space! This is where I share my projects, code, information, art and articles. Feel free to have a look around :)
+Hey my name is Ivo, I go by Lyr online, and welcome to my my online space! This is where I share my projects, code, data, 3d models, art and articles. Feel free to have a look around :)
 </p>
 
 <nav links>

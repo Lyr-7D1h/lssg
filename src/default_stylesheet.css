@@ -101,9 +101,14 @@ p {
 }
 @media only screen and (max-width: 768px) {
   .post > h1,
+  .post > h2,
+  .post > h3,
+  .post > h4,
+  .post > h5,
+  .post > h6,
   .post > .post-updated-on,
   .post > p {
-    margin: 0;
+    margin: 10px;
   }
 }
 
