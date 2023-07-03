@@ -20,7 +20,9 @@ jobs:
     - name: Build static files
       working-directory: examples/lyrx
       run: cargo run
-    - name: Upload to github pages
+    - name: upload pages artifact
       uses: actions/upload-pages-artifact@v1.0.8
       with:
         path: ./examples/lyrx/build
+    - name: Deploy pages
+      uses: actions/deploy-pages
