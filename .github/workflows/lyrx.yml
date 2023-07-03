@@ -23,4 +23,4 @@ jobs:
     - name: Upload to github pages
       uses: actions/upload-pages-artifact@v1.0.8
       with:
-        path: ./build
+        path: ./examples/lyrx/build
