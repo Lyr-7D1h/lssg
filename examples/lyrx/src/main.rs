@@ -1,33 +1,34 @@
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 
 use lssg::{renderer::Rel, Link, Lssg, LssgOptions};
 use simple_logger::SimpleLogger;
 
 fn main() {
+    let path: PathBuf = env::args().skip(1).collect();
     SimpleLogger::new().env().init().unwrap();
     Lssg::new(LssgOptions {
-        index: PathBuf::from("./content/home.md"),
-        output_directory: PathBuf::from("./build"),
-        global_stylesheet: Some(PathBuf::from("./content/main.css")),
+        index: path.join("home.md"),
+        output_directory: path.join("../build"),
+        global_stylesheet: Some(path.join("./main.css")),
         overwrite_default_stylesheet: false,
         links: vec![
             Link {
                 rel: Rel::Stylesheet,
-                path: PathBuf::from("./content/lib/fontawesome.css"),
+                path: path.join("./lib/fontawesome.css"),
             },
             Link {
                 rel: Rel::Stylesheet,
-                path: PathBuf::from("./content/lib/fa-solid.css"),
+                path: path.join("./lib/fa-solid.css"),
             },
             Link {
                 rel: Rel::Stylesheet,
-                path: PathBuf::from("./content/lib/fa-brands.css"),
+                path: path.join("./lib/fa-brands.css"),
             },
         ],
         title: "LyrX".into(),
         language: "en".into(),
         keywords: vec![],
-        favicon: Some(PathBuf::from("./content/favicon.ico")),
+        favicon: Some(path.join("./favicon.ico")),
     })
     .render()
     .unwrap();
