@@ -25,4 +25,4 @@ jobs:
       with:
         path: ./examples/lyrx/build
     - name: Deploy pages
-      uses: actions/deploy-pages
+      uses: actions/deploy-pages@v2.0.2
