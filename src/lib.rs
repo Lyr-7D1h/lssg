@@ -11,10 +11,10 @@ use std::{
 
 use log::info;
 use parser::{lexer::Token, parse_error::ParseError, Parser};
-use renderer::{HtmlDocumentRenderOptions, HtmlLink, HtmlRenderer, Meta, Rel};
+use renderer::{HtmlLink, HtmlRenderOptions, HtmlRenderer, Meta, Rel};
 use sitemap::SiteMap;
 
-use crate::stylesheet::Stylesheet;
+use crate::{sitemap::Node, stylesheet::Stylesheet};
 
 #[derive(Debug)]
 pub enum LssgError {
@@ -55,6 +55,7 @@ pub struct LssgOptions {
     pub index: PathBuf,
     pub output_directory: PathBuf,
     pub global_stylesheet: Option<PathBuf>,
+    pub favicon: Option<PathBuf>,
     /// Overwrite the default stylesheet with your own
     pub overwrite_default_stylesheet: bool,
     /// Add extra resources
@@ -102,11 +103,28 @@ impl Lssg {
         let stylesheet_id =
             site_map.add_stylesheet("main.css".into(), stylesheet, site_map.root())?;
 
+        let favicon = if let Some(input) = &self.options.favicon {
+            Some(site_map.add(
+                Node {
+                    name: "favicon.ico".into(),
+                    parent: Some(site_map.root()),
+                    children: vec![],
+                    node_type: sitemap::NodeType::Resource {
+                        input: input.clone(),
+                    },
+                },
+                site_map.root(),
+            )?)
+        } else {
+            None
+        };
+
         info!("SiteMap:\n{site_map}");
 
-        let render_options = HtmlDocumentRenderOptions {
+        let render_options = HtmlRenderOptions {
             links: vec![],
             title: self.options.title.clone(),
+            favicon,
             meta: self
                 .options
                 .keywords

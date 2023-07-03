@@ -57,8 +57,10 @@ pub struct Meta {
 }
 
 #[derive(Debug, Clone)]
-pub struct HtmlDocumentRenderOptions {
+pub struct HtmlRenderOptions {
     pub links: Vec<HtmlLink>,
+    // Id to favicon resource
+    pub favicon: Option<usize>,
     pub title: String,
     pub meta: Vec<Meta>,
     pub language: String,
@@ -73,7 +75,7 @@ impl<'n> HtmlRenderer<'n> {
         HtmlRenderer { site_map }
     }
 
-    fn render_body_content(tokens: &Vec<Token>, options: &mut HtmlDocumentRenderOptions) -> String {
+    fn render_body_content(tokens: &Vec<Token>, options: &mut HtmlRenderOptions) -> String {
         let mut body_content = String::new();
         for t in tokens.into_iter() {
             let html = match t {
@@ -149,11 +151,7 @@ impl<'n> HtmlRenderer<'n> {
     }
 
     /// Transform tokens into a html page
-    pub fn render(
-        &self,
-        id: usize,
-        mut options: HtmlDocumentRenderOptions,
-    ) -> Result<String, LssgError> {
+    pub fn render(&self, id: usize, mut options: HtmlRenderOptions) -> Result<String, LssgError> {
         let node = self.site_map.get(id)?;
         let (mut tokens, input) = match &node.node_type {
             NodeType::Page { tokens, input } => (tokens.clone(), input),
@@ -223,8 +221,16 @@ impl<'n> HtmlRenderer<'n> {
             .reduce(|a, l| a + &l)
             .unwrap_or(String::new());
         let title = format!("<title>{}</title>", options.title);
+        let favicon = if let Some(favicon_id) = options.favicon {
+            format!(
+                r#"<link rel="icon" type="image/x-icon" href="{}">"#,
+                self.site_map.rel_path(id, favicon_id)
+            )
+        } else {
+            "".into()
+        };
         let head = format!(
-            r#"<head>{title}<meta name="viewport" content="width=device-width, initial-scale=1" /><meta charset="utf-8" />{links}</head>"#
+            r#"<head>{title}<meta name="viewport" content="width=device-width, initial-scale=1" /><meta charset="utf-8" />{favicon}{links}</head>"#
         );
 
         let lang = options.language;

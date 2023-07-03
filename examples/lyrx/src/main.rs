@@ -27,6 +27,7 @@ fn main() {
         title: "LyrX".into(),
         language: "en".into(),
         keywords: vec![],
+        favicon: Some(PathBuf::from("./content/favicon.ico")),
     })
     .render()
     .unwrap();
