@@ -1,0 +1,24 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_LOG: debug
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build static files
+      working-directory: examples/lyrx
+      run: pwd && cargo run
+    - name: Upload to github pages
+      uses: actions/upload-pages-artifact@v1.0.8
