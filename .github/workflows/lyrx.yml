@@ -17,9 +17,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
-    - name: Build
-      run: cd examples/lyrx
-    - name: Build
-      run: cargo run
+    - name: Build static files
+      working-directory: examples/lyrx
+      run: pwd && cargo run
     - name: Upload to github pages
       uses: actions/upload-pages-artifact@v1.0.8
