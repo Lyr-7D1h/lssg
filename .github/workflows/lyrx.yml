@@ -12,13 +12,7 @@ env:
 
 jobs:
   build:
-    permissions:
-        pages: write      # to deploy to Pages
-        id-token: write
     runs-on: ubuntu-latest
-    environment:
-      name: lyrx
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
     - uses: actions/checkout@v3
     
