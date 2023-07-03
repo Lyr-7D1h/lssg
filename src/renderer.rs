@@ -1,15 +1,10 @@
 use chrono::{
     prelude::{DateTime, Utc},
-    Datelike,
 };
 use std::{
     collections::HashMap,
     error::Error,
-    ffi::OsStr,
     fmt::Display,
-    path::{Path, PathBuf},
-    time,
-    time::SystemTime,
 };
 
 use crate::{
@@ -81,7 +76,7 @@ impl<'n> HtmlRenderer<'n> {
             let html = match t {
                 Token::Heading {
                     depth,
-                    text,
+                    text: _,
                     tokens,
                 } => format!(
                     "<h{depth}>{}</h{depth}>",
@@ -92,8 +87,8 @@ impl<'n> HtmlRenderer<'n> {
                 }
                 Token::Bold { text } => format!("<b>{text}</b>"),
                 Token::Italic { text } => format!("<i>{text}</i>"),
-                Token::Code { language, code } => format!("<code>{code}</code>"),
-                Token::Space { raw } => format!(""),
+                Token::Code { language: _, code } => format!("<code>{code}</code>"),
+                Token::Space { raw: _ } => format!(""),
                 Token::Link { text, href } => {
                     if href.starts_with("http") || href.starts_with("mailto:") {
                         format!(
@@ -158,7 +153,7 @@ impl<'n> HtmlRenderer<'n> {
             _ => return Err(LssgError::render("Invalid node type given")),
         };
 
-        let metadata = if let Some(Token::Comment { text, map }) = tokens.first() {
+        let metadata = if let Some(Token::Comment { text: _, map }) = tokens.first() {
             map.clone()
         } else {
             HashMap::new()

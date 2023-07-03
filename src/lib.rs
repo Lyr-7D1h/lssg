@@ -4,13 +4,13 @@ pub mod sitemap;
 mod stylesheet;
 
 use std::{
-    fs::{copy, create_dir, create_dir_all, read_to_string, remove_dir_all, write, File},
+    fs::{copy, create_dir, create_dir_all, remove_dir_all, write},
     io::{self},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 
 use log::info;
-use parser::{lexer::Token, parse_error::ParseError, Parser};
+use parser::parse_error::ParseError;
 use renderer::{HtmlLink, HtmlRenderOptions, HtmlRenderer, Meta, Rel};
 use sitemap::SiteMap;
 
@@ -137,8 +137,10 @@ impl Lssg {
             language: self.options.language.clone(),
         };
 
-        info!("Removing {:?}", self.options.output_directory);
-        remove_dir_all(&self.options.output_directory)?;
+        if self.options.output_directory.exists() {
+            info!("Removing {:?}", self.options.output_directory);
+            remove_dir_all(&self.options.output_directory)?;
+        }
         info!("Creating {:?}", self.options.output_directory);
         create_dir_all(&self.options.output_directory)?;
 

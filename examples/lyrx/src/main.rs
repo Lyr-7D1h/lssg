@@ -4,7 +4,7 @@ use lssg::{renderer::Rel, Link, Lssg, LssgOptions};
 use simple_logger::SimpleLogger;
 
 fn main() {
-    SimpleLogger::new().init().unwrap();
+    SimpleLogger::new().env().init().unwrap();
     Lssg::new(LssgOptions {
         index: PathBuf::from("./content/home.md"),
         output_directory: PathBuf::from("./build"),
