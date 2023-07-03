@@ -1,4 +1,4 @@
-name: Rust
+name: Lyrx Github Pages Deployment
 
 on:
   push:
