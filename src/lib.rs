@@ -16,7 +16,12 @@ use parser::parse_error::ParseError;
 use renderer::{HtmlLink, HtmlRenderOptions, HtmlRenderer, Meta, Rel};
 use sitemap::SiteMap;
 
-use crate::{parser::Parser, sitemap::Node, stylesheet::Stylesheet, util::filestem_from_path};
+use crate::{
+    parser::Parser,
+    sitemap::Node,
+    stylesheet::Stylesheet,
+    util::{canonicalize_nonexistent_path, filestem_from_path},
+};
 
 #[derive(Debug)]
 pub enum LssgError {
@@ -160,10 +165,16 @@ impl Lssg {
         };
 
         if self.options.output_directory.exists() {
-            info!("Removing {:?}", self.options.output_directory);
+            info!(
+                "Removing {:?}",
+                canonicalize_nonexistent_path(&self.options.output_directory)
+            );
             remove_dir_all(&self.options.output_directory)?;
         }
-        info!("Creating {:?}", self.options.output_directory);
+        info!(
+            "Creating {:?}",
+            canonicalize_nonexistent_path(&self.options.output_directory)
+        );
         create_dir_all(&self.options.output_directory)?;
 
         let mut queue: Vec<usize> = vec![site_map.root()];
@@ -191,12 +202,15 @@ impl Lssg {
                     });
                     let html = renderer.render(id, options)?;
                     let html_output_path = if *keep_name {
-                        path.join(format!("../{}.html", node.name))
+                        canonicalize_nonexistent_path(&path.join(format!("../{}.html", node.name)))
                     } else {
                         create_dir_all(&path)?;
-                        path.join("index.html")
+                        canonicalize_nonexistent_path(&path.join("index.html"))
                     };
-                    info!("Writing to {:?}", html_output_path);
+                    info!(
+                        "Writing to {:?}",
+                        canonicalize_nonexistent_path(&html_output_path)
+                    );
                     write(html_output_path, html)?;
                 }
             }
