@@ -14,7 +14,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub enum NodeType {
+pub enum NodeKind {
     Stylesheet(Stylesheet),
     Page {
         tokens: Vec<Token>,
@@ -33,7 +33,7 @@ pub struct Node {
     pub name: String,
     pub parent: Option<usize>,
     pub children: Vec<usize>,
-    pub node_type: NodeType,
+    pub kind: NodeKind,
 }
 
 // Get the relative path between two nodes
@@ -112,8 +112,8 @@ impl SiteMap {
         nodes.push(Node {
             name: filestem_from_path(&input)?,
             parent,
-            children: vec![],            // filling later
-            node_type: NodeType::Folder, // hack changing after children created
+            children: vec![],       // filling later
+            kind: NodeKind::Folder, // hack changing after children created
         });
         let id = nodes.len() - 1;
 
@@ -141,7 +141,7 @@ impl SiteMap {
         }
 
         nodes[id].children = children;
-        nodes[id].node_type = NodeType::Page {
+        nodes[id].kind = NodeKind::Page {
             tokens,
             input,
             keep_name: false,
@@ -149,14 +149,37 @@ impl SiteMap {
         return Ok(id);
     }
 
+    pub fn find_by_input(&self, finput: &Path) -> Option<usize> {
+        let mut queue = vec![self.root];
+        while let Some(id) = queue.pop() {
+            let node = &self.nodes[id];
+            match &node.kind {
+                NodeKind::Page { input, .. } => {
+                    if input == finput {
+                        return Some(id);
+                    }
+                }
+                NodeKind::Resource { input, .. } => {
+                    if input == finput {
+                        return Some(id);
+                    }
+                }
+                _ => {}
+            }
+            queue.append(&mut node.children.clone())
+        }
+
+        None
+    }
+
     pub fn root(&self) -> usize {
         self.root
     }
 
     pub fn get(&self, id: usize) -> Result<&Node, LssgError> {
-        self.nodes
-            .get(id)
-            .ok_or(LssgError::sitemap(&format!("Could not find {id} in SiteMap")))
+        self.nodes.get(id).ok_or(LssgError::sitemap(&format!(
+            "Could not find {id} in SiteMap"
+        )))
     }
 
     // Get the path of a node
@@ -231,7 +254,7 @@ impl SiteMap {
                             name: filename_from_path(&resource)?,
                             parent: Some(parent_id),
                             children: vec![],
-                            node_type: NodeType::Resource {
+                            kind: NodeKind::Resource {
                                 input: resource.clone(),
                             },
                         },
@@ -246,7 +269,7 @@ impl SiteMap {
                         name: path_part.to_owned(),
                         parent: Some(parent_id),
                         children: vec![],
-                        node_type: NodeType::Folder,
+                        kind: NodeKind::Folder,
                     },
                     parent_id,
                 )?;
@@ -258,7 +281,7 @@ impl SiteMap {
                 name,
                 parent: Some(parent_id),
                 children: vec![],
-                node_type: NodeType::Stylesheet(stylesheet),
+                kind: NodeKind::Stylesheet(stylesheet),
             },
             parent_id,
         )

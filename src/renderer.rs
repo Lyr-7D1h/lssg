@@ -3,7 +3,7 @@ use std::{collections::HashMap, error::Error, fmt::Display};
 
 use crate::{
     parser::lexer::Token,
-    sitemap::{NodeType, SiteMap},
+    sitemap::{NodeKind, SiteMap},
     LssgError,
 };
 
@@ -144,8 +144,8 @@ impl<'n> HtmlRenderer<'n> {
     /// Transform tokens into a html page
     pub fn render(&self, id: usize, mut options: HtmlRenderOptions) -> Result<String, LssgError> {
         let node = self.site_map.get(id)?;
-        let (mut tokens, input) = match &node.node_type {
-            NodeType::Page { tokens, input, .. } => (tokens.clone(), input),
+        let (mut tokens, input) = match &node.kind {
+            NodeKind::Page { tokens, input, .. } => (tokens.clone(), input),
             _ => return Err(LssgError::render("Invalid node type given")),
         };
 

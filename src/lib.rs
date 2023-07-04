@@ -95,7 +95,7 @@ impl Lssg {
                     name: "favicon.ico".into(),
                     parent: Some(site_map.root()),
                     children: vec![],
-                    node_type: sitemap::NodeType::Resource {
+                    kind: sitemap::NodeKind::Resource {
                         input: input.clone(),
                     },
                 },
@@ -112,7 +112,7 @@ impl Lssg {
                     name: filestem_from_path(input)?,
                     parent: Some(site_map.root()),
                     children: vec![],
-                    node_type: sitemap::NodeType::Page {
+                    kind: sitemap::NodeKind::Page {
                         tokens: Parser::parse(file)?,
                         input: input.to_path_buf(),
                         keep_name: true,
@@ -159,18 +159,18 @@ impl Lssg {
             let node = site_map.get(id)?;
             queue.append(&mut node.children.clone());
             let path = self.options.output_directory.join(site_map.path(id));
-            match &node.node_type {
-                sitemap::NodeType::Stylesheet(s) => {
+            match &node.kind {
+                sitemap::NodeKind::Stylesheet(s) => {
                     info!("Writing concatinated stylesheet {path:?}",);
                     write(path, s.to_string())?;
                 }
-                sitemap::NodeType::Resource { input } => {
+                sitemap::NodeKind::Resource { input } => {
                     copy(input, path)?;
                 }
-                sitemap::NodeType::Folder => {
+                sitemap::NodeKind::Folder => {
                     create_dir(path)?;
                 }
-                sitemap::NodeType::Page { keep_name, .. } => {
+                sitemap::NodeKind::Page { keep_name, .. } => {
                     let mut options = render_options.clone();
                     options.links.push(HtmlLink {
                         rel: renderer::Rel::Stylesheet,

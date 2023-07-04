@@ -9,7 +9,7 @@ pub fn canonicalize_nonexistent_path(path: &Path) -> PathBuf {
     let parts = path.split("/");
     for p in parts {
         if p == "." {
-            continue
+            continue;
         }
         if p == ".." && canonicalized_path.len() > 0 {
             canonicalized_path.pop();
