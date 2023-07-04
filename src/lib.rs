@@ -192,6 +192,8 @@ impl Lssg {
             }
         }
 
+        info!("All files written");
+
         Ok(())
     }
 }
