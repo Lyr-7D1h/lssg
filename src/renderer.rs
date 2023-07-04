@@ -1,11 +1,5 @@
-use chrono::{
-    prelude::{DateTime, Utc},
-};
-use std::{
-    collections::HashMap,
-    error::Error,
-    fmt::Display,
-};
+use chrono::prelude::{DateTime, Utc};
+use std::{collections::HashMap, error::Error, fmt::Display};
 
 use crate::{
     parser::lexer::Token,
@@ -91,10 +85,12 @@ impl<'n> HtmlRenderer<'n> {
                 Token::Space { raw: _ } => format!(""),
                 Token::Link { text, href } => {
                     if href.starts_with("http") || href.starts_with("mailto:") {
+                        // external link
                         format!(
                             r#"<a href="{href}">{text} <i class="fas fa-external-link-alt" style="font-size: 0.8em"></i></a>"#
-                        )
+                        ) // FIXME add font awesome as default included
                     } else {
+                        // internal link
                         format!(r#"<a href="{href}">{text}</a>"#)
                     }
                 }
@@ -149,7 +145,7 @@ impl<'n> HtmlRenderer<'n> {
     pub fn render(&self, id: usize, mut options: HtmlRenderOptions) -> Result<String, LssgError> {
         let node = self.site_map.get(id)?;
         let (mut tokens, input) = match &node.node_type {
-            NodeType::Page { tokens, input } => (tokens.clone(), input),
+            NodeType::Page { tokens, input, .. } => (tokens.clone(), input),
             _ => return Err(LssgError::render("Invalid node type given")),
         };
 
@@ -159,7 +155,7 @@ impl<'n> HtmlRenderer<'n> {
             HashMap::new()
         };
 
-        let breadcrumbs = if id == self.site_map.root() {
+        let breadcrumbs = if id == self.site_map.root() || metadata.contains_key("nocrumb") {
             "".into()
         } else {
             let mut breadcrumbs = vec![];

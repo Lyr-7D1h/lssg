@@ -9,14 +9,22 @@ use std::{
 use crate::{
     parser::{lexer::Token, Parser},
     stylesheet::Stylesheet,
+    util::{filename_from_path, filestem_from_path},
     LssgError,
 };
 
 #[derive(Debug)]
 pub enum NodeType {
     Stylesheet(Stylesheet),
-    Page { tokens: Vec<Token>, input: PathBuf },
-    Resource { input: PathBuf },
+    Page {
+        tokens: Vec<Token>,
+        input: PathBuf,
+        /// Keep the original name in the html page
+        keep_name: bool,
+    },
+    Resource {
+        input: PathBuf,
+    },
     Folder,
 }
 
@@ -28,35 +36,6 @@ pub struct Node {
     pub node_type: NodeType,
 }
 
-fn filestem_from_path(path: &Path) -> Result<String, LssgError> {
-    Ok(path
-        .file_stem()
-        .ok_or(LssgError::Io(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("{path:?} does not have a filename"),
-        )))?
-        .to_str()
-        .ok_or(LssgError::Io(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("{path:?} is non unicode"),
-        )))?
-        .to_owned())
-}
-
-fn filename_from_path(path: &Path) -> Result<String, LssgError> {
-    Ok(path
-        .file_name()
-        .ok_or(LssgError::Io(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("{path:?} does not have a filename"),
-        )))?
-        .to_str()
-        .ok_or(LssgError::Io(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("{path:?} is non unicode"),
-        )))?
-        .to_owned())
-}
 // Get the relative path between two nodes
 fn rel_path(nodes: &Vec<Node>, from: usize, to: usize) -> String {
     let mut visited = HashMap::new();
@@ -162,7 +141,11 @@ impl SiteMap {
         }
 
         nodes[id].children = children;
-        nodes[id].node_type = NodeType::Page { tokens, input };
+        nodes[id].node_type = NodeType::Page {
+            tokens,
+            input,
+            keep_name: false,
+        };
         return Ok(id);
     }
 
@@ -209,6 +192,8 @@ impl SiteMap {
         {
             return Ok(*id);
         }
+
+        // FIXME check if page and then update links, find id by input
 
         self.nodes.push(node);
         let id = self.nodes.len() - 1;

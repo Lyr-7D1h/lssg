@@ -10,6 +10,7 @@ fn main() {
         index: path.join("home.md"),
         output_directory: path.join("../build"),
         global_stylesheet: Some(path.join("./main.css")),
+        not_found_page: Some(path.join("./404.md")),
         overwrite_default_stylesheet: false,
         links: vec![
             Link {

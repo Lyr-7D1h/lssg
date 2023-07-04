@@ -12,3 +12,6 @@ This uses a custom markdown parser which will not necessarly follow official spe
 - Importing pages from notion support
 - Code support
 - Custom styling support
+
+## Known bugs
+- references to root don't work 

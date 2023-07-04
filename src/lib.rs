@@ -1,10 +1,12 @@
 pub mod parser;
 pub mod renderer;
 pub mod sitemap;
+
 mod stylesheet;
+mod util;
 
 use std::{
-    fs::{copy, create_dir, create_dir_all, remove_dir_all, write},
+    fs::{copy, create_dir, create_dir_all, remove_dir_all, write, File},
     io::{self},
     path::PathBuf,
 };
@@ -14,7 +16,7 @@ use parser::parse_error::ParseError;
 use renderer::{HtmlLink, HtmlRenderOptions, HtmlRenderer, Meta, Rel};
 use sitemap::SiteMap;
 
-use crate::{sitemap::Node, stylesheet::Stylesheet};
+use crate::{parser::Parser, sitemap::Node, stylesheet::Stylesheet, util::filestem_from_path};
 
 #[derive(Debug)]
 pub enum LssgError {
@@ -54,6 +56,9 @@ pub struct Link {
 pub struct LssgOptions {
     pub index: PathBuf,
     pub output_directory: PathBuf,
+    /// Path to a markdown file that describes your 404 page, this will create a seperate html page
+    /// which you can you as your not found page.
+    pub not_found_page: Option<PathBuf>,
     pub global_stylesheet: Option<PathBuf>,
     pub favicon: Option<PathBuf>,
     /// Overwrite the default stylesheet with your own
@@ -76,10 +81,10 @@ impl Lssg {
         Lssg { options }
     }
 
-    pub fn preview(&self, port: u32) {
-        info!("Listing on 0.0.0.0:{port}");
-        todo!()
-    }
+    // pub fn preview(&self, port: u32) {
+    //     info!("Listing on 0.0.0.0:{port}");
+    //     todo!()
+    // }
 
     pub fn render(&self) -> Result<(), LssgError> {
         let mut stylesheet = if let Some(p) = &self.options.global_stylesheet {
@@ -118,6 +123,23 @@ impl Lssg {
         } else {
             None
         };
+
+        if let Some(input) = &self.options.not_found_page {
+            let file = File::open(&input)?;
+            let _ = site_map.add(
+                Node {
+                    name: filestem_from_path(input)?,
+                    parent: Some(site_map.root()),
+                    children: vec![],
+                    node_type: sitemap::NodeType::Page {
+                        tokens: Parser::parse(file)?,
+                        input: input.to_path_buf(),
+                        keep_name: true,
+                    },
+                },
+                site_map.root(),
+            );
+        }
 
         info!("SiteMap:\n{site_map}");
 
@@ -161,16 +183,20 @@ impl Lssg {
                 sitemap::NodeType::Folder => {
                     create_dir(path)?;
                 }
-                sitemap::NodeType::Page { .. } => {
+                sitemap::NodeType::Page { keep_name, .. } => {
                     let mut options = render_options.clone();
                     options.links.push(HtmlLink {
                         rel: renderer::Rel::Stylesheet,
                         href: site_map.rel_path(id, stylesheet_id),
                     });
                     let html = renderer.render(id, options)?;
-                    create_dir_all(&path)?;
-                    let html_output_path = path.join("index.html");
-                    info!("Writing to {html_output_path:?}");
+                    let html_output_path = if *keep_name {
+                        path.join(format!("../{}.html", node.name))
+                    } else {
+                        create_dir_all(&path)?;
+                        path.join("index.html")
+                    };
+                    info!("Writing to {:?}", html_output_path);
                     write(html_output_path, html)?;
                 }
             }
