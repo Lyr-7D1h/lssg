@@ -46,7 +46,8 @@ impl Stylesheet {
 
     /// Append stylesheet and discover local referenced resources
     pub fn append(&mut self, path: &Path) -> Result<(), LssgError> {
-        let content = read_to_string(path)?;
+        let content = read_to_string(path)
+            .map_err(|_| LssgError::io(&format!("Failed to append stylesheet: {path:?}")))?;
 
         let re = Regex::new(r#"url\("?(\.[^)"]*)"?\)"#)?;
         for r in re.captures_iter(&content).into_iter() {

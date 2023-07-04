@@ -4,7 +4,11 @@ use lssg::{renderer::Rel, Link, Lssg, LssgOptions};
 use simple_logger::SimpleLogger;
 
 fn main() {
-    let path: PathBuf = env::args().skip(1).collect();
+    let path = env::args().skip(1).collect::<String>();
+    if path.len() == 0 {
+        panic!("No content path given");
+    }
+    let path = PathBuf::try_from(path).expect("No content path given");
     SimpleLogger::new().env().init().unwrap();
     Lssg::new(LssgOptions {
         index: path.join("home.md"),
@@ -32,5 +36,5 @@ fn main() {
         favicon: Some(path.join("./favicon.ico")),
     })
     .render()
-    .unwrap();
+    .unwrap()
 }

@@ -154,10 +154,9 @@ impl SiteMap {
     }
 
     pub fn get(&self, id: usize) -> Result<&Node, LssgError> {
-        self.nodes.get(id).ok_or(LssgError::Io(io::Error::new(
-            io::ErrorKind::NotFound,
-            format!("Could not find {id} in SiteMap"),
-        )))
+        self.nodes
+            .get(id)
+            .ok_or(LssgError::sitemap(&format!("Could not find {id} in SiteMap")))
     }
 
     // Get the path of a node

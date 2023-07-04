@@ -1,5 +1,4 @@
 use std::{
-    io,
     path::{Path, PathBuf},
 };
 
@@ -22,29 +21,17 @@ pub fn canonicalize_nonexistent_path(path: &Path) -> PathBuf {
 pub fn filestem_from_path(path: &Path) -> Result<String, LssgError> {
     Ok(path
         .file_stem()
-        .ok_or(LssgError::Io(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("{path:?} does not have a filename"),
-        )))?
+        .ok_or(LssgError::io(&format!("{path:?} does not have a filename")))?
         .to_str()
-        .ok_or(LssgError::Io(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("{path:?} is non unicode"),
-        )))?
+        .ok_or(LssgError::io(&format!("{path:?} is non unicode")))?
         .to_owned())
 }
 
 pub fn filename_from_path(path: &Path) -> Result<String, LssgError> {
     Ok(path
         .file_name()
-        .ok_or(LssgError::Io(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("{path:?} does not have a filename"),
-        )))?
+        .ok_or(LssgError::io(&format!("{path:?} does not have a filename")))?
         .to_str()
-        .ok_or(LssgError::Io(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("{path:?} is non unicode"),
-        )))?
+        .ok_or(LssgError::io(&format!("{path:?} is non unicode")))?
         .to_owned())
 }

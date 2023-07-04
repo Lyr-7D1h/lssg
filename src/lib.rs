@@ -2,16 +2,19 @@ pub mod parser;
 pub mod renderer;
 pub mod sitemap;
 
+pub mod lssg_error;
 mod stylesheet;
 mod util;
 
 use std::{
+    error::Error,
     fs::{copy, create_dir, create_dir_all, remove_dir_all, write, File},
     io::{self},
     path::PathBuf,
 };
 
 use log::info;
+use lssg_error::LssgError;
 use parser::parse_error::ParseError;
 use renderer::{HtmlLink, HtmlRenderOptions, HtmlRenderer, Meta, Rel};
 use sitemap::SiteMap;
@@ -22,34 +25,6 @@ use crate::{
     stylesheet::Stylesheet,
     util::{canonicalize_nonexistent_path, filestem_from_path},
 };
-
-#[derive(Debug)]
-pub enum LssgError {
-    ParseError(ParseError),
-    Regex(regex::Error),
-    Render(String),
-    Io(io::Error),
-}
-impl LssgError {
-    pub fn render(error: &str) -> LssgError {
-        LssgError::Render(error.into())
-    }
-}
-impl From<ParseError> for LssgError {
-    fn from(error: ParseError) -> Self {
-        Self::ParseError(error)
-    }
-}
-impl From<io::Error> for LssgError {
-    fn from(error: io::Error) -> Self {
-        Self::Io(error)
-    }
-}
-impl From<regex::Error> for LssgError {
-    fn from(error: regex::Error) -> Self {
-        Self::Regex(error)
-    }
-}
 
 #[derive(Debug)]
 pub struct Link {
@@ -109,6 +84,7 @@ impl Lssg {
             }
         }
 
+        info!("Generating SiteMap");
         let mut site_map = SiteMap::from_index(self.options.index.clone())?;
         let stylesheet_id =
             site_map.add_stylesheet("main.css".into(), stylesheet, site_map.root())?;
