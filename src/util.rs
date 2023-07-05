@@ -3,7 +3,6 @@ use std::path::{Path, PathBuf};
 use crate::LssgError;
 
 pub fn canonicalize_nonexistent_path(path: &Path) -> PathBuf {
-    println!("{path:?}");
     let mut canonicalized_path = vec![];
     let path = path.to_string_lossy();
     let parts = path.split("/");
