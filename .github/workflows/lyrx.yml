@@ -3,15 +3,19 @@ name: Lyrx Github Pages Deployment
 on:
   push:
     branches: [ "master" ]
+#     paths:
+#         - examples/lyrx
   pull_request:
     branches: [ "master" ]
+    paths:
+        - examples/lyrx
 
 env:
   CARGO_TERM_COLOR: always
   RUST_LOG: debug
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -20,21 +24,10 @@ jobs:
       working-directory: examples/lyrx/content
       run: cargo run -- .
       
-    - name: Upload pages artifact
-      uses: actions/upload-pages-artifact@v1.0.8
-      with:
-        path: ./examples/lyrx/build
-        
-  deploy:
-    needs: build
-    permissions:
-      pages: write      
-      id-token: write
-    environment:
-      name: lyrx
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v2
+    - name: Upload to static site repository
+      working-directory: examples/lyrx/build
+      run: |
+        git init
+        git remote add origin git@github.com:Lyr-7D1h/lyrx.git
+        git add .
+        git push
