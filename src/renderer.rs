@@ -55,8 +55,13 @@ pub struct HtmlRenderOptions {
     pub language: String,
 }
 
+pub trait RendererModule {
+    fn render_token(&self) -> Option<String>;
+}
+
 pub struct HtmlRenderer<'n> {
     site_map: &'n SiteMap,
+    render_modules: Vec<Box<dyn RendererModule>>,
 }
 
 impl<'n> HtmlRenderer<'n> {
