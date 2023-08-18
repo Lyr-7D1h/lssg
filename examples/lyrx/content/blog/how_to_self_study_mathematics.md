@@ -1,6 +1,11 @@
 <!--post-->
 # How to self study mathematics
 
+## Background
+
+I have been self studying mathematics for around 2 years. I started out with a very basic and vague highschool math understanding and worked my way towards understanding multivariable calculus and linear algebra. This hasn't come easy and there were many strugles allong the way. My goal here is to show you the things that helped me and to share the best resources I've found allong the way.
+
+
 ## Introduction
 
 Let me start out by saying, you're going to need a whole lot of self dicipline and dedication to get this done properly. This means that if you don't have the drive to really persevere you're probrably going to give up. However if you make it through the countless hours of struggling it will be more than worth it. 
