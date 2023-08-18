@@ -6,6 +6,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use log::warn;
+
 use crate::{
     parser::{lexer::Token, Parser},
     stylesheet::Stylesheet,
@@ -82,17 +84,17 @@ fn rel_path(nodes: &Vec<Node>, from: usize, to: usize) -> String {
 
 /// Code representation of all nodes within the site (hiarchy and how nodes are related)
 #[derive(Debug)]
-pub struct SiteMap {
+pub struct SiteTree {
     nodes: Vec<Node>,
     root: usize,
     index_path: PathBuf,
 }
 
-impl SiteMap {
-    pub fn from_index(index: PathBuf) -> Result<SiteMap, LssgError> {
+impl SiteTree {
+    pub fn from_index(index: PathBuf) -> Result<SiteTree, LssgError> {
         let mut nodes = vec![];
         let root = Self::from_index_recursive(&mut nodes, index.clone(), None)?;
-        Ok(SiteMap {
+        Ok(SiteTree {
             nodes,
             root,
             index_path: index,
@@ -212,6 +214,7 @@ impl SiteMap {
             .iter()
             .find(|n| self.nodes[**n].name == node.name)
         {
+            warn!("{} already exists SiteTree", node.name);
             return Ok(*id);
         }
 
@@ -288,7 +291,7 @@ impl SiteMap {
     }
 }
 
-impl fmt::Display for SiteMap {
+impl fmt::Display for SiteTree {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut out: String = String::new();
 

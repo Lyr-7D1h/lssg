@@ -2,8 +2,9 @@ use chrono::prelude::{DateTime, Utc};
 use std::{collections::HashMap, error::Error, fmt::Display};
 
 use crate::{
+    domtree::DomTree,
     parser::lexer::Token,
-    sitemap::{NodeKind, SiteMap},
+    sitetree::{NodeKind, SiteTree},
     LssgError,
 };
 
@@ -56,17 +57,25 @@ pub struct HtmlRenderOptions {
 }
 
 pub trait RendererModule {
-    fn render_token(&self) -> Option<String>;
+    /// Render a token before default token renderer
+    fn render_body(&self, tokens: &Vec<Token>) -> Option<String>;
+    fn render_head(&self, tokens: &Vec<Token>) -> Option<String>;
 }
 
 pub struct HtmlRenderer<'n> {
-    site_map: &'n SiteMap,
+    site_tree: &'n SiteTree,
     render_modules: Vec<Box<dyn RendererModule>>,
 }
 
 impl<'n> HtmlRenderer<'n> {
-    pub fn new(site_map: &'n SiteMap) -> HtmlRenderer<'n> {
-        HtmlRenderer { site_map }
+    pub fn new(
+        site_tree: &'n SiteTree,
+        render_modules: Vec<Box<dyn RendererModule>>,
+    ) -> HtmlRenderer<'n> {
+        HtmlRenderer {
+            site_tree,
+            render_modules,
+        }
     }
 
     fn render_body_content(tokens: &Vec<Token>, options: &mut HtmlRenderOptions) -> String {
@@ -148,58 +157,61 @@ impl<'n> HtmlRenderer<'n> {
 
     /// Transform tokens into a html page
     pub fn render(&self, id: usize, mut options: HtmlRenderOptions) -> Result<String, LssgError> {
-        let node = self.site_map.get(id)?;
-        let (mut tokens, input) = match &node.kind {
+        let tree = DomTree::new();
+
+        let site_node = self.site_tree.get(id)?;
+        let (mut tokens, input) = match &site_node.kind {
             NodeKind::Page { tokens, input, .. } => (tokens.clone(), input),
             _ => return Err(LssgError::render("Invalid node type given")),
         };
 
+        // If the first token is a comment see it as metadata
         let metadata = if let Some(Token::Comment { text: _, map }) = tokens.first() {
             map.clone()
         } else {
             HashMap::new()
         };
 
-        let breadcrumbs = if id == self.site_map.root() || metadata.contains_key("nocrumb") {
-            "".into()
-        } else {
-            let mut breadcrumbs = vec![];
-            let mut cur = node.parent;
-            while let Some(n) = cur {
-                let node = self.site_map.get(n)?.parent;
-                breadcrumbs.push(format!(
-                    r#"<a href="{}">{}</a>"#,
-                    self.site_map.rel_path(id, n),
-                    self.site_map.get(n)?.name
-                ));
-                cur = node;
-            }
-            breadcrumbs.reverse();
-            let crumbs = breadcrumbs.join("/") + "/";
-            format!(r#"<nav class="breadcrumbs">{crumbs}</nav>"#)
-        };
+        // let breadcrumbs = if id == self.site_tree.root() || metadata.contains_key("nocrumb") {
+        //     "".into()
+        // } else {
+        //     let mut breadcrumbs = vec![];
+        //     let mut cur = site_node.parent;
+        //     while let Some(n) = cur {
+        //         let node = self.site_tree.get(n)?.parent;
+        //         breadcrumbs.push(format!(
+        //             r#"<a href="{}">{}</a>"#,
+        //             self.site_tree.rel_path(id, n),
+        //             self.site_tree.get(n)?.name
+        //         ));
+        //         cur = node;
+        //     }
+        //     breadcrumbs.reverse();
+        //     let crumbs = breadcrumbs.join("/") + "/";
+        //     format!(r#"<nav class="breadcrumbs">{crumbs}</nav>"#)
+        // };
 
-        if metadata.contains_key("post") {
-            if let Some(Token::Heading { depth: 1, .. }) = tokens.get(2) {
-                if let Ok(m) = input.metadata() {
-                    if let Ok(date) = m.modified() {
-                        let date: DateTime<Utc> = date.into();
-                        let date = date.format("Updated on %B %d, %Y").to_string();
-                        tokens.insert(
-                            3,
-                            Token::Html {
-                                kind: "div".into(),
-                                attributes: HashMap::from([(
-                                    "class".into(),
-                                    "post-updated-on".into(),
-                                )]),
-                                tokens: vec![Token::Text { text: date }],
-                            },
-                        )
-                    }
-                }
-            }
-        }
+        // if metadata.contains_key("post") {
+        //     if let Some(Token::Heading { depth: 1, .. }) = tokens.get(2) {
+        //         if let Ok(m) = input.metadata() {
+        //             if let Ok(date) = m.modified() {
+        //                 let date: DateTime<Utc> = date.into();
+        //                 let date = date.format("Updated on %B %d, %Y").to_string();
+        //                 tokens.insert(
+        //                     3,
+        //                     Token::Html {
+        //                         kind: "div".into(),
+        //                         attributes: HashMap::from([(
+        //                             "class".into(),
+        //                             "post-updated-on".into(),
+        //                         )]),
+        //                         tokens: vec![Token::Text { text: date }],
+        //                     },
+        //                 )
+        //             }
+        //         }
+        //     }
+        // }
 
         let mut body_content = Self::render_body_content(&tokens, &mut options);
         if metadata.contains_key("post") {
@@ -220,7 +232,7 @@ impl<'n> HtmlRenderer<'n> {
         let favicon = if let Some(favicon_id) = options.favicon {
             format!(
                 r#"<link rel="icon" type="image/x-icon" href="{}">"#,
-                self.site_map.rel_path(id, favicon_id)
+                self.site_tree.rel_path(id, favicon_id)
             )
         } else {
             "".into()
