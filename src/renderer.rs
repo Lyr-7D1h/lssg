@@ -2,7 +2,7 @@ use chrono::prelude::{DateTime, Utc};
 use std::{collections::HashMap, error::Error, fmt::Display};
 
 use crate::{
-    domtree::DomTree,
+    domtree::{DomNode, DomTree},
     parser::lexer::Token,
     sitetree::{NodeKind, SiteTree},
     LssgError,
@@ -58,7 +58,7 @@ pub struct HtmlRenderOptions {
 
 pub trait RendererModule {
     /// Render a token before default token renderer
-    fn render_body(&self, tokens: &Vec<Token>) -> Option<String>;
+    fn render_body(&self, tree: DomTree, tokens: &Vec<Token>) -> Option<String>;
     fn render_head(&self, tokens: &Vec<Token>) -> Option<String>;
 }
 
@@ -157,7 +157,7 @@ impl<'n> HtmlRenderer<'n> {
 
     /// Transform tokens into a html page
     pub fn render(&self, id: usize, mut options: HtmlRenderOptions) -> Result<String, LssgError> {
-        let tree = DomTree::new();
+        let mut tree = DomTree::new(options.language);
 
         let site_node = self.site_tree.get(id)?;
         let (mut tokens, input) = match &site_node.kind {
@@ -218,8 +218,19 @@ impl<'n> HtmlRenderer<'n> {
             body_content = format!(r#"<div class="post">{body_content}</div>"#);
         }
 
-        let body = format!(
-            r#"<body><div id="content">{breadcrumbs}{body_content}</div>{WATERMARK}</body>"#
+        // let body = format!(
+        //     r#"<body><div id="content">{breadcrumbs}{body_content}</div>{WATERMARK}</body>"#
+        // );
+        let body = tree.body();
+        tree.add(
+            DomNode::element(
+                "body",
+                vec![("id".to_owned(), "content".to_owned())]
+                    .into_iter()
+                    .clone()
+                    .collect(),
+            ),
+            body,
         );
 
         let links = options
@@ -242,8 +253,6 @@ impl<'n> HtmlRenderer<'n> {
         );
 
         let lang = options.language;
-        return Ok(format!(
-            r#"<!DOCTYPE html><html lang="{lang}">{head}{body}</html>"#
-        ));
+        return Ok(tree.to_html_content());
     }
 }

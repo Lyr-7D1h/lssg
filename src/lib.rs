@@ -155,8 +155,7 @@ impl Lssg {
         );
         create_dir_all(&self.options.output_directory)?;
 
-        let mut queue: Vec<usize> = vec![site_tree.root()];
-        let dom_tree = DomTree::new();
+        let dom_tree = DomTree::new("en".into());
         info!("DOMTree:\n{dom_tree}");
 
         // let renderer = HtmlRenderer::new(&site_tree);

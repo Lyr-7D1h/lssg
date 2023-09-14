@@ -26,36 +26,78 @@ impl FromStr for DomNode {
 }
 
 impl DomNode {
-    pub fn element(
-        kind: impl Into<String>,
-        attributes: HashMap<String, String>,
-        children: Vec<usize>,
-    ) -> DomNode {
+    pub fn element(kind: impl Into<String>, attributes: HashMap<String, String>) -> DomNode {
         DomNode {
             kind: DomNodeKind::Element {
                 kind: kind.into(),
                 attributes,
             },
-            children,
+            children: vec![],
         }
     }
 }
 
 pub struct DomTree {
     root: usize,
+    head: usize,
+    body: usize,
     nodes: Vec<DomNode>,
 }
 
 impl DomTree {
-    pub fn new() -> DomTree {
+    pub fn new(lang: String) -> DomTree {
+        let mut html_attributes = HashMap::new();
+        html_attributes.insert("lang".to_string(), lang);
+
         let mut tree = DomTree {
             root: 0,
-            nodes: vec![DomNode::element("html", HashMap::new(), vec![])],
+            head: 1,
+            body: 2,
+            nodes: vec![DomNode::element("html", html_attributes)],
         };
-        tree.add(DomNode::element("head", HashMap::new(), vec![]), tree.root);
-        tree.add(DomNode::element("body", HashMap::new(), vec![]), tree.root);
+        tree.add(DomNode::element("head", HashMap::new()), tree.root);
+        tree.add(DomNode::element("body", HashMap::new()), tree.root);
 
         return tree;
+    }
+
+    pub fn head(&self) -> usize {
+        self.head
+    }
+    pub fn body(&self) -> usize {
+        self.body
+    }
+    pub fn root(&self) -> usize {
+        self.root
+    }
+
+    /// Breadth first search
+    fn bfs(self, cb: impl Fn(&DomNode) -> bool) -> Option<usize> {
+        let mut queue = vec![self.root];
+        while let Some(i) = queue.pop() {
+            let node = &self.nodes[i];
+            for c in node.children.iter() {
+                queue.push(*c);
+            }
+            if cb(node) {
+                return Some(i);
+            }
+        }
+        return None;
+    }
+
+    pub fn find_element_by_kind(self, target_kind: impl Into<String>) -> Option<usize> {
+        let target_kind: String = target_kind.into();
+        return self.bfs(|node| match &node.kind {
+            DomNodeKind::Element { kind, .. } => {
+                if kind == &target_kind {
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        });
     }
 
     pub fn filter_by_kind(&self) -> Vec<usize> {
@@ -99,7 +141,8 @@ impl DomTree {
     }
 
     pub fn to_html_content(&self) -> String {
-        return self.to_html_content_recurs(self.root);
+        let html = self.to_html_content_recurs(self.root);
+        return format!("<!DOCTYPE html>{html}");
     }
 }
 
