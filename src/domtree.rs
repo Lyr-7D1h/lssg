@@ -99,10 +99,7 @@ impl Tree for DomTree {
 }
 
 impl DomTree {
-    pub fn new(lang: String) -> DomTree {
-        let mut html_attributes = HashMap::new();
-        html_attributes.insert("lang".to_string(), lang);
-
+    pub fn new() -> DomTree {
         let mut tree = DomTree {
             root: 0,
             nodes: vec![DomNode::element_with_attributes("html", HashMap::new())],
