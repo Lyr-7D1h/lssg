@@ -69,7 +69,7 @@ impl DomNode {
                 tag: tag.into(),
                 attributes,
             },
-            children,
+            children: vec![],
         }
     }
 }
@@ -99,19 +99,16 @@ impl Tree for DomTree {
 }
 
 impl DomTree {
-    pub fn new() -> DomTree {
+    pub fn new(lang: String) -> DomTree {
+        let mut html_attributes = HashMap::new();
+        html_attributes.insert("lang".to_string(), lang);
+
         let mut tree = DomTree {
             root: 0,
             nodes: vec![DomNode::element_with_attributes("html", HashMap::new())],
         };
-        tree.add(
-            DomNode::element_with_attributes("head", HashMap::new()),
-            tree.root,
-        );
-        tree.add(
-            DomNode::element_with_attributes("body", HashMap::new()),
-            tree.root,
-        );
+        tree.add_element("head", tree.root);
+        tree.add_element("body", tree.root);
 
         return tree;
     }

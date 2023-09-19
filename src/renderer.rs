@@ -57,7 +57,7 @@ pub struct HtmlRenderOptions {
 
 pub trait RendererModule {
     /// Render a token before default token renderer
-    fn render_body(&self, tokens: &Vec<Token>) -> Option<String>;
+    fn render_body(&self, tree: DomTree, tokens: &Vec<Token>) -> Option<String>;
     fn render_head(&self, tokens: &Vec<Token>) -> Option<String>;
 }
 
@@ -252,22 +252,18 @@ impl<'n> HtmlRenderer<'n> {
             );
         }
         for link in options.links {
-            tree.add(
-                DomNode::element_with_attributes(
-                    "link",
-                    attributes([("rel", link.rel.to_string()), ("href", link.href)]),
-                ),
+            tree.add_element_with_attributes(
+                "link",
+                attributes([("rel", link.rel.to_string()), ("href", link.href)]),
                 head,
             );
         }
-        tree.add(
-            DomNode::element_with_attributes(
-                "meta",
-                attributes([
-                    ("name", "viewport"),
-                    ("content", r#"width=device-width, initial-scale=1"#),
-                ]),
-            ),
+        tree.add_element_with_attributes(
+            "meta",
+            attributes([
+                ("name", "viewport"),
+                ("content", r#"width=device-width, initial-scale=1"#),
+            ]),
             head,
         );
         tree.add(
