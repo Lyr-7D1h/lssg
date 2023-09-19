@@ -1,10 +1,9 @@
-use chrono::prelude::{DateTime, Utc};
 use std::{collections::HashMap, error::Error, fmt::Display};
 
 use crate::{
-    domtree::DomTree,
+    domtree::{self, attributes, DomNode, DomNodeKind, DomTree},
     parser::lexer::Token,
-    sitetree::{NodeKind, SiteTree},
+    sitetree::{SiteNodeKind, SiteTree},
     LssgError,
 };
 
@@ -78,92 +77,104 @@ impl<'n> HtmlRenderer<'n> {
         }
     }
 
-    fn render_body_content(tokens: &Vec<Token>, options: &mut HtmlRenderOptions) -> String {
-        let mut body_content = String::new();
+    fn render_body_content(tokens: &Vec<Token>, tree: &mut DomTree, parent_id: usize) {
         for t in tokens.into_iter() {
-            let html = match t {
+            match t {
                 Token::Heading {
                     depth,
                     text: _,
                     tokens,
-                } => format!(
-                    "<h{depth}>{}</h{depth}>",
-                    Self::render_body_content(tokens, options)
-                ),
+                } => {
+                    let parent = tree.add(DomNode::element(format!("h{depth}")), parent_id);
+                    Self::render_body_content(tokens, tree, parent);
+                }
                 Token::Paragraph { tokens } => {
-                    format!("<p>{}</p>", Self::render_body_content(tokens, options))
+                    let parent = tree.add(DomNode::element("p"), parent_id);
+                    Self::render_body_content(tokens, tree, parent);
                 }
-                Token::Bold { text } => format!("<b>{text}</b>"),
-                Token::Italic { text } => format!("<i>{text}</i>"),
-                Token::Code { language: _, code } => format!("<code>{code}</code>"),
-                Token::Space { raw: _ } => format!(""),
+                Token::Bold { text } => {
+                    let parent = tree.add(DomNode::element("b"), parent_id);
+                    tree.add_text(text, parent);
+                }
+                Token::Italic { text } => {
+                    let parent = tree.add_element("i", parent_id);
+                    tree.add_text(text, parent);
+                }
+                Token::Code { code, language: _ } => {
+                    let parent = tree.add_element("code", parent_id);
+                    tree.add_text(code, parent);
+                }
+                Token::Space { raw: _ } => {
+                    tree.add_text("", parent_id);
+                }
                 Token::Link { text, href } => {
-                    if href.starts_with("http") || href.starts_with("mailto:") {
-                        // external link
-                        format!(
-                            r#"<a href="{href}">{text} <i class="fas fa-external-link-alt" style="font-size: 0.8em"></i></a>"#
-                        ) // FIXME add font awesome as default included
-                    } else {
-                        // internal link
-                        format!(r#"<a href="{href}">{text}</a>"#)
-                    }
+                    // if href.starts_with("http") || href.starts_with("mailto:") {
+                    //     // external link
+                    //     format!(
+                    //         r#"<a href="{href}">{text} <i class="fas fa-external-link-alt" style="font-size: 0.8em"></i></a>"#
+                    //     ) // FIXME add font awesome as default included
+                    // } else {
+                    // internal link
+
+                    let parent = tree.add_element_with_attributes(
+                        "a",
+                        attributes([("href", href)]),
+                        parent_id,
+                    );
+                    tree.add_text(text, parent);
+                    // }
                 }
-                Token::Text { text } => text.clone(),
+                Token::Text { text } => {
+                    tree.add_text(text, parent_id);
+                }
                 Token::Html {
-                    kind,
+                    tag,
                     attributes,
                     tokens,
-                } => match kind.as_str() {
-                    "nav" if attributes.contains_key("links") => {
-                        let blocks = tokens
-                            .into_iter()
-                            .map(|t| match t {
-                                Token::Link { text, href } => {
-                                    format!(r#"<a href={href}><div class="card">{text}</div></a>"#)
-                                }
-                                _ => "".into(),
-                            })
-                            .collect::<Vec<String>>()
-                            .join("");
-                        format!(r#"<nav class="links">{blocks}</nav>"#)
-                    }
+                } => match tag.as_str() {
+                    // "nav" if attributes.contains_key("links") => {
+                    //     let blocks = tokens
+                    //         .into_iter()
+                    //         .map(|t| match t {
+                    //             Token::Link { text, href } => {
+                    //                 format!(r#"<a href={href}><div class="card">{text}</div></a>"#)
+                    //             }
+                    //             _ => "".into(),
+                    //         })
+                    //         .collect::<Vec<String>>()
+                    //         .join("");
+                    //     format!(r#"<nav class="links">{blocks}</nav>"#)
+                    // }
                     _ => {
-                        let attributes = attributes
-                            .into_iter()
-                            .map(|(k, v)| format!("{k}='{v}'"))
-                            .collect::<Vec<String>>()
-                            .join(" ");
-
-                        let spacing = if attributes.len() > 0 {
-                            String::from(" ")
-                        } else {
-                            String::new()
-                        };
-
-                        format!(
-                            "<{kind}{spacing}{}>{}</{kind}>",
-                            attributes,
-                            Self::render_body_content(tokens, options)
-                        )
+                        let parent_id =
+                            tree.add_element_with_attributes(tag, attributes.clone(), parent_id);
+                        Self::render_body_content(tokens, tree, parent_id)
                     }
                 },
                 Token::Comment { .. } => continue,
                 Token::EOF => continue,
-            };
-            body_content.push_str(&html);
+            }
         }
-        body_content
     }
 
-    /// Transform tokens into a html page
+    /// Transform site id into a html page
     pub fn render(&self, id: usize, mut options: HtmlRenderOptions) -> Result<String, LssgError> {
-        let tree = DomTree::new();
-
+        // get the site node
         let site_node = self.site_tree.get(id)?;
         let (mut tokens, input) = match &site_node.kind {
-            NodeKind::Page { tokens, input, .. } => (tokens.clone(), input),
+            SiteNodeKind::Page { tokens, input, .. } => (tokens.clone(), input),
             _ => return Err(LssgError::render("Invalid node type given")),
         };
+
+        let mut tree = DomTree::new();
+
+        // Add language to html tag
+        let id = tree.get_elements_by_tag_name("html")[0];
+        if let Some(node) = tree.get_mut(id) {
+            if let DomNodeKind::Element { attributes, .. } = &mut node.kind {
+                attributes.insert("lang".to_owned(), options.language);
+            }
+        }
 
         // If the first token is a comment see it as metadata
         let metadata = if let Some(Token::Comment { text: _, map }) = tokens.first() {
@@ -213,37 +224,58 @@ impl<'n> HtmlRenderer<'n> {
         //     }
         // }
 
-        let mut body_content = Self::render_body_content(&tokens, &mut options);
-        if metadata.contains_key("post") {
-            body_content = format!(r#"<div class="post">{body_content}</div>"#);
+        let body_id = tree.get_elements_by_tag_name("body")[0];
+        tree.add_element_with_attributes("div", attributes([("id", "content")]), body_id);
+        Self::render_body_content(&tokens, &mut tree, body_id);
+        // if metadata.contains_key("post") {
+        //     body_content = format!(r#"<div class="post">{body_content}</div>"#);
+        // }
+
+        // let body = format!(
+        //     r#"<body><div id="content">{breadcrumbs}{body_content}</div>{WATERMARK}</body>"#
+        // );
+
+        let head = tree.get_elements_by_tag_name("head")[0];
+        let title = tree.add(DomNode::element("title"), head);
+        tree.add(DomNode::text(options.title), title);
+        if let Some(favicon_id) = options.favicon {
+            tree.add(
+                DomNode::element_with_attributes(
+                    "link",
+                    attributes([
+                        ("rel", "icon"),
+                        ("type", "image/x-icon"),
+                        ("href", &self.site_tree.rel_path(id, favicon_id)),
+                    ]),
+                ),
+                head,
+            );
         }
-
-        let body = format!(
-            r#"<body><div id="content">{breadcrumbs}{body_content}</div>{WATERMARK}</body>"#
+        for link in options.links {
+            tree.add(
+                DomNode::element_with_attributes(
+                    "link",
+                    attributes([("rel", link.rel.to_string()), ("href", link.href)]),
+                ),
+                head,
+            );
+        }
+        tree.add(
+            DomNode::element_with_attributes(
+                "meta",
+                attributes([
+                    ("name", "viewport"),
+                    ("content", r#"width=device-width, initial-scale=1"#),
+                ]),
+            ),
+            head,
+        );
+        tree.add(
+            DomNode::element_with_attributes("meta", attributes([("charset", "utf-8")])),
+            head,
         );
 
-        let links = options
-            .links
-            .iter()
-            .map(|l| format!(r#"<link rel="{}" href="{}">"#, l.rel.to_string(), l.href))
-            .reduce(|a, l| a + &l)
-            .unwrap_or(String::new());
-        let title = format!("<title>{}</title>", options.title);
-        let favicon = if let Some(favicon_id) = options.favicon {
-            format!(
-                r#"<link rel="icon" type="image/x-icon" href="{}">"#,
-                self.site_tree.rel_path(id, favicon_id)
-            )
-        } else {
-            "".into()
-        };
-        let head = format!(
-            r#"<head>{title}<meta name="viewport" content="width=device-width, initial-scale=1" /><meta charset="utf-8" />{favicon}{links}</head>"#
-        );
-
-        let lang = options.language;
-        return Ok(format!(
-            r#"<!DOCTYPE html><html lang="{lang}">{head}{body}</html>"#
-        ));
+        println!("{tree}");
+        return Ok(tree.to_html_string());
     }
 }

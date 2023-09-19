@@ -16,7 +16,7 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub enum NodeKind {
+pub enum SiteNodeKind {
     Stylesheet(Stylesheet),
     Page {
         tokens: Vec<Token>,
@@ -31,15 +31,15 @@ pub enum NodeKind {
 }
 
 #[derive(Debug)]
-pub struct Node {
+pub struct SiteNode {
     pub name: String,
     pub parent: Option<usize>,
     pub children: Vec<usize>,
-    pub kind: NodeKind,
+    pub kind: SiteNodeKind,
 }
 
 // Get the relative path between two nodes
-fn rel_path(nodes: &Vec<Node>, from: usize, to: usize) -> String {
+fn rel_path(nodes: &Vec<SiteNode>, from: usize, to: usize) -> String {
     let mut visited = HashMap::new();
     let mut to_path = vec![nodes[to].name.clone()];
 
@@ -85,7 +85,7 @@ fn rel_path(nodes: &Vec<Node>, from: usize, to: usize) -> String {
 /// Code representation of all nodes within the site (hiarchy and how nodes are related)
 #[derive(Debug)]
 pub struct SiteTree {
-    nodes: Vec<Node>,
+    nodes: Vec<SiteNode>,
     root: usize,
     index_path: PathBuf,
 }
@@ -103,7 +103,7 @@ impl SiteTree {
 
     /// parse a markdown file and any markdown references, updates corresponding links
     fn from_index_recursive(
-        nodes: &mut Vec<Node>,
+        nodes: &mut Vec<SiteNode>,
         input: PathBuf,
         parent: Option<usize>,
     ) -> Result<usize, LssgError> {
@@ -111,11 +111,11 @@ impl SiteTree {
         let mut tokens = Parser::parse(file)?;
 
         // create early because of the need of an parent id
-        nodes.push(Node {
+        nodes.push(SiteNode {
             name: filestem_from_path(&input)?,
             parent,
-            children: vec![],       // filling later
-            kind: NodeKind::Folder, // hack changing after children created
+            children: vec![],           // filling later
+            kind: SiteNodeKind::Folder, // hack changing after children created
         });
         let id = nodes.len() - 1;
 
@@ -143,7 +143,7 @@ impl SiteTree {
         }
 
         nodes[id].children = children;
-        nodes[id].kind = NodeKind::Page {
+        nodes[id].kind = SiteNodeKind::Page {
             tokens,
             input,
             keep_name: false,
@@ -156,12 +156,12 @@ impl SiteTree {
         while let Some(id) = queue.pop() {
             let node = &self.nodes[id];
             match &node.kind {
-                NodeKind::Page { input, .. } => {
+                SiteNodeKind::Page { input, .. } => {
                     if input == finput {
                         return Some(id);
                     }
                 }
-                NodeKind::Resource { input, .. } => {
+                SiteNodeKind::Resource { input, .. } => {
                     if input == finput {
                         return Some(id);
                     }
@@ -178,7 +178,7 @@ impl SiteTree {
         self.root
     }
 
-    pub fn get(&self, id: usize) -> Result<&Node, LssgError> {
+    pub fn get(&self, id: usize) -> Result<&SiteNode, LssgError> {
         self.nodes.get(id).ok_or(LssgError::sitemap(&format!(
             "Could not find {id} in SiteMap"
         )))
@@ -207,7 +207,7 @@ impl SiteTree {
         rel_path(&self.nodes, from, to)
     }
 
-    pub fn add(&mut self, node: Node, parent_id: usize) -> Result<usize, LssgError> {
+    pub fn add(&mut self, node: SiteNode, parent_id: usize) -> Result<usize, LssgError> {
         // return id if already exists
         if let Some(id) = self.nodes[parent_id]
             .children
@@ -253,11 +253,11 @@ impl SiteTree {
                 // assume file when there is a file extenstion (there is a ".")
                 if path_part.contains(".") {
                     let id = self.add(
-                        Node {
+                        SiteNode {
                             name: filename_from_path(&resource)?,
                             parent: Some(parent_id),
                             children: vec![],
-                            kind: NodeKind::Resource {
+                            kind: SiteNodeKind::Resource {
                                 input: resource.clone(),
                             },
                         },
@@ -268,11 +268,11 @@ impl SiteTree {
                 }
 
                 parent_id = self.add(
-                    Node {
+                    SiteNode {
                         name: path_part.to_owned(),
                         parent: Some(parent_id),
                         children: vec![],
-                        kind: NodeKind::Folder,
+                        kind: SiteNodeKind::Folder,
                     },
                     parent_id,
                 )?;
@@ -280,11 +280,11 @@ impl SiteTree {
         }
 
         self.add(
-            Node {
+            SiteNode {
                 name,
                 parent: Some(parent_id),
                 children: vec![],
-                kind: NodeKind::Stylesheet(stylesheet),
+                kind: SiteNodeKind::Stylesheet(stylesheet),
             },
             parent_id,
         )
@@ -295,6 +295,7 @@ impl fmt::Display for SiteTree {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut out: String = String::new();
 
+        // TODO use BFS struct
         let mut current_depth = 0;
         let mut queue = vec![(self.root, 0)];
         while let Some((n, depth)) = queue.pop() {

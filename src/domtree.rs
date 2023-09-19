@@ -1,19 +1,25 @@
 use std::{collections::HashMap, fmt, str::FromStr};
 
-use crate::lssg_error::LssgError;
+use crate::{
+    lssg_error::LssgError,
+    sitetree::SiteNode,
+    tree::{Node, Tree, BFS},
+};
 
+#[derive(Debug, Clone)]
 pub enum DomNodeKind {
     Text {
         text: String,
     },
     Element {
-        kind: String,
+        tag: String,
         attributes: HashMap<String, String>,
     },
 }
 
+#[derive(Debug, Clone)]
 pub struct DomNode {
-    kind: DomNodeKind,
+    pub kind: DomNodeKind,
     children: Vec<usize>,
 }
 
@@ -26,14 +32,41 @@ impl FromStr for DomNode {
 }
 
 impl DomNode {
-    pub fn element(
-        kind: impl Into<String>,
+    pub fn text(text: impl Into<String>) -> DomNode {
+        DomNode {
+            kind: DomNodeKind::Text { text: text.into() },
+            children: vec![],
+        }
+    }
+    pub fn element(tag: impl Into<String>) -> DomNode {
+        DomNode {
+            kind: DomNodeKind::Element {
+                tag: tag.into(),
+                attributes: HashMap::new(),
+            },
+            children: vec![],
+        }
+    }
+    pub fn element_with_attributes(
+        tag: impl Into<String>,
+        attributes: HashMap<String, String>,
+    ) -> DomNode {
+        DomNode {
+            kind: DomNodeKind::Element {
+                tag: tag.into(),
+                attributes,
+            },
+            children: vec![],
+        }
+    }
+    pub fn element_with_children(
+        tag: impl Into<String>,
         attributes: HashMap<String, String>,
         children: Vec<usize>,
     ) -> DomNode {
         DomNode {
             kind: DomNodeKind::Element {
-                kind: kind.into(),
+                tag: tag.into(),
                 attributes,
             },
             children,
@@ -41,25 +74,60 @@ impl DomNode {
     }
 }
 
+impl Node for DomNode {
+    fn children(&self) -> &Vec<usize> {
+        &self.children
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct DomTree {
     root: usize,
     nodes: Vec<DomNode>,
+}
+
+impl Tree for DomTree {
+    type Node = DomNode;
+
+    fn root(&self) -> usize {
+        self.root
+    }
+
+    fn nodes(&self) -> &Vec<DomNode> {
+        &self.nodes
+    }
 }
 
 impl DomTree {
     pub fn new() -> DomTree {
         let mut tree = DomTree {
             root: 0,
-            nodes: vec![DomNode::element("html", HashMap::new(), vec![])],
+            nodes: vec![DomNode::element_with_attributes("html", HashMap::new())],
         };
-        tree.add(DomNode::element("head", HashMap::new(), vec![]), tree.root);
-        tree.add(DomNode::element("body", HashMap::new(), vec![]), tree.root);
+        tree.add(
+            DomNode::element_with_attributes("head", HashMap::new()),
+            tree.root,
+        );
+        tree.add(
+            DomNode::element_with_attributes("body", HashMap::new()),
+            tree.root,
+        );
 
         return tree;
     }
 
-    pub fn filter_by_kind(&self) -> Vec<usize> {
-        todo!()
+    pub fn get_mut(&mut self, id: usize) -> Option<&mut DomNode> {
+        return self.nodes.get_mut(id);
+    }
+
+    pub fn get_elements_by_tag_name(&self, tag_name: impl Into<String>) -> Vec<usize> {
+        let tag_name = tag_name.into();
+        return BFS::new(self)
+            .filter(|id| match &self.nodes[*id].kind {
+                DomNodeKind::Element { tag, .. } if tag == &tag_name => true,
+                _ => false,
+            })
+            .collect();
     }
 
     /// Add a node to the tree return the id (index) of the node
@@ -70,11 +138,29 @@ impl DomTree {
         id
     }
 
+    /// Add a node to the tree return the id (index) of the node
+    pub fn add_element(&mut self, tag: impl Into<String>, parent_id: usize) -> usize {
+        self.add(DomNode::element(tag), parent_id)
+    }
+    pub fn add_element_with_attributes(
+        &mut self,
+        tag: impl Into<String>,
+        attributes: HashMap<String, String>,
+        parent_id: usize,
+    ) -> usize {
+        self.add(DomNode::element_with_attributes(tag, attributes), parent_id)
+    }
+
+    /// Add a node to the tree return the id (index) of the node
+    pub fn add_text(&mut self, text: impl Into<String>, parent_id: usize) -> usize {
+        self.add(DomNode::text(text), parent_id)
+    }
+
     fn to_html_content_recurs(&self, index: usize) -> String {
         let node = &self.nodes[index];
-        return match node.kind {
-            DomNodeKind::Text { text } => text,
-            DomNodeKind::Element { kind, attributes } => {
+        match &node.kind {
+            DomNodeKind::Text { text } => return text.clone(),
+            DomNodeKind::Element { tag, attributes } => {
                 let attributes = attributes
                     .into_iter()
                     .map(|(k, v)| format!("{k}='{v}'"))
@@ -87,19 +173,24 @@ impl DomTree {
                     String::new()
                 };
 
+                if node.children.len() == 0 {
+                    return format!("<{tag}{spacing}{}/>", attributes);
+                }
+
                 let mut content = String::new();
 
                 for c in &node.children {
                     content += &self.to_html_content_recurs(*c);
                 }
 
-                format!("<{kind}{spacing}{}>{}</{kind}>", attributes, content)
+                return format!("<{tag}{spacing}{}>{}</{tag}>", attributes, content);
             }
         };
     }
 
-    pub fn to_html_content(&self) -> String {
-        return self.to_html_content_recurs(self.root);
+    pub fn to_html_string(self) -> String {
+        let html = self.to_html_content_recurs(self.root);
+        return format!(r#"<!DOCTYPE html>{html}"#);
     }
 }
 
@@ -107,6 +198,7 @@ impl fmt::Display for DomTree {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut out: String = String::new();
 
+        // TODO use BFS
         let mut current_depth = 0;
         let mut queue = vec![(self.root, 0)];
         while let Some((n, depth)) = queue.pop() {
@@ -123,9 +215,9 @@ impl fmt::Display for DomTree {
             if current_depth != 0 {
                 out += "\t - \t"
             }
-            out += match &node.kind {
-                DomNodeKind::Text { text } => text,
-                DomNodeKind::Element { kind, .. } => kind,
+            out += &match &node.kind {
+                DomNodeKind::Text { text } => format!(r#"Text"#),
+                DomNodeKind::Element { tag: kind, .. } => kind.to_owned(),
             };
             out += &format!("({})", n);
             current_depth = depth + 1;
@@ -134,4 +226,11 @@ impl fmt::Display for DomTree {
         f.write_str(&out)?;
         Ok(())
     }
+}
+
+/// Utility function to convert iteratables into attributes hashmap
+pub fn attributes<I: IntoIterator<Item = (impl Into<String>, impl Into<String>)>>(
+    arr: I,
+) -> HashMap<String, String> {
+    arr.into_iter().map(|(k, v)| (k.into(), v.into())).collect()
 }

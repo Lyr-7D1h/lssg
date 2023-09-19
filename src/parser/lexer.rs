@@ -167,17 +167,17 @@ impl<R: Read> Lexer<R> {
                         }
                     }
 
-                    let mut kind = String::new();
+                    let mut tag = String::new();
                     for c in start_tag[1..start_tag.len() - 1].chars() {
                         match c {
                             ' ' => break,
                             '\n' => break,
-                            _ => kind.push(c),
+                            _ => tag.push(c),
                         }
                     }
 
                     let mut attributes = HashMap::new();
-                    for a in start_tag[1 + kind.len()..start_tag.len() - 1].split(" ") {
+                    for a in start_tag[1 + tag.len()..start_tag.len() - 1].split(" ") {
                         let mut parts = a.splitn(2, "=");
                         if let Some(k) = parts.next() {
                             if let Some(v) = parts.next() {
@@ -191,9 +191,9 @@ impl<R: Read> Lexer<R> {
                     let mut content = String::new();
                     while let Some(c) = self.reader.read_char()? {
                         if c == '<' {
-                            let end_tag_kind = self.reader.peek_string(kind.len() + 2)?;
-                            if end_tag_kind == format!("/{kind}>") {
-                                self.reader.read_string(kind.len() + 2)?;
+                            let end_tag_kind = self.reader.peek_string(tag.len() + 2)?;
+                            if end_tag_kind == format!("/{tag}>") {
+                                self.reader.read_string(tag.len() + 2)?;
                                 break;
                             }
                         }
@@ -205,7 +205,7 @@ impl<R: Read> Lexer<R> {
 
                     let tokens = self.read_inline_tokens(&content)?;
                     return Ok(Token::Html {
-                        kind,
+                        tag,
                         attributes,
                         tokens,
                     });
@@ -258,7 +258,7 @@ pub enum Token {
         text: String,
     },
     Html {
-        kind: String,
+        tag: String,
         attributes: HashMap<String, String>,
         tokens: Vec<Token>,
     },
