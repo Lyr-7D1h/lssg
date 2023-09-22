@@ -157,7 +157,13 @@ impl DomTree {
             DomNodeKind::Element { tag, attributes } => {
                 let attributes = attributes
                     .into_iter()
-                    .map(|(k, v)| format!("{k}='{v}'"))
+                    .map(|(k, v)| {
+                        if v.len() > 0 {
+                            format!("{k}='{v}'")
+                        } else {
+                            k.into()
+                        }
+                    })
                     .collect::<Vec<String>>()
                     .join(" ");
 
@@ -210,7 +216,7 @@ impl fmt::Display for DomTree {
                 out += "\t - \t"
             }
             out += &match &node.kind {
-                DomNodeKind::Text { text } => format!(r#"Text"#),
+                DomNodeKind::Text { .. } => format!(r#"Text"#),
                 DomNodeKind::Element { tag: kind, .. } => kind.to_owned(),
             };
             out += &format!("({})", n);
@@ -223,7 +229,7 @@ impl fmt::Display for DomTree {
 }
 
 /// Utility function to convert iteratables into attributes hashmap
-pub fn attributes<I: IntoIterator<Item = (impl Into<String>, impl Into<String>)>>(
+pub fn to_attributes<I: IntoIterator<Item = (impl Into<String>, impl Into<String>)>>(
     arr: I,
 ) -> HashMap<String, String> {
     arr.into_iter().map(|(k, v)| (k.into(), v.into())).collect()

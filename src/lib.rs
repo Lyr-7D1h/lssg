@@ -156,7 +156,7 @@ impl Lssg {
 
         let mut queue: Vec<usize> = vec![site_tree.root()];
 
-        let renderer = HtmlRenderer::new(&site_tree, vec![]);
+        let mut renderer = HtmlRenderer::new(&site_tree, vec![]);
         while let Some(id) = queue.pop() {
             let node = site_tree.get(id)?;
             queue.append(&mut node.children.clone());
