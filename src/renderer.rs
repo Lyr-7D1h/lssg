@@ -1,9 +1,11 @@
-use std::{collections::HashMap, error::Error, fmt::Display};
+pub mod blog_module;
+
+use std::{collections::HashMap, error::Error, fmt::Display, fs::File, path::PathBuf};
 
 use crate::{
-    domtree::{self, attributes, DomNode, DomNodeKind, DomTree},
+    domtree::{self, to_attributes, DomNode, DomNodeKind, DomTree},
     parser::lexer::Token,
-    sitetree::{SiteNodeKind, SiteTree},
+    sitetree::{SiteNode, SiteNodeKind, SiteTree},
     LssgError,
 };
 
@@ -55,21 +57,34 @@ pub struct HtmlRenderOptions {
     pub language: String,
 }
 
-pub trait RendererModule {
+pub trait RendererModule<'n> {
+    fn new(site_tree: &'n SiteTree) -> Self
+    where
+        Self: Sized;
+
     /// Render a token before default token renderer
-    fn render_body(&self, tree: DomTree, tokens: &Vec<Token>) -> Option<String>;
-    fn render_head(&self, tokens: &Vec<Token>) -> Option<String>;
+    fn init(
+        &mut self,
+        site_id: usize,
+        site_node: &SiteNode,
+        site_node_input: &PathBuf,
+        tokens: &Vec<Token>,
+        tree: &mut DomTree,
+    );
+
+    /// Render a token before default token renderer
+    fn body(&self, tokens: Token, tree: &mut DomTree, parent_dom_id: usize) -> Option<String>;
 }
 
 pub struct HtmlRenderer<'n> {
     site_tree: &'n SiteTree,
-    render_modules: Vec<Box<dyn RendererModule>>,
+    render_modules: Vec<Box<dyn RendererModule<'n>>>,
 }
 
 impl<'n> HtmlRenderer<'n> {
     pub fn new(
         site_tree: &'n SiteTree,
-        render_modules: Vec<Box<dyn RendererModule>>,
+        render_modules: Vec<Box<dyn RendererModule<'n>>>,
     ) -> HtmlRenderer<'n> {
         HtmlRenderer {
             site_tree,
@@ -108,21 +123,29 @@ impl<'n> HtmlRenderer<'n> {
                     tree.add_text("", parent_id);
                 }
                 Token::Link { text, href } => {
-                    // if href.starts_with("http") || href.starts_with("mailto:") {
-                    //     // external link
-                    //     format!(
-                    //         r#"<a href="{href}">{text} <i class="fas fa-external-link-alt" style="font-size: 0.8em"></i></a>"#
-                    //     ) // FIXME add font awesome as default included
-                    // } else {
-                    // internal link
-
-                    let parent = tree.add_element_with_attributes(
-                        "a",
-                        attributes([("href", href)]),
-                        parent_id,
-                    );
-                    tree.add_text(text, parent);
-                    // }
+                    if href.starts_with("http") || href.starts_with("mailto:") {
+                        let parent_id = tree.add_element_with_attributes(
+                            "a",
+                            to_attributes([("href", href)]),
+                            parent_id,
+                        );
+                        tree.add_text(text, parent_id);
+                        tree.add_element_with_attributes(
+                            "i",
+                            to_attributes([
+                                ("class", "fas fas-external-link-alt"),
+                                ("style", "font-size: 0.8em"),
+                            ]),
+                            parent_id,
+                        );
+                    } else {
+                        let parent_id = tree.add_element_with_attributes(
+                            "a",
+                            to_attributes([("href", href)]),
+                            parent_id,
+                        );
+                        tree.add_text(text, parent_id);
+                    }
                 }
                 Token::Text { text } => {
                     tree.add_text(text, parent_id);
@@ -132,19 +155,30 @@ impl<'n> HtmlRenderer<'n> {
                     attributes,
                     tokens,
                 } => match tag.as_str() {
-                    // "nav" if attributes.contains_key("links") => {
-                    //     let blocks = tokens
-                    //         .into_iter()
-                    //         .map(|t| match t {
-                    //             Token::Link { text, href } => {
-                    //                 format!(r#"<a href={href}><div class="card">{text}</div></a>"#)
-                    //             }
-                    //             _ => "".into(),
-                    //         })
-                    //         .collect::<Vec<String>>()
-                    //         .join("");
-                    //     format!(r#"<nav class="links">{blocks}</nav>"#)
-                    // }
+                    "nav" if attributes.contains_key("links") => {
+                        let mut attributes = attributes.clone();
+                        attributes.insert("class".into(), "links".into());
+                        let parent_id =
+                            tree.add_element_with_attributes("nav", attributes, parent_id);
+                        for t in tokens {
+                            match t {
+                                Token::Link { text, href } => {
+                                    let parent_id = tree.add_element_with_attributes(
+                                        "a",
+                                        to_attributes([("href", href)]),
+                                        parent_id,
+                                    );
+                                    let parent_id = tree.add_element_with_attributes(
+                                        "div",
+                                        to_attributes([("class", "card")]),
+                                        parent_id,
+                                    );
+                                    tree.add_text(text, parent_id);
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
                     _ => {
                         let parent_id =
                             tree.add_element_with_attributes(tag, attributes.clone(), parent_id);
@@ -158,9 +192,13 @@ impl<'n> HtmlRenderer<'n> {
     }
 
     /// Transform site id into a html page
-    pub fn render(&self, id: usize, mut options: HtmlRenderOptions) -> Result<String, LssgError> {
+    pub fn render(
+        &mut self,
+        site_id: usize,
+        mut options: HtmlRenderOptions,
+    ) -> Result<String, LssgError> {
         // get the site node
-        let site_node = self.site_tree.get(id)?;
+        let site_node = self.site_tree.get(site_id)?;
         let (mut tokens, input) = match &site_node.kind {
             SiteNodeKind::Page { tokens, input, .. } => (tokens.clone(), input),
             _ => return Err(LssgError::render("Invalid node type given")),
@@ -176,12 +214,9 @@ impl<'n> HtmlRenderer<'n> {
             }
         }
 
-        // If the first token is a comment see it as metadata
-        let metadata = if let Some(Token::Comment { text: _, map }) = tokens.first() {
-            map.clone()
-        } else {
-            HashMap::new()
-        };
+        for module in &mut self.render_modules {
+            module.init(site_id, site_node, input, &tokens, &mut tree);
+        }
 
         // let breadcrumbs = if id == self.site_tree.root() || metadata.contains_key("nocrumb") {
         //     "".into()
@@ -225,8 +260,9 @@ impl<'n> HtmlRenderer<'n> {
         // }
 
         let body_id = tree.get_elements_by_tag_name("body")[0];
-        tree.add_element_with_attributes("div", attributes([("id", "content")]), body_id);
-        Self::render_body_content(&tokens, &mut tree, body_id);
+        let content_id =
+            tree.add_element_with_attributes("div", to_attributes([("id", "content")]), body_id);
+        Self::render_body_content(&tokens, &mut tree, content_id);
         // if metadata.contains_key("post") {
         //     body_content = format!(r#"<div class="post">{body_content}</div>"#);
         // }
@@ -242,7 +278,7 @@ impl<'n> HtmlRenderer<'n> {
             tree.add(
                 DomNode::element_with_attributes(
                     "link",
-                    attributes([
+                    to_attributes([
                         ("rel", "icon"),
                         ("type", "image/x-icon"),
                         ("href", &self.site_tree.rel_path(id, favicon_id)),
@@ -254,20 +290,20 @@ impl<'n> HtmlRenderer<'n> {
         for link in options.links {
             tree.add_element_with_attributes(
                 "link",
-                attributes([("rel", link.rel.to_string()), ("href", link.href)]),
+                to_attributes([("rel", link.rel.to_string()), ("href", link.href)]),
                 head,
             );
         }
         tree.add_element_with_attributes(
             "meta",
-            attributes([
+            to_attributes([
                 ("name", "viewport"),
                 ("content", r#"width=device-width, initial-scale=1"#),
             ]),
             head,
         );
         tree.add(
-            DomNode::element_with_attributes("meta", attributes([("charset", "utf-8")])),
+            DomNode::element_with_attributes("meta", to_attributes([("charset", "utf-8")])),
             head,
         );
 

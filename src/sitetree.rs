@@ -3,6 +3,7 @@ use std::{
     collections::HashMap,
     fs::File,
     io,
+    ops::Index,
     path::{Path, PathBuf},
 };
 
@@ -149,6 +150,18 @@ impl SiteTree {
             keep_name: false,
         };
         return Ok(id);
+    }
+
+    /// Check if node `id` has `parent_id` as parent node
+    pub fn is_parent(&self, id: usize, parent_id: usize) -> bool {
+        let mut parent = self.nodes[id].parent;
+        while let Some(p) = parent {
+            if p == parent_id {
+                return true;
+            }
+            parent = self.nodes[id].parent
+        }
+        return false;
     }
 
     pub fn find_by_input(&self, finput: &Path) -> Option<usize> {
@@ -319,5 +332,13 @@ impl fmt::Display for SiteTree {
 
         f.write_str(&out)?;
         Ok(())
+    }
+}
+
+impl Index<usize> for SiteTree {
+    type Output = SiteNode;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.nodes[index]
     }
 }
