@@ -1,6 +1,6 @@
 pub mod blog_module;
 
-use std::{collections::HashMap, error::Error, fmt::Display, fs::File, path::PathBuf};
+use std::{any::Any, collections::HashMap, error::Error, fmt::Display, fs::File, path::PathBuf};
 
 use crate::{
     domtree::{self, to_attributes, DomNode, DomNodeKind, DomTree},
@@ -57,137 +57,149 @@ pub struct HtmlRenderOptions {
     pub language: String,
 }
 
-pub trait RendererModule<'n> {
-    fn new(site_tree: &'n SiteTree) -> Self
-    where
-        Self: Sized;
+#[derive(Debug)]
+pub struct RendererModuleProperties<'n> {
+    tree: &'n mut DomTree,
+    site_tree: &'n SiteTree,
+    site_id: usize,
+    tokens: &'n Vec<Token>,
+}
 
-    /// Render a token before default token renderer
+pub trait RendererModule {
+    /// Modify DomTree on init
     fn init(
         &mut self,
-        site_id: usize,
-        site_node: &SiteNode,
-        site_node_input: &PathBuf,
-        tokens: &Vec<Token>,
         tree: &mut DomTree,
+        site_tree: &SiteTree,
+        site_id: usize,
+        tokens: &Vec<Token>,
     );
 
-    /// Render a token before default token renderer
-    fn body(&self, tokens: Token, tree: &mut DomTree, parent_dom_id: usize) -> Option<String>;
+    /// Render a token before default token renderer returns true if it parsed this token otherwise false
+    fn body<'n>(
+        &mut self,
+        tree: &mut DomTree,
+        site_tree: &SiteTree,
+        site_id: usize,
+        tokens: &Vec<Token>,
+        token: Token,
+        parent_dom_id: usize,
+    ) -> bool;
 }
 
 pub struct HtmlRenderer<'n> {
     site_tree: &'n SiteTree,
-    render_modules: Vec<Box<dyn RendererModule<'n>>>,
+    render_modules: Vec<Box<dyn RendererModule>>,
 }
 
 impl<'n> HtmlRenderer<'n> {
     pub fn new(
         site_tree: &'n SiteTree,
-        render_modules: Vec<Box<dyn RendererModule<'n>>>,
+        render_modules: Vec<impl RendererModule + 'static>,
     ) -> HtmlRenderer<'n> {
+        let render_modules = render_modules
+            .into_iter()
+            .map(|module| -> Box<dyn RendererModule> { Box::new(module) })
+            .collect();
         HtmlRenderer {
             site_tree,
             render_modules,
         }
     }
 
-    fn render_body_content(tokens: &Vec<Token>, tree: &mut DomTree, parent_id: usize) {
-        for t in tokens.into_iter() {
-            match t {
-                Token::Heading {
-                    depth,
-                    text: _,
-                    tokens,
-                } => {
-                    let parent = tree.add(DomNode::element(format!("h{depth}")), parent_id);
-                    Self::render_body_content(tokens, tree, parent);
-                }
-                Token::Paragraph { tokens } => {
-                    let parent = tree.add(DomNode::element("p"), parent_id);
-                    Self::render_body_content(tokens, tree, parent);
-                }
-                Token::Bold { text } => {
-                    let parent = tree.add(DomNode::element("b"), parent_id);
-                    tree.add_text(text, parent);
-                }
-                Token::Italic { text } => {
-                    let parent = tree.add_element("i", parent_id);
-                    tree.add_text(text, parent);
-                }
-                Token::Code { code, language: _ } => {
-                    let parent = tree.add_element("code", parent_id);
-                    tree.add_text(code, parent);
-                }
-                Token::Space { raw: _ } => {
-                    tree.add_text("", parent_id);
-                }
-                Token::Link { text, href } => {
-                    if href.starts_with("http") || href.starts_with("mailto:") {
-                        let parent_id = tree.add_element_with_attributes(
-                            "a",
-                            to_attributes([("href", href)]),
-                            parent_id,
-                        );
-                        tree.add_text(text, parent_id);
-                        tree.add_element_with_attributes(
-                            "i",
-                            to_attributes([
-                                ("class", "fas fas-external-link-alt"),
-                                ("style", "font-size: 0.8em"),
-                            ]),
-                            parent_id,
-                        );
-                    } else {
-                        let parent_id = tree.add_element_with_attributes(
-                            "a",
-                            to_attributes([("href", href)]),
-                            parent_id,
-                        );
-                        tree.add_text(text, parent_id);
-                    }
-                }
-                Token::Text { text } => {
+    fn render_body_content(&self, tokens: &Vec<Token>, tree: &mut DomTree, parent_id: usize) {
+        match t {
+            Token::Heading {
+                depth,
+                text: _,
+                tokens,
+            } => {
+                let parent = tree.add(DomNode::element(format!("h{depth}")), parent_id);
+                self.render_body_content(tokens, tree, parent);
+            }
+            Token::Paragraph { tokens } => {
+                let parent = tree.add(DomNode::element("p"), parent_id);
+                self.render_body_content(tokens, tree, parent);
+            }
+            Token::Bold { text } => {
+                let parent = tree.add(DomNode::element("b"), parent_id);
+                tree.add_text(text, parent);
+            }
+            Token::Italic { text } => {
+                let parent = tree.add_element("i", parent_id);
+                tree.add_text(text, parent);
+            }
+            Token::Code { code, language: _ } => {
+                let parent = tree.add_element("code", parent_id);
+                tree.add_text(code, parent);
+            }
+            Token::Space { raw: _ } => {
+                tree.add_text("", parent_id);
+            }
+            Token::Link { text, href } => {
+                if href.starts_with("http") || href.starts_with("mailto:") {
+                    let parent_id = tree.add_element_with_attributes(
+                        "a",
+                        to_attributes([("href", href)]),
+                        parent_id,
+                    );
+                    tree.add_text(text, parent_id);
+                    tree.add_element_with_attributes(
+                        "i",
+                        to_attributes([
+                            ("class", "fas fas-external-link-alt"),
+                            ("style", "font-size: 0.8em"),
+                        ]),
+                        parent_id,
+                    );
+                } else {
+                    let parent_id = tree.add_element_with_attributes(
+                        "a",
+                        to_attributes([("href", href)]),
+                        parent_id,
+                    );
                     tree.add_text(text, parent_id);
                 }
-                Token::Html {
-                    tag,
-                    attributes,
-                    tokens,
-                } => match tag.as_str() {
-                    "nav" if attributes.contains_key("links") => {
-                        let mut attributes = attributes.clone();
-                        attributes.insert("class".into(), "links".into());
-                        let parent_id =
-                            tree.add_element_with_attributes("nav", attributes, parent_id);
-                        for t in tokens {
-                            match t {
-                                Token::Link { text, href } => {
-                                    let parent_id = tree.add_element_with_attributes(
-                                        "a",
-                                        to_attributes([("href", href)]),
-                                        parent_id,
-                                    );
-                                    let parent_id = tree.add_element_with_attributes(
-                                        "div",
-                                        to_attributes([("class", "card")]),
-                                        parent_id,
-                                    );
-                                    tree.add_text(text, parent_id);
-                                }
-                                _ => {}
+            }
+            Token::Text { text } => {
+                tree.add_text(text, parent_id);
+            }
+            Token::Html {
+                tag,
+                attributes,
+                tokens,
+            } => match tag.as_str() {
+                "nav" if attributes.contains_key("links") => {
+                    let mut attributes = attributes.clone();
+                    attributes.insert("class".into(), "links".into());
+                    let parent_id = tree.add_element_with_attributes("nav", attributes, parent_id);
+                    for t in tokens {
+                        match t {
+                            Token::Link { text, href } => {
+                                let parent_id = tree.add_element_with_attributes(
+                                    "a",
+                                    to_attributes([("href", href)]),
+                                    parent_id,
+                                );
+                                let parent_id = tree.add_element_with_attributes(
+                                    "div",
+                                    to_attributes([("class", "card")]),
+                                    parent_id,
+                                );
+                                tree.add_text(text, parent_id);
                             }
+                            _ => {}
                         }
                     }
-                    _ => {
-                        let parent_id =
-                            tree.add_element_with_attributes(tag, attributes.clone(), parent_id);
-                        Self::render_body_content(tokens, tree, parent_id)
-                    }
-                },
-                Token::Comment { .. } => continue,
-                Token::EOF => continue,
-            }
+                }
+                _ => {
+                    let parent_id =
+                        tree.add_element_with_attributes(tag, attributes.clone(), parent_id);
+                    self.render_body_content(tokens, tree, parent_id)
+                }
+            },
+            Token::Comment { .. } => continue,
+            Token::EOF => continue,
         }
     }
 
@@ -199,7 +211,7 @@ impl<'n> HtmlRenderer<'n> {
     ) -> Result<String, LssgError> {
         // get the site node
         let site_node = self.site_tree.get(site_id)?;
-        let (mut tokens, input) = match &site_node.kind {
+        let (tokens, input) = match &site_node.kind {
             SiteNodeKind::Page { tokens, input, .. } => (tokens.clone(), input),
             _ => return Err(LssgError::render("Invalid node type given")),
         };
@@ -215,7 +227,7 @@ impl<'n> HtmlRenderer<'n> {
         }
 
         for module in &mut self.render_modules {
-            module.init(site_id, site_node, input, &tokens, &mut tree);
+            module.init(&mut tree, &self.site_tree, site_id, &tokens);
         }
 
         // let breadcrumbs = if id == self.site_tree.root() || metadata.contains_key("nocrumb") {
@@ -259,10 +271,18 @@ impl<'n> HtmlRenderer<'n> {
         //     }
         // }
 
-        let body_id = tree.get_elements_by_tag_name("body")[0];
+        let body = tree.get_elements_by_tag_name("body")[0];
         let content_id =
-            tree.add_element_with_attributes("div", to_attributes([("id", "content")]), body_id);
-        Self::render_body_content(&tokens, &mut tree, content_id);
+            tree.add_element_with_attributes("div", to_attributes([("id", "content")]), body);
+        self.render_body_content(
+            &mut tree,
+            &self.site_tree,
+            site_id,
+            &tokens,
+            token,
+            content_id,
+        );
+
         // if metadata.contains_key("post") {
         //     body_content = format!(r#"<div class="post">{body_content}</div>"#);
         // }

@@ -22,6 +22,7 @@ use renderer::{HtmlLink, HtmlRenderOptions, HtmlRenderer, Meta, Rel};
 
 use crate::{
     parser::Parser,
+    renderer::blog_module::BlogModule,
     sitetree::{SiteNode, SiteNodeKind, SiteTree},
     stylesheet::Stylesheet,
     util::{canonicalize_nonexistent_path, filestem_from_path},
@@ -156,7 +157,7 @@ impl Lssg {
 
         let mut queue: Vec<usize> = vec![site_tree.root()];
 
-        let mut renderer = HtmlRenderer::new(&site_tree, vec![]);
+        let mut renderer = HtmlRenderer::new(&site_tree, vec![BlogModule::new()]);
         while let Some(id) = queue.pop() {
             let node = site_tree.get(id)?;
             queue.append(&mut node.children.clone());
