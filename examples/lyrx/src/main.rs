@@ -1,6 +1,6 @@
 use std::{env, path::PathBuf};
 
-use lssg::{renderer::Rel, Link, Lssg, LssgOptions};
+use lssg::{renderer::default_module::DefaultModuleOptions, Lssg, LssgOptions};
 use simple_logger::SimpleLogger;
 
 fn main() {
@@ -13,27 +13,20 @@ fn main() {
     Lssg::new(LssgOptions {
         index: path.join("home.md"),
         output_directory: path.join("../build"),
-        global_stylesheet: Some(path.join("./main.css")),
-        not_found_page: Some(path.join("./404.md")),
-        overwrite_default_stylesheet: false,
-        links: vec![
-            Link {
-                rel: Rel::Stylesheet,
-                path: path.join("./lib/fontawesome.css"),
-            },
-            Link {
-                rel: Rel::Stylesheet,
-                path: path.join("./lib/fa-solid.css"),
-            },
-            Link {
-                rel: Rel::Stylesheet,
-                path: path.join("./lib/fa-brands.css"),
-            },
-        ],
-        title: "LyrX".into(),
-        language: "en".into(),
-        keywords: vec![],
-        favicon: Some(path.join("./favicon.ico")),
+        render_options: DefaultModuleOptions {
+            global_stylesheet: Some(path.join("./main.css")),
+            not_found_page: Some(path.join("./404.md")),
+            overwrite_default_stylesheet: false,
+            stylesheets: vec![
+                path.join("./lib/fontawesome.css"),
+                path.join("./lib/fa-solid.css"),
+                path.join("./lib/fa-brands.css"),
+            ],
+            title: "LyrX".into(),
+            language: "en".into(),
+            keywords: vec![],
+            favicon: Some(path.join("./favicon.ico")),
+        },
     })
     .render()
     .unwrap()
