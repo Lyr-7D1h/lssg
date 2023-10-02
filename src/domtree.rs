@@ -199,7 +199,6 @@ impl fmt::Display for DomTree {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut out: String = String::new();
 
-        // TODO use BFS
         let mut current_depth = 0;
         let mut queue = vec![(self.root, 0)];
         while let Some((n, depth)) = queue.pop() {
@@ -217,7 +216,7 @@ impl fmt::Display for DomTree {
                 out += "\t - \t"
             }
             out += &match &node.kind {
-                DomNodeKind::Text { .. } => format!(r#"Text"#),
+                DomNodeKind::Text { text, .. } => format!(r#"{text}"#),
                 DomNodeKind::Element { tag: kind, .. } => kind.to_owned(),
             };
             out += &format!("({})", n);

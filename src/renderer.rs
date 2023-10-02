@@ -1,5 +1,7 @@
-pub mod blog_module;
-pub mod default_module;
+mod blog_module;
+pub use blog_module::BlogModule;
+mod default_module;
+pub use default_module::{DefaultModule, DefaultModuleOptions};
 
 use std::collections::{HashMap, VecDeque};
 
@@ -144,6 +146,7 @@ impl HtmlRenderer {
             warn!("{token:?} not renderered");
         }
 
+        println!("{tree}");
         return Ok(tree.to_html_string());
     }
 }

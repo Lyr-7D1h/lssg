@@ -18,10 +18,7 @@ use lssg_error::LssgError;
 use renderer::HtmlRenderer;
 
 use crate::{
-    renderer::{
-        blog_module::BlogModule,
-        default_module::{DefaultModule, DefaultModuleOptions},
-    },
+    renderer::{BlogModule, DefaultModule, DefaultModuleOptions},
     sitetree::{SiteNodeKind, SiteTree},
     util::canonicalize_nonexistent_path,
 };
