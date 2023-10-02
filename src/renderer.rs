@@ -67,6 +67,8 @@ pub struct RendererModuleContext<'n> {
     pub metadata: HashMap<String, String>,
 }
 
+/// HtmlRenderer is responsible for the process of converting the site tree into the final HTML output.
+/// It does this by managing a queue of tokens to be rendered and delegating the rendering process to different modules.
 pub struct HtmlRenderer {
     modules: Vec<Box<dyn RendererModule>>,
 }
@@ -80,6 +82,7 @@ impl HtmlRenderer {
         self.modules.push(Box::new(module));
     }
 
+    /// Will run site_init on all modules, will remove modules if it fails
     pub fn site_init(&mut self, site_tree: &mut SiteTree) {
         let failed: Vec<usize> = (&mut self.modules)
             .into_iter()

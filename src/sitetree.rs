@@ -83,6 +83,55 @@ fn rel_path(nodes: &Vec<SiteNode>, from: usize, to: usize) -> String {
     return format!("{}{}", "../".repeat(depth), to_path);
 }
 
+/// parse a markdown file and any markdown references, updates corresponding links
+fn from_index_recursive(
+    nodes: &mut Vec<SiteNode>,
+    input: PathBuf,
+    parent: Option<usize>,
+) -> Result<usize, LssgError> {
+    let file = File::open(&input)?;
+    let mut tokens = Parser::parse(file)?;
+
+    // create early because of the need of an parent id
+    nodes.push(SiteNode {
+        name: filestem_from_path(&input)?,
+        parent,
+        children: vec![],           // filling later
+        kind: SiteNodeKind::Folder, // hack changing after children created
+    });
+    let id = nodes.len() - 1;
+
+    let mut children = vec![];
+    let mut queue = vec![&mut tokens];
+    while let Some(tokens) = queue.pop() {
+        for t in tokens {
+            match t {
+                Token::Heading { tokens, .. } => queue.push(tokens),
+                Token::Paragraph { tokens, .. } => queue.push(tokens),
+                Token::Html { tokens, .. } => queue.push(tokens),
+                Token::Link { href, .. } => {
+                    if href.starts_with("./") && href.ends_with(".md") {
+                        let path = input.parent().unwrap().join(Path::new(&href));
+                        // remove file extension
+                        // href.replace_range((href.len() - 3)..href.len(), "");
+                        let child_id = from_index_recursive(nodes, path, Some(id))?;
+                        *href = rel_path(nodes, id, child_id);
+                        children.push(child_id)
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    nodes[id].children = children;
+    nodes[id].kind = SiteNodeKind::Page {
+        tokens,
+        input,
+        keep_name: false,
+    };
+    return Ok(id);
+}
 /// Code representation of all nodes within the site (hiarchy and how nodes are related)
 #[derive(Debug)]
 pub struct SiteTree {
@@ -94,62 +143,12 @@ pub struct SiteTree {
 impl SiteTree {
     pub fn from_index(index: PathBuf) -> Result<SiteTree, LssgError> {
         let mut nodes = vec![];
-        let root = Self::from_index_recursive(&mut nodes, index.clone(), None)?;
+        let root = from_index_recursive(&mut nodes, index.clone(), None)?;
         Ok(SiteTree {
             nodes,
             root,
             index_path: index,
         })
-    }
-
-    /// parse a markdown file and any markdown references, updates corresponding links
-    fn from_index_recursive(
-        nodes: &mut Vec<SiteNode>,
-        input: PathBuf,
-        parent: Option<usize>,
-    ) -> Result<usize, LssgError> {
-        let file = File::open(&input)?;
-        let mut tokens = Parser::parse(file)?;
-
-        // create early because of the need of an parent id
-        nodes.push(SiteNode {
-            name: filestem_from_path(&input)?,
-            parent,
-            children: vec![],           // filling later
-            kind: SiteNodeKind::Folder, // hack changing after children created
-        });
-        let id = nodes.len() - 1;
-
-        let mut children = vec![];
-        let mut queue = vec![&mut tokens];
-        while let Some(tokens) = queue.pop() {
-            for t in tokens {
-                match t {
-                    Token::Heading { tokens, .. } => queue.push(tokens),
-                    Token::Paragraph { tokens, .. } => queue.push(tokens),
-                    Token::Html { tokens, .. } => queue.push(tokens),
-                    Token::Link { href, .. } => {
-                        if href.starts_with("./") && href.ends_with(".md") {
-                            let path = input.parent().unwrap().join(Path::new(&href));
-                            // remove file extension
-                            // href.replace_range((href.len() - 3)..href.len(), "");
-                            let child_id = Self::from_index_recursive(nodes, path, Some(id))?;
-                            *href = rel_path(nodes, id, child_id);
-                            children.push(child_id)
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-
-        nodes[id].children = children;
-        nodes[id].kind = SiteNodeKind::Page {
-            tokens,
-            input,
-            keep_name: false,
-        };
-        return Ok(id);
     }
 
     /// Check if node `id` has `parent_id` as parent node
@@ -197,7 +196,18 @@ impl SiteTree {
         )))
     }
 
-    // Get the path of a node
+    /// Get all parents from a node
+    pub fn parents(&self, id: usize) -> Vec<usize> {
+        let mut parent = self.nodes[id].parent;
+        let mut parents = vec![];
+        while let Some(p) = parent {
+            parents.push(p);
+            parent = self.nodes[p].parent;
+        }
+        parents
+    }
+
+    /// Get the path of a node
     pub fn path(&self, mut id: usize) -> String {
         if id == self.root {
             return String::new();

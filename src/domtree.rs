@@ -114,6 +114,7 @@ impl DomTree {
         return self.nodes.get_mut(id);
     }
 
+    /// Get all elements with a certain html tag
     pub fn get_elements_by_tag_name(&self, tag_name: impl Into<String>) -> Vec<usize> {
         let tag_name = tag_name.into();
         return BFS::new(self)

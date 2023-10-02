@@ -43,8 +43,6 @@ impl RendererModule for BlogModule {
         // reset state
         self.has_inserted_date = false;
 
-        let site_node = &site_tree[site_id];
-
         // Check if blog is enabled for page or child of blog enabled page
         if metadata.contains_key("blog") {
             self.blog_root_site_ids.push(site_id);
@@ -63,6 +61,7 @@ impl RendererModule for BlogModule {
         }
 
         let body = tree.get_elements_by_tag_name("body")[0];
+
         // add breacrumbs
         {
             let nav = tree.add_element_with_attributes(
@@ -71,16 +70,20 @@ impl RendererModule for BlogModule {
                 body,
             );
 
-            let mut parent = site_node.parent;
-            while let Some(p) = parent {
-                let node = site_tree[p].parent;
+            tree.add_text("/", nav);
+
+            let parents = site_tree.parents(site_id);
+            let parents_length = parents.len();
+            for (i, p) in parents.into_iter().rev().enumerate() {
                 let a = tree.add_element_with_attributes(
                     "a",
                     to_attributes([("href", site_tree.rel_path(site_id, p))]),
                     nav,
                 );
+                if i != parents_length - 1 {
+                    tree.add_text("/", nav);
+                }
                 tree.add_text(site_tree[p].name.clone(), a);
-                parent = node;
             }
         }
     }
