@@ -85,6 +85,7 @@ impl RendererModule for BlogModule {
                 }
                 tree.add_text(site_tree[p].name.clone(), a);
             }
+            tree.add_text(format!("/{}", site_tree[site_id].name), nav);
         }
     }
 

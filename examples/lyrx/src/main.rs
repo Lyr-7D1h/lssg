@@ -1,6 +1,6 @@
 use std::{env, path::PathBuf};
 
-use lssg::{renderer::default_module::DefaultModuleOptions, Lssg, LssgOptions};
+use lssg::{renderer::DefaultModuleOptions, Lssg, LssgOptions};
 use simple_logger::SimpleLogger;
 
 fn main() {
