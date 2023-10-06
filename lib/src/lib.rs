@@ -23,17 +23,15 @@ use crate::{
     util::canonicalize_nonexistent_path,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LssgOptions {
     pub index: PathBuf,
     pub output_directory: PathBuf,
-    pub render_options: DefaultModuleOptions,
 }
 
 pub struct Lssg {
     index: PathBuf,
     output_directory: PathBuf,
-    render_options: DefaultModuleOptions,
 }
 
 impl Lssg {
@@ -41,22 +39,21 @@ impl Lssg {
         let LssgOptions {
             index,
             output_directory,
-            render_options,
         } = options;
         Lssg {
             index,
             output_directory,
-            render_options,
         }
     }
 
     pub fn render(&self) -> Result<(), LssgError> {
         let mut renderer = HtmlRenderer::new();
         renderer.add_module(BlogModule::new());
-        renderer.add_module(DefaultModule::new(self.render_options.clone()));
+        renderer.add_module(DefaultModule::new());
 
         info!("Generating SiteMap");
         let mut site_tree = SiteTree::from_index(self.index.clone())?;
+
         renderer.site_init(&mut site_tree);
         info!("SiteTree:\n{site_tree}");
 

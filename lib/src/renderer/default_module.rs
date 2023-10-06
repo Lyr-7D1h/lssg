@@ -1,12 +1,13 @@
-use std::{error::Error, fmt::Display, fs::File, path::PathBuf};
+use std::path::PathBuf;
+
+use serde::{Deserialize, Serialize};
 
 use crate::{
     domtree::{to_attributes, DomNode, DomNodeKind},
     lssg_error::LssgError,
-    parser::{lexer::Token, LMarkdownParser},
+    parser::lexer::Token,
     sitetree::{SiteNode, SiteNodeKind, SiteTree},
     stylesheet::Stylesheet,
-    util::filestem_from_path,
 };
 
 use super::{RenderQueue, RendererModule};
@@ -19,12 +20,17 @@ pub struct Meta {
     pub content: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExternalPage {
+    input: PathBuf,
+    output: PathBuf,
+}
+
 #[derive(Debug, Clone)]
 pub struct DefaultModuleOptions {
     /// which you can you as your not found page.
-    // FIXME: change me to a map of markdown to html files
-    pub not_found_page: Option<PathBuf>,
-    pub global_stylesheet: Option<PathBuf>,
+    // TODO implement
+    pub external_pages: Vec<ExternalPage>,
     pub favicon: Option<PathBuf>,
     /// Overwrite the default stylesheet with your own
     pub overwrite_default_stylesheet: bool,
@@ -37,6 +43,30 @@ pub struct DefaultModuleOptions {
     pub language: String,
 }
 
+impl Default for DefaultModuleOptions {
+    fn default() -> Self {
+        Self {
+            external_pages: vec![],
+            favicon: None,
+            overwrite_default_stylesheet: false,
+            stylesheets: vec![],
+            keywords: vec![],
+            title: String::new(),
+            language: "en".into(),
+        }
+    }
+}
+
+struct OptionalDefaultModuleOptions {
+    pub external_pages: Option<Vec<ExternalPage>>,
+    pub favicon: Option<PathBuf>,
+    pub overwrite_default_stylesheet: Option<bool>,
+    pub stylesheets: Option<Vec<PathBuf>>,
+    pub title: Option<String>,
+    pub keywords: Option<Vec<(String, String)>>,
+    pub language: Option<String>,
+}
+
 /// Implements all basic default behavior, like rendering all tokens and adding meta tags and title to head
 pub struct DefaultModule {
     options: DefaultModuleOptions,
@@ -45,9 +75,9 @@ pub struct DefaultModule {
 }
 
 impl DefaultModule {
-    pub fn new(options: DefaultModuleOptions) -> Self {
+    pub fn new() -> Self {
         Self {
-            options,
+            options: DefaultModuleOptions::default(),
             favicon: None,
             stylesheet: 0,
         }
@@ -60,14 +90,22 @@ impl RendererModule for DefaultModule {
     }
 
     fn site_init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
-        let mut stylesheet = if let Some(p) = &self.options.global_stylesheet {
-            let mut s = if self.options.overwrite_default_stylesheet {
-                Stylesheet::new()
-            } else {
-                Stylesheet::default()
-            };
-            s.append(p)?;
-            s
+        // if let SiteNodeKind::Page {
+        //     tokens,
+        //     input,
+        //     keep_name,
+        // } = &site_tree[site_tree.root()].kind
+        // {
+        //     if let Some(Token::Comment { text, map }) = tokens.first() {
+        //         if let Ok(options) = toml::from_str(text) {
+        //             self.options = options;
+        //         }
+        //     }
+        // }
+        println!("{:?}", self.options);
+
+        let mut stylesheet = if self.options.overwrite_default_stylesheet {
+            Stylesheet::new()
         } else {
             Stylesheet::default()
         };
@@ -93,22 +131,22 @@ impl RendererModule for DefaultModule {
             None
         };
 
-        if let Some(input) = &self.options.not_found_page {
-            let file = File::open(&input)?;
-            let _ = site_tree.add(
-                SiteNode {
-                    name: filestem_from_path(input)?,
-                    parent: Some(site_tree.root()),
-                    children: vec![],
-                    kind: SiteNodeKind::Page {
-                        tokens: LMarkdownParser::parse(file)?,
-                        input: input.to_path_buf(),
-                        keep_name: true,
-                    },
-                },
-                site_tree.root(),
-            );
-        }
+        // if let Some(input) = &self.options.not_found_page {
+        //     let file = File::open(&input)?;
+        //     let _ = site_tree.add(
+        //         SiteNode {
+        //             name: filestem_from_path(input)?,
+        //             parent: Some(site_tree.root()),
+        //             children: vec![],
+        //             kind: SiteNodeKind::Page {
+        //                 tokens: LMarkdownParser::parse(file)?,
+        //                 input: input.to_path_buf(),
+        //                 keep_name: true,
+        //             },
+        //         },
+        //         site_tree.root(),
+        //     );
+        // }
 
         Ok(())
     }
