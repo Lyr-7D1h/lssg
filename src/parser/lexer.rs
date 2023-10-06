@@ -2,7 +2,7 @@ use std::{collections::HashMap, io::Read};
 
 use super::{char_reader::CharReader, parse_error::ParseError};
 
-pub struct Lexer<R> {
+pub struct LMarkdownLexer<R> {
     reader: CharReader<R>,
 }
 
@@ -20,9 +20,9 @@ fn sanitize_text(text: String) -> String {
 // https://github.com/markedjs/marked/blob/master/src/Lexer.js
 // https://github.com/songquanpeng/md2html/blob/main/lexer/lexer.go
 // https://marked.js.org/demo/
-impl<R: Read> Lexer<R> {
-    pub fn new(reader: CharReader<R>) -> Lexer<R> {
-        Lexer { reader }
+impl<R: Read> LMarkdownLexer<R> {
+    pub fn new(reader: CharReader<R>) -> LMarkdownLexer<R> {
+        LMarkdownLexer { reader }
     }
 
     fn read_inline_tokens(&mut self, text: &String) -> Result<Vec<Token>, ParseError> {
@@ -268,4 +268,20 @@ pub enum Token {
         map: HashMap<String, String>,
     },
     EOF,
+}
+
+impl Token {
+    pub fn is_text(&self) -> bool {
+        match self {
+            Token::Heading { .. }
+            | Token::Paragraph { .. }
+            | Token::Bold { .. }
+            | Token::Italic { .. }
+            | Token::Code { .. }
+            | Token::Link { .. }
+            | Token::Text { .. }
+            | Token::Html { .. } => true,
+            _ => false,
+        }
+    }
 }

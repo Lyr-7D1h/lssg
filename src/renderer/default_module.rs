@@ -3,7 +3,7 @@ use std::{error::Error, fmt::Display, fs::File, path::PathBuf};
 use crate::{
     domtree::{to_attributes, DomNode, DomNodeKind},
     lssg_error::LssgError,
-    parser::{lexer::Token, Parser},
+    parser::{lexer::Token, LMarkdownParser},
     sitetree::{SiteNode, SiteNodeKind, SiteTree},
     stylesheet::Stylesheet,
     util::filestem_from_path,
@@ -37,6 +37,7 @@ pub struct DefaultModuleOptions {
     pub language: String,
 }
 
+/// Implements all basic default behavior, like rendering all tokens and adding meta tags and title to head
 pub struct DefaultModule {
     options: DefaultModuleOptions,
     favicon: Option<usize>,
@@ -100,7 +101,7 @@ impl RendererModule for DefaultModule {
                     parent: Some(site_tree.root()),
                     children: vec![],
                     kind: SiteNodeKind::Page {
-                        tokens: Parser::parse(file)?,
+                        tokens: LMarkdownParser::parse(file)?,
                         input: input.to_path_buf(),
                         keep_name: true,
                     },
@@ -212,6 +213,7 @@ impl RendererModule for DefaultModule {
                         parent_id,
                     );
                     tree.add_text(text, parent_id);
+                    // TODO seperate from font awesome
                     tree.add_element_with_attributes(
                         "i",
                         to_attributes([

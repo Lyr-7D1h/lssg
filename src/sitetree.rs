@@ -10,7 +10,7 @@ use std::{
 use log::warn;
 
 use crate::{
-    parser::{lexer::Token, Parser},
+    parser::{lexer::Token, LMarkdownParser},
     stylesheet::Stylesheet,
     util::{filename_from_path, filestem_from_path},
     LssgError,
@@ -90,7 +90,7 @@ fn from_index_recursive(
     parent: Option<usize>,
 ) -> Result<usize, LssgError> {
     let file = File::open(&input)?;
-    let mut tokens = Parser::parse(file)?;
+    let mut tokens = LMarkdownParser::parse(file)?;
 
     // create early because of the need of an parent id
     nodes.push(SiteNode {

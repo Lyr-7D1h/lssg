@@ -100,13 +100,17 @@ impl RendererModule for BlogModule {
         let site_id = context.site_id;
         let site_tree = context.site_tree;
         match token {
-            Token::Heading { depth: 1, .. }
-                if !self.has_inserted_date && self.post_enabled_site_ids.contains(&site_id) =>
+            Token::Heading { depth, .. }
+                if *depth != 1
+                    && token.is_text()
+                    && !self.has_inserted_date
+                    && self.post_enabled_site_ids.contains(&site_id) =>
             {
                 if let SiteNodeKind::Page { input, .. } = &site_tree[site_id].kind {
                     match input.metadata() {
                         Ok(m) => match m.modified() {
                             Ok(date) => {
+                                self.has_inserted_date = true;
                                 let date: DateTime<Utc> = date.into();
                                 let date = date.format("Updated on %B %d, %Y").to_string();
                                 let div = tree.add_element_with_attributes(
@@ -115,7 +119,6 @@ impl RendererModule for BlogModule {
                                     parent_dom_id,
                                 );
                                 tree.add_text(date, div);
-                                // FIXME execute default module body
                             }
                             Err(e) => {
                                 error!("failed to read modified date from input metadata: {e}")
