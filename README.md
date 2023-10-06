@@ -6,9 +6,23 @@ This uses a custom markdown parser which will not necessarly follow official spe
 
 ## LMarkdown (Lyr's Markdown)
 
+## Architecture
+
+```
+Index markdown file path
+    |
+Sitetree: Parse index 
+    |
+Sitetree: Find resources (stylesheets, fonts, icons)
+    |
+Sitetree: Create nodes in tree by parsing resources
+    |
+Go through all nodes in tree
+  if resources => copy
+  if page => use modular HtmlRenderer to turn lmarkdown tokens into html, and write to file
+```
 
 ## Roadmap
-- Custom markdown modules to integrate specific elements into a page
 - Importing pages from notion support
 - Code support
 - Custom styling support

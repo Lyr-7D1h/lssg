@@ -22,6 +22,7 @@ pub struct Meta {
 #[derive(Debug, Clone)]
 pub struct DefaultModuleOptions {
     /// which you can you as your not found page.
+    // FIXME: change me to a map of markdown to html files
     pub not_found_page: Option<PathBuf>,
     pub global_stylesheet: Option<PathBuf>,
     pub favicon: Option<PathBuf>,

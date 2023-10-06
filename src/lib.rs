@@ -80,7 +80,7 @@ impl Lssg {
             let path = self.output_directory.join(site_tree.path(site_id));
             match &node.kind {
                 SiteNodeKind::Stylesheet(s) => {
-                    info!("Writing concatinated stylesheet {path:?}",);
+                    info!("Writing stylesheet {path:?}",);
                     write(path, s.to_string())?;
                 }
                 SiteNodeKind::Resource { input } => {
