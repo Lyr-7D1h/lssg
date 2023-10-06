@@ -1,10 +1,11 @@
 use log::LevelFilter;
 use std::path::PathBuf;
 
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use lssg_lib::{
     renderer::{BlogModule, DefaultModule, DefaultModuleOptions, HtmlRenderer},
     sitetree::SiteTree,
+    Lssg, LssgOptions,
 };
 use simple_logger::SimpleLogger;
 
@@ -17,18 +18,17 @@ use simple_logger::SimpleLogger;
     long_about = "Generate static websites using the command line"
 )]
 struct Args {
-    #[command(subcommand)]
-    command: Command,
+    input: PathBuf,
+
+    output: PathBuf,
+
+    /// Print output of a single page
+    #[clap(long, short, global = true)]
+    single_page: bool,
 
     /// "TRACE", "DEBUG", "INFO", "WARN", "ERROR"
-    #[clap(long, short, global = true)]
+    #[clap(long, short)]
     log: Option<LevelFilter>,
-}
-
-#[derive(Subcommand, Debug)]
-enum Command {
-    /// Render a single markdown page to html
-    Render { input: PathBuf },
 }
 
 fn main() {
@@ -38,26 +38,24 @@ fn main() {
         .init()
         .unwrap();
 
-    match args.command {
-        Command::Render { input } => {
-            let site_tree = SiteTree::from_index(input).expect("Failed to generate site tree");
+    let input = args.input;
+    let site_tree = SiteTree::from_index(input.clone()).expect("Failed to generate site tree");
 
-            let mut renderer = HtmlRenderer::new();
-            renderer.add_module(BlogModule::new());
-            renderer.add_module(DefaultModule::new(DefaultModuleOptions {
-                global_stylesheet: None,
-                not_found_page: None,
-                overwrite_default_stylesheet: false,
-                stylesheets: vec![],
-                title: "".into(),
-                language: "en".into(),
-                keywords: vec![],
-                favicon: None,
-            }));
-            let html = renderer
-                .render(&site_tree, site_tree.root())
-                .expect("failed to render");
-            println!("{html}");
-        }
+    if args.single_page {
+        let mut renderer = HtmlRenderer::new();
+        renderer.add_module(BlogModule::new());
+        renderer.add_module(DefaultModule::new());
+        let html = renderer
+            .render(&site_tree, site_tree.root())
+            .expect("failed to render");
+        println!("{html}");
+        return;
     }
+
+    Lssg::new(LssgOptions {
+        output_directory: args.output,
+        index: input,
+    })
+    .render()
+    .unwrap()
 }

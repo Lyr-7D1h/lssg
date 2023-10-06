@@ -1,4 +1,6 @@
-<!--blog-->
+<!--
+blog
+-->
 # Blog
 
 <posts>
