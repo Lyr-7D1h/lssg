@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-lssg = { path="../../" }
+lssg-lib = { path="../lib" }
 simple_logger = "4.1.0"

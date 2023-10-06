@@ -110,6 +110,7 @@ impl HtmlRenderer {
             SiteNodeKind::Page { tokens, input, .. } => (tokens, input),
             _ => return Err(LssgError::render("Invalid node type given")),
         };
+        println!("{tokens:?}");
 
         let mut tree = DomTree::new();
 

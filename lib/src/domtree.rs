@@ -203,7 +203,7 @@ impl fmt::Display for DomTree {
         let mut queue = vec![(self.root, 0)];
         while let Some((n, depth)) = queue.pop() {
             let node = &self.nodes[n];
-            for c in &node.children {
+            for c in node.children.iter().rev() {
                 queue.push((c.clone(), depth + 1))
             }
             if depth < current_depth {
