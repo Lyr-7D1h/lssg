@@ -40,7 +40,10 @@ impl<R: Read> LMarkdownLexer<R> {
                         '\n' => break,
                         ']' => text_end = i,
                         '(' => href_start = i + 1,
-                        ')' => href_end = i,
+                        ')' => {
+                            href_end = i;
+                            break;
+                        }
                         _ => {}
                     }
                 }
