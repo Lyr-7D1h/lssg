@@ -1,4 +1,4 @@
-# How to build an WLED box
+# Practical guide to building a WLED controller
 
 ## Introduction
 
