@@ -6,6 +6,7 @@ use super::parse_error::ParseError;
 pub struct CharReader<R> {
     inner: R,
     peek_buffer: Vec<u8>,
+    has_read: bool,
 }
 
 impl<R: Read> CharReader<R> {
@@ -13,7 +14,12 @@ impl<R: Read> CharReader<R> {
         CharReader {
             inner: input,
             peek_buffer: vec![],
+            has_read: false,
         }
+    }
+
+    pub fn has_read(&self) -> bool {
+        self.has_read
     }
 
     /// Will try to fill the buffer until it is filled or eof is reached
@@ -62,14 +68,28 @@ impl<R: Read> CharReader<R> {
         return Ok(buffer[0] as char);
     }
 
-    // pub fn peek_until(&mut self, op: fn(char) -> bool) -> Result<String, ParseError> {
-    //     let mut buffer = vec![0; 1];
-    //     self.peek(&mut buffer)?;
-    //     while op(buffer[buffer.len() - 1] as char) {
-    //         buffer.resize(buffer.len() + 1, 0);
-    //     }
-    //     return Ok(String::from_utf8(buffer)?);
-    // }
+    pub fn peek_until(&mut self, op: fn(char) -> bool) -> Result<String, ParseError> {
+        let mut result = String::new();
+
+        let mut buffer = vec![0; 2];
+        let mut i = 0;
+        'n: loop {
+            if self.peek(&mut buffer)? == 0 {
+                break;
+            }
+            for j in i..buffer.len() {
+                let c = buffer[j] as char;
+                result.push(c);
+                if op(c) {
+                    break 'n;
+                }
+            }
+            i = buffer.len();
+            buffer.resize(buffer.len() * 2, 0);
+        }
+
+        return Ok(result);
+    }
 
     /// Read {length} bytes returning a smaller string on EOF
     pub fn read_string(&mut self, length: usize) -> Result<String, ParseError> {
@@ -140,6 +160,7 @@ impl<R: Read> CharReader<R> {
 
 impl<R: Read> Read for CharReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.has_read = true;
         if self.peek_buffer.is_empty() {
             return self.inner.read(buf);
         }
