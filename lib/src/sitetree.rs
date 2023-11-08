@@ -10,7 +10,7 @@ use std::{
 use log::warn;
 
 use crate::{
-    parser::{lexer::Token, LMarkdownParser},
+    lmarkdown::{lexer::Token, parse_lmarkdown},
     stylesheet::Stylesheet,
     util::{filename_from_path, filestem_from_path},
     LssgError,
@@ -90,7 +90,7 @@ fn from_index_recursive(
     parent: Option<usize>,
 ) -> Result<usize, LssgError> {
     let file = File::open(&input)?;
-    let mut tokens = LMarkdownParser::parse(file)?;
+    let mut tokens = parse_lmarkdown(file)?;
 
     // create early because of the need of an parent id
     nodes.push(SiteNode {
@@ -132,6 +132,7 @@ fn from_index_recursive(
     };
     return Ok(id);
 }
+
 /// Code representation of all nodes within the site (hiarchy and how nodes are related)
 #[derive(Debug)]
 pub struct SiteTree {

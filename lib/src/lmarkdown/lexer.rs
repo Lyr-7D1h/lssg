@@ -154,6 +154,7 @@ impl<R: Read> LMarkdownLexer<R> {
                 if c == '<' {
                     let start_tag = self.reader.read_until_inclusive(|c| c == '>')?;
 
+                    // comment
                     if let Some("!--") = start_tag.get(1..4) {
                         if let Some("-->") = start_tag.get(start_tag.len() - 3..start_tag.len()) {
                             let mut map = HashMap::new();
@@ -170,6 +171,7 @@ impl<R: Read> LMarkdownLexer<R> {
                         }
                     }
 
+                    // html
                     let mut tag = String::new();
                     for c in start_tag[1..start_tag.len() - 1].chars() {
                         match c {

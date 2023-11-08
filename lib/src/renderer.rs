@@ -9,7 +9,7 @@ use log::{error, warn};
 
 use crate::{
     domtree::DomTree,
-    parser::lexer::Token,
+    lmarkdown::lexer::Token,
     sitetree::{SiteNodeKind, SiteTree},
     LssgError,
 };
@@ -18,10 +18,9 @@ pub trait RendererModule {
     /// Return a static id
     fn id(&self) -> &'static str;
 
-    /// This gets run just after site_tree has been created
+    /// This gets run once just after site_tree has been created
     fn site_init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError>;
 
-    // TODO modify site_tree on init too
     /// Modify DomTree on init
     fn init<'n>(&mut self, tree: &mut DomTree, context: &RendererModuleContext<'n>);
 

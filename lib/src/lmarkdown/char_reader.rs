@@ -95,6 +95,7 @@ impl<R: Read> CharReader<R> {
         }
         return Ok(Some(buffer[0] as char));
     }
+
     pub fn read_char_exact(&mut self) -> Result<char, ParseError> {
         let mut buffer = [0; 1];
         self.read_exact(&mut buffer)?;
@@ -144,7 +145,7 @@ impl<R: Read> Read for CharReader<R> {
         }
 
         let amount_from_peek = self.peek_buffer.len().min(buf.len());
-        // NOTE: probably not very efficient
+        // NOTE(perf): probably not very efficient
         let new_peek_buffer = self.peek_buffer.split_off(amount_from_peek);
         let mut read = Cursor::new(&mut self.peek_buffer).read(buf)?;
         self.peek_buffer = new_peek_buffer;

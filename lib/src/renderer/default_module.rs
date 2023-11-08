@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     domtree::{to_attributes, DomNode, DomNodeKind},
+    lmarkdown::lexer::Token,
     lssg_error::LssgError,
-    parser::lexer::Token,
     sitetree::{SiteNode, SiteNodeKind, SiteTree},
     stylesheet::Stylesheet,
 };
@@ -29,7 +29,7 @@ pub struct ExternalPage {
 #[derive(Debug, Clone)]
 pub struct DefaultModuleOptions {
     /// which you can you as your not found page.
-    // TODO implement
+    // TODO implement external pages
     pub external_pages: Vec<ExternalPage>,
     pub favicon: Option<PathBuf>,
     /// Overwrite the default stylesheet with your own
@@ -55,16 +55,6 @@ impl Default for DefaultModuleOptions {
             language: "en".into(),
         }
     }
-}
-
-struct OptionalDefaultModuleOptions {
-    pub external_pages: Option<Vec<ExternalPage>>,
-    pub favicon: Option<PathBuf>,
-    pub overwrite_default_stylesheet: Option<bool>,
-    pub stylesheets: Option<Vec<PathBuf>>,
-    pub title: Option<String>,
-    pub keywords: Option<Vec<(String, String)>>,
-    pub language: Option<String>,
 }
 
 /// Implements all basic default behavior, like rendering all tokens and adding meta tags and title to head
@@ -210,7 +200,7 @@ impl RendererModule for DefaultModule {
         context: &super::RendererModuleContext<'n>,
         render_queue: &mut RenderQueue,
         parent_id: usize,
-        token: &crate::parser::lexer::Token,
+        token: &crate::lmarkdown::lexer::Token,
     ) -> bool {
         // TODO make work
         // let content_id =

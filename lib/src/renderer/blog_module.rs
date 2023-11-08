@@ -3,7 +3,7 @@ use log::error;
 
 use crate::{
     domtree::{to_attributes, DomTree},
-    parser::lexer::Token,
+    lmarkdown::lexer::Token,
     renderer::RendererModuleContext,
     sitetree::SiteNodeKind,
 };

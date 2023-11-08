@@ -1,4 +1,4 @@
-pub mod parser;
+pub mod lmarkdown;
 pub mod renderer;
 pub mod sitetree;
 
@@ -18,7 +18,7 @@ use lssg_error::LssgError;
 use renderer::HtmlRenderer;
 
 use crate::{
-    renderer::{BlogModule, DefaultModule, DefaultModuleOptions},
+    renderer::{BlogModule, DefaultModule},
     sitetree::{SiteNodeKind, SiteTree},
     util::canonicalize_nonexistent_path,
 };
