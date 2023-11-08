@@ -10,3 +10,6 @@ simple_logger = "4.2.0"
 clap = { version = "4.4.6", features = ["derive"] }
 lssg-lib = {path = "./lib"}
 log = "0.4.20"
+
+[workspace]
+members = ["lib"]
