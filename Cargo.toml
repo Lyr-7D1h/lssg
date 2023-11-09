@@ -12,4 +12,4 @@ lssg-lib = {path = "./lib/lssg-lib"}
 log = "0.4.20"
 
 [workspace]
-members = ["lib/lssg-lib", "lib/optional", "lib/optional-derive"]
+members = ["lib/lssg-lib", "lib/serde-extensions", "lib/serde-extensions-derive"]

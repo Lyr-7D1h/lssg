@@ -3,7 +3,7 @@ pub use blog_module::BlogModule;
 mod default_module;
 pub use default_module::{DefaultModule, DefaultModuleOptions};
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::VecDeque;
 
 use log::{error, warn};
 

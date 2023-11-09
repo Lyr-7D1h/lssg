@@ -1,8 +1,7 @@
 use std::path::PathBuf;
 
-use optional::Optional;
-use optional_derive::optional_derive;
 use serde::{Deserialize, Serialize};
+use serde_extensions::Overwrite;
 
 use crate::{
     domtree::{to_attributes, DomNode, DomNodeKind},
@@ -22,13 +21,13 @@ pub struct Meta {
     pub content: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, optional_derive)]
+#[derive(Debug, Clone, Serialize, Deserialize, Overwrite)]
 pub struct ExternalPage {
     input: PathBuf,
     output: PathBuf,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Overwrite)]
 pub struct DefaultModuleOptions {
     /// which you can you as your not found page.
     // TODO implement external pages
@@ -88,18 +87,14 @@ impl RendererModule for DefaultModule {
             keep_name,
         } = &site_tree[site_tree.root()].kind
         {
-            OptionalExternalpage { input: None };
             if let Some(Token::Attributes { toml }) = tokens.first() {
                 if let Some(default) = toml.get("default") {
-                    match default.clone().try_into() {
-                        Ok(o) => self.options = o,
-                        Err(error) => {
-                            return Err(LssgError::render(format!("Failed to load file: {error}")));
-                        }
-                    }
+                    self.options.overwrite(default.clone()).unwrap();
                 }
             }
         }
+
+        println!("{:?}", self.options);
 
         let mut stylesheet = if self.options.overwrite_default_stylesheet {
             Stylesheet::new()

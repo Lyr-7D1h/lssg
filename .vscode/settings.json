@@ -1,3 +1,3 @@
 {
-  "rust-analyzer.linkedProjects": ["./lib/optional-derive/Cargo.toml"]
+  "rust-analyzer.linkedProjects": ["./lib/serde-extensions/Cargo.toml"]
 }

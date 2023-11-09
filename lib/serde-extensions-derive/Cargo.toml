@@ -1,5 +1,5 @@
 [package]
-name = "optional-derive"
+name = "serde-extensions-derive"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,5 +9,6 @@ edition = "2021"
 proc-macro = true
 
 [dependencies]
+serde = {version="1.0.192", features = ["derive"]}
 syn = "2.0"
 quote = "1.0"
