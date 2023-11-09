@@ -8,20 +8,8 @@ edition = "2021"
 [dependencies]
 simple_logger = "4.2.0"
 clap = { version = "4.4.6", features = ["derive"] }
-lssg-lib = {path = "./lib"}
+lssg-lib = {path = "./lib/lssg-lib"}
 log = "0.4.20"
 
 [workspace]
-members = ["lib"]
-
-[default]
-title="Lyrx"
-favicon="./favicon.ico"
-stylesheets=[
-    "./lib/fontawesome.css",
-    "./lib/fa-solid.css",
-    "./lib/fa-brands.css"
-]
-external_pages=[
-  { input= "./404.md", output= "./404.html" }  
-]
+members = ["lib/lssg-lib"]
