@@ -51,7 +51,7 @@ impl Lssg {
         renderer.add_module(BlogModule::new());
         renderer.add_module(DefaultModule::new());
 
-        info!("Generating SiteMap");
+        info!("Generating SiteTree");
         let mut site_tree = SiteTree::from_index(self.index.clone())?;
 
         renderer.site_init(&mut site_tree);

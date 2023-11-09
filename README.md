@@ -49,6 +49,7 @@ Go through all nodes in tree
 - Importing pages from notion support
 - Code support
 - Custom styling support
+- Documentation module
 
 ## Known bugs
 - references to root don't work 

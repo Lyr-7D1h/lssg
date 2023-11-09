@@ -36,7 +36,7 @@ impl RendererModule for BlogModule {
         let RendererModuleContext {
             site_tree,
             site_id,
-            metadata,
+            // metadata,
             ..
         } = context;
         let site_id = *site_id;
@@ -44,21 +44,21 @@ impl RendererModule for BlogModule {
         self.has_inserted_date = false;
 
         // Check if blog is enabled for page or child of blog enabled page
-        if metadata.contains_key("blog") {
-            self.blog_root_site_ids.push(site_id);
-        } else {
-            let mut has_blog_parent = false;
-            for id in &self.blog_root_site_ids {
-                if site_tree.is_parent(site_id, *id) {
-                    has_blog_parent = true;
-                    break;
-                }
+        // if metadata.contains_key("blog") {
+        //     self.blog_root_site_ids.push(site_id);
+        // } else {
+        let mut has_blog_parent = false;
+        for id in &self.blog_root_site_ids {
+            if site_tree.is_parent(site_id, *id) {
+                has_blog_parent = true;
+                break;
             }
-            if has_blog_parent == false {
-                return;
-            }
-            self.post_enabled_site_ids.push(site_id);
         }
+        if has_blog_parent == false {
+            return;
+        }
+        self.post_enabled_site_ids.push(site_id);
+        // }
 
         let body = tree.get_elements_by_tag_name("body")[0];
 

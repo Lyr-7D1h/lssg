@@ -1,17 +1,15 @@
 <!--
-default={
-  external_pages=[{
-    input: "./404.md",
-    output: "./404.html" 
-  }]
-  favicon="./favicon.ico"
-  stylesheets=[
-    "./lib/fontawesome.css",
-    "./lib/fa-solid.css",
-    "./lib/fa-brands.css"
-  ]
-  title="Lyrx"
-}
+[default]
+title="Lyrx"
+favicon="./favicon.ico"
+stylesheets=[
+  "./lib/fontawesome.css",
+  "./lib/fa-solid.css",
+  "./lib/fa-brands.css"
+]
+external_pages=[
+  { input= "./404.md", output= "./404.html" }  
+]
 -->
 # LyrX
 

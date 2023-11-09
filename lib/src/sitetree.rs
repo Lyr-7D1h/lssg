@@ -192,8 +192,8 @@ impl SiteTree {
     }
 
     pub fn get(&self, id: usize) -> Result<&SiteNode, LssgError> {
-        self.nodes.get(id).ok_or(LssgError::sitemap(&format!(
-            "Could not find {id} in SiteMap"
+        self.nodes.get(id).ok_or(LssgError::sitetree(&format!(
+            "Could not find {id} in SiteTree"
         )))
     }
 

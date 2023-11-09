@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use lssg_lib::{
-    renderer::{BlogModule, DefaultModule, DefaultModuleOptions, HtmlRenderer},
+    renderer::{BlogModule, DefaultModule, HtmlRenderer},
     sitetree::SiteTree,
     Lssg, LssgOptions,
 };

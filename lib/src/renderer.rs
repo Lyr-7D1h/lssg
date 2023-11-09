@@ -65,7 +65,7 @@ pub struct RendererModuleContext<'n> {
     pub site_tree: &'n SiteTree,
     pub site_id: usize,
     pub tokens: &'n Vec<Token>,
-    pub metadata: HashMap<String, String>,
+    // pub metadata: HashMap<String, String>,
 }
 
 /// HtmlRenderer is responsible for the process of converting the site tree into the final HTML output.
@@ -109,24 +109,13 @@ impl HtmlRenderer {
             SiteNodeKind::Page { tokens, input, .. } => (tokens, input),
             _ => return Err(LssgError::render("Invalid node type given")),
         };
-        println!("{tokens:?}");
 
         let mut tree = DomTree::new();
-
-        // first comment of a page is seen as metadata
-        let metadata = if let Some(Token::Comment { text: _, map }) = tokens.first() {
-            map.into_iter()
-                .map(|(k, v)| (k.trim().to_owned(), v.trim().to_owned()))
-                .collect()
-        } else {
-            HashMap::new()
-        };
 
         let context = RendererModuleContext {
             site_tree: site_tree,
             site_id,
             tokens,
-            metadata,
         };
 
         // initialize modules

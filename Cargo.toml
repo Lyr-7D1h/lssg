@@ -13,3 +13,15 @@ log = "0.4.20"
 
 [workspace]
 members = ["lib"]
+
+[default]
+title="Lyrx"
+favicon="./favicon.ico"
+stylesheets=[
+    "./lib/fontawesome.css",
+    "./lib/fa-solid.css",
+    "./lib/fa-brands.css"
+]
+external_pages=[
+  { input= "./404.md", output= "./404.html" }  
+]

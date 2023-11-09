@@ -9,8 +9,8 @@ pub enum LssgErrorKind {
     Regex,
     /// Render error
     Render,
-    /// Error with the sitemap
-    Sitemap,
+    /// Error with the sitetree
+    SiteTree,
     Io,
 }
 
@@ -21,22 +21,23 @@ pub struct LssgError {
     kind: LssgErrorKind,
 }
 impl LssgError {
-    pub fn new(message: &str, kind: LssgErrorKind) -> LssgError {
+    pub fn new<S: Into<String>>(message: S, kind: LssgErrorKind) -> LssgError {
         LssgError {
-            message: message.to_string(),
+            message: message.into(),
             kind,
             context: None,
         }
     }
 
-    pub fn sitemap(message: &str) -> LssgError {
-        Self::new(message, LssgErrorKind::Sitemap)
+    pub fn sitetree<S: Into<String>>(message: S) -> LssgError {
+        Self::new(message, LssgErrorKind::SiteTree)
     }
-    pub fn render(message: &str) -> LssgError {
+
+    pub fn render<S: Into<String>>(message: S) -> LssgError {
         Self::new(message, LssgErrorKind::Render)
     }
 
-    pub fn io(message: &str) -> LssgError {
+    pub fn io<S: Into<String>>(message: S) -> LssgError {
         Self::new(message, LssgErrorKind::Io)
     }
 

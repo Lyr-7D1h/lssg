@@ -26,7 +26,7 @@ pub struct ExternalPage {
     output: PathBuf,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct DefaultModuleOptions {
     /// which you can you as your not found page.
     // TODO implement external pages
@@ -80,19 +80,23 @@ impl RendererModule for DefaultModule {
     }
 
     fn site_init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
-        // if let SiteNodeKind::Page {
-        //     tokens,
-        //     input,
-        //     keep_name,
-        // } = &site_tree[site_tree.root()].kind
-        // {
-        //     if let Some(Token::Comment { text, map }) = tokens.first() {
-        //         if let Ok(options) = toml::from_str(text) {
-        //             self.options = options;
-        //         }
-        //     }
-        // }
-        println!("{:?}", self.options);
+        if let SiteNodeKind::Page {
+            tokens,
+            input,
+            keep_name,
+        } = &site_tree[site_tree.root()].kind
+        {
+            if let Some(Token::Attributes { toml }) = tokens.first() {
+                if let Some(default) = toml.get("default") {
+                    match default.clone().try_into() {
+                        Ok(o) => self.options = o,
+                        Err(error) => {
+                            return Err(LssgError::render(format!("Failed to load file: {error}")));
+                        }
+                    }
+                }
+            }
+        }
 
         let mut stylesheet = if self.options.overwrite_default_stylesheet {
             Stylesheet::new()
@@ -296,7 +300,7 @@ impl RendererModule for DefaultModule {
                     render_queue.push_tokens_front(tokens, parent)
                 }
             },
-            Token::Comment { .. } => {}
+            Token::Attributes { .. } | Token::Comment { .. } => {}
             Token::EOF => {}
         };
         true

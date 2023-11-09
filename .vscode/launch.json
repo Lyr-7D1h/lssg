@@ -15,7 +15,7 @@
           "kind": "bin"
         }
       },
-      "args": ["examples/test_pages/module.md", "build"],
+      "args": ["examples/test/module.md", "build"],
       "cwd": "${workspaceFolder}"
     },
     {

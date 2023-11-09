@@ -65,7 +65,7 @@ impl<R: Read> CharReader<R> {
         if read == 0 {
             return Err(ParseError::eof("Reached eof when peeking char"));
         }
-        return Ok(buffer[0] as char);
+        return Ok(buffer[0] as char); // FIXME not all char's are u8 (utf-8)
     }
 
     pub fn peek_until(&mut self, op: fn(char) -> bool) -> Result<String, ParseError> {

@@ -119,6 +119,23 @@ impl<R: Read> LMarkdownLexer<R> {
 
     /// Will first parse a block token (token for a whole line) and then parse for any inline tokens when needed.
     pub fn read_token(&mut self) -> Result<Token, ParseError> {
+        // if starts with comment in toml format it is an attribute
+        if self.reader.has_read() == false {
+            if let Some(c) = self.reader.peek_char()? {
+                if c == '<' {
+                    let comment = self.reader.peek_until(|c| c == '>')?;
+
+                    if let Some("!--") = comment.get(1..4) {
+                        if let Some("-->") = comment.get(comment.len() - 3..comment.len()) {
+                            if let Ok(toml) = toml::from_str(&comment[4..comment.len() - 3]) {
+                                self.reader.read_until_inclusive(|c| c == '>')?;
+                                return Ok(Token::Attributes { toml });
+                            }
+                        }
+                    }
+                }
+            }
+        }
         match self.reader.peek_char()? {
             None => return Ok(Token::EOF),
             Some(c) => {
@@ -152,22 +169,16 @@ impl<R: Read> LMarkdownLexer<R> {
                 }
 
                 if c == '<' {
-                    let start_tag = self.reader.read_until_inclusive(|c| c == '>')?;
+                    let start_tag = self.reader.peek_until(|c| c == '>')?;
 
                     // comment
                     if let Some("!--") = start_tag.get(1..4) {
                         if let Some("-->") = start_tag.get(start_tag.len() - 3..start_tag.len()) {
-                            let mut map = HashMap::new();
-                            for l in start_tag[4..start_tag.len() - 3].lines() {
-                                let mut parts = l.splitn(2, " ");
-                                if let Some(key) = parts.next() {
-                                    map.insert(key.into(), parts.collect());
-                                }
-                            }
-                            return Ok(Token::Comment {
-                                text: start_tag,
-                                map,
-                            });
+                            self.reader.read_string(4)?;
+                            let comment = self.reader.read_string(start_tag.len() - 7)?;
+                            self.reader.read_string(3)?;
+                            let text = sanitize_text(comment);
+                            return Ok(Token::Comment { text });
                         }
                     }
 
@@ -232,6 +243,9 @@ impl<R: Read> LMarkdownLexer<R> {
 /// https://github.com/markedjs/marked/blob/master/src/Tokenizer.js
 #[derive(Debug, Clone)]
 pub enum Token {
+    Attributes {
+        toml: toml::Value,
+    },
     Heading {
         /// 0-6
         depth: u8,
@@ -269,8 +283,6 @@ pub enum Token {
     },
     Comment {
         text: String,
-        /// Starting a comment line with a certain key will be used as keyword later in the renderer
-        map: HashMap<String, String>,
     },
     EOF,
 }
