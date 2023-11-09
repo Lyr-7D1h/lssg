@@ -14,3 +14,5 @@ chrono = {version = "0.4.26",features = ["unstable-locales"]}
 chrono-english = "0.1.7"
 toml = "0.8.2"
 serde = { version = "1.0.188", features = ["derive"] }
+optional = {path = "../optional"}
+optional-derive = {path = "../optional-derive"}

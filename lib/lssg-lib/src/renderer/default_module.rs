@@ -1,5 +1,7 @@
 use std::path::PathBuf;
 
+use optional::Optional;
+use optional_derive::optional_derive;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -20,7 +22,7 @@ pub struct Meta {
     pub content: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, optional_derive)]
 pub struct ExternalPage {
     input: PathBuf,
     output: PathBuf,
@@ -86,6 +88,7 @@ impl RendererModule for DefaultModule {
             keep_name,
         } = &site_tree[site_tree.root()].kind
         {
+            OptionalExternalpage { input: None };
             if let Some(Token::Attributes { toml }) = tokens.first() {
                 if let Some(default) = toml.get("default") {
                     match default.clone().try_into() {
