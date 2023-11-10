@@ -29,25 +29,70 @@ lssg ./content/home.md ./build/
 
 ## LMarkdown (Lyr's Markdown)
 
+Structure of a lmarkdown file:
+
+```markdown
+<!--
+{MODULE_CONFIG}
+-->
+{MARKDOWN}
+```
+
+eg.
+
+```markdown
+<!--
+[default]
+title="This is the html title"
+[blog]
+-->
+<!--
+    The first comment on a page is seen as module configuration and is parsed as toml 
+    it has the following format:
+
+    [{module_identifier}]
+    {options}
+-->
+
+# Just some header in file
+
+<!-- All HTML comments are ignore in output -->
+
+<!-- The following will generate `http://{root}/test` url based on the markdown file -->
+
+[Check out my other page](./test.md)
+
+<!-- So this in html will turn into `<a href="./test">Check out my other page</a>` -->
+```
+
 ## Architecture
 
+In short this is what happens when executing LSSG
+
 ```
-Index markdown file path
+Given index markdown file path
     |
-Sitetree: Parse index 
+Sitetree: Recursively find links to resources in parsed pages and stylesheets (stylesheets, fonts, icons, other pages)
     |
-Sitetree: Find resources (stylesheets, fonts, icons)
-    |
-Sitetree: Create nodes in tree by parsing resources
+Sitetree: Add these resources as nodes into Sitetree
     |
 Go through all nodes in tree
-  if resources => copy
-  if page => use modular HtmlRenderer to turn lmarkdown tokens into html, and write to file
+if resources 
+    Copy resource
+if page => use modular HtmlRenderer to turn lmarkdown tokens into html, and write to file
+    HtmlRenderer: Create Domtree 
+        |
+    HtmlRenderer: Delecate modification of Domtree to modules based on LMarkdown Tokens
+        |
+    BlogModule: Render Token if applicable
+        |
+    DefaultModule: Fallback rendering fo Token, it should render every kind of Token
 ```
 
 ## Roadmap
-- Importing pages from notion support
+- Make importing pages from notion easier
 - Code support
+- Add file minification for css
 - Custom styling support
 - Documentation module
 
