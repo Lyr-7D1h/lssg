@@ -79,7 +79,7 @@ impl Lssg {
                 SiteNodeKind::Stylesheet { stylesheet, links } => {
                     // TODO: fix resource links
                     info!("Writing stylesheet {path:?}",);
-                    write(path, stylesheet.to_string())?;
+                    write(path.with_extension("css"), stylesheet.to_string())?;
                 }
                 SiteNodeKind::Resource { input } => {
                     copy(input, path)?;
