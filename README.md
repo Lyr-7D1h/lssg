@@ -1,3 +1,4 @@
+# WIP
 # Lyr's Static Site Generator
 
 The idea is to generate static html, css, js files based on custom markdown format.
