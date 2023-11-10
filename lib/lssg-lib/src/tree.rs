@@ -1,11 +1,11 @@
+pub trait Node {
+    fn children(&self) -> &Vec<usize>;
+}
+
 pub trait Tree {
     type Node: Node;
     fn root(&self) -> usize;
     fn nodes(&self) -> &Vec<Self::Node>;
-}
-
-pub trait Node {
-    fn children(&self) -> &Vec<usize>;
 }
 
 pub struct BFS<'n, T: Tree> {

@@ -12,6 +12,7 @@ use log::warn;
 use crate::{
     lmarkdown::{lexer::Token, parse_lmarkdown},
     stylesheet::Stylesheet,
+    tree::{Node, Tree},
     util::{filename_from_path, filestem_from_path},
     LssgError,
 };
@@ -30,13 +31,31 @@ pub enum SiteNodeKind {
     },
     Folder,
 }
+impl ToString for SiteNodeKind {
+    fn to_string(&self) -> String {
+        match self {
+            SiteNodeKind::Stylesheet(..) => "Stylesheet",
+            SiteNodeKind::Page { .. } => "Page",
+            SiteNodeKind::Resource { .. } => "Resources",
+            SiteNodeKind::Folder => "Folder",
+        }
+        .into()
+    }
+}
 
 #[derive(Debug)]
 pub struct SiteNode {
+    /// Unique name within children of node
     pub name: String,
     pub parent: Option<usize>,
     pub children: Vec<usize>,
     pub kind: SiteNodeKind,
+}
+
+impl Node for SiteNode {
+    fn children(&self) -> &Vec<usize> {
+        &self.children
+    }
 }
 
 // Get the relative path between two nodes
@@ -164,6 +183,7 @@ impl SiteTree {
         return false;
     }
 
+    /// Find a node by input path
     pub fn find_by_input(&self, finput: &Path) -> Option<usize> {
         let mut queue = vec![self.root];
         while let Some(id) = queue.pop() {
@@ -231,18 +251,40 @@ impl SiteTree {
         rel_path(&self.nodes, from, to)
     }
 
-    pub fn add(&mut self, node: SiteNode, parent_id: usize) -> Result<usize, LssgError> {
+    pub fn add(
+        &mut self,
+        name: String,
+        kind: SiteNodeKind,
+        parent_id: usize,
+    ) -> Result<usize, LssgError> {
         // return id if already exists
         if let Some(id) = self.nodes[parent_id]
             .children
             .iter()
-            .find(|n| self.nodes[**n].name == node.name)
+            .find(|n| self.nodes[**n].name == name)
         {
-            warn!("{} already exists SiteTree", node.name);
+            warn!("{} already exists SiteTree", name);
             return Ok(*id);
         }
 
-        // FIXME check if page and then update links, find id by input
+        let node = match kind {
+            SiteNodeKind::Stylesheet(stylesheet) => {
+                self.add_stylesheet(name, stylesheet, parent_id)?
+            }
+            // FIXME check if page and then update links, find id by input
+             SiteNodeKind::Page { .. } => SiteNode {
+                name,
+                parent: Some(parent_id),
+                children: vec![],
+                kind,
+            },
+            _ => SiteNode {
+                name,
+                parent: Some(parent_id),
+                children: vec![],
+                kind,
+            },
+        };
 
         self.nodes.push(node);
         let id = self.nodes.len() - 1;
@@ -251,12 +293,12 @@ impl SiteTree {
     }
 
     /// Add a stylesheet and all resources needed by the stylesheet
-    pub fn add_stylesheet(
+    fn add_stylesheet(
         &mut self,
         name: String,
         mut stylesheet: Stylesheet,
         parent_id: usize,
-    ) -> Result<usize, LssgError> {
+    ) -> Result<SiteNode, LssgError> {
         let root_path = self
             .index_path
             .parent()
@@ -277,13 +319,9 @@ impl SiteTree {
                 // assume file when there is a file extenstion (there is a ".")
                 if path_part.contains(".") {
                     let id = self.add(
-                        SiteNode {
-                            name: filename_from_path(&resource)?,
-                            parent: Some(parent_id),
-                            children: vec![],
-                            kind: SiteNodeKind::Resource {
-                                input: resource.clone(),
-                            },
+                        filename_from_path(&resource)?,
+                        SiteNodeKind::Resource {
+                            input: resource.clone(),
                         },
                         parent_id,
                     )?;
@@ -291,27 +329,28 @@ impl SiteTree {
                     break;
                 }
 
-                parent_id = self.add(
-                    SiteNode {
-                        name: path_part.to_owned(),
-                        parent: Some(parent_id),
-                        children: vec![],
-                        kind: SiteNodeKind::Folder,
-                    },
-                    parent_id,
-                )?;
+                parent_id = self.add(path_part.to_owned(), SiteNodeKind::Folder, parent_id)?;
             }
         }
 
-        self.add(
-            SiteNode {
-                name,
-                parent: Some(parent_id),
-                children: vec![],
-                kind: SiteNodeKind::Stylesheet(stylesheet),
-            },
-            parent_id,
-        )
+        Ok(SiteNode {
+            name,
+            parent: Some(parent_id),
+            children: vec![],
+            kind: SiteNodeKind::Stylesheet(stylesheet),
+        })
+    }
+}
+
+impl Tree for SiteTree {
+    type Node = SiteNode;
+
+    fn root(&self) -> usize {
+        self.root
+    }
+
+    fn nodes(&self) -> &Vec<Self::Node> {
+        &self.nodes
     }
 }
 
@@ -337,7 +376,7 @@ impl fmt::Display for SiteTree {
                 out += "\t - \t"
             }
             out += &node.name;
-            out += &format!("({})", n);
+            out += &format!("({})({})", n, node.kind.to_string());
             current_depth = depth + 1;
         }
 

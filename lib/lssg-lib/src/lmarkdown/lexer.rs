@@ -1,5 +1,7 @@
 use std::{collections::HashMap, io::Read};
 
+use log::warn;
+
 use super::{char_reader::CharReader, parse_error::ParseError};
 
 pub struct LMarkdownLexer<R> {
@@ -127,9 +129,12 @@ impl<R: Read> LMarkdownLexer<R> {
 
                     if let Some("!--") = comment.get(1..4) {
                         if let Some("-->") = comment.get(comment.len() - 3..comment.len()) {
-                            if let Ok(toml) = toml::from_str(&comment[4..comment.len() - 3]) {
-                                self.reader.read_until_inclusive(|c| c == '>')?;
-                                return Ok(Token::Attributes { toml });
+                            match toml::from_str(&comment[4..comment.len() - 3]) {
+                                Ok(toml) => {
+                                    self.reader.read_until_inclusive(|c| c == '>')?;
+                                    return Ok(Token::Attributes { toml });
+                                }
+                                Err(e) => warn!("Not parsing possible Attributes: {e}"),
                             }
                         }
                     }

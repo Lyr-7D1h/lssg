@@ -1,7 +1,7 @@
 mod blog_module;
 pub use blog_module::BlogModule;
 mod default_module;
-pub use default_module::{DefaultModule, DefaultModuleOptions};
+pub use default_module::DefaultModule;
 
 pub mod render_queue;
 pub use render_queue::RenderQueue;
@@ -47,8 +47,9 @@ pub trait RendererModule {
         let mut o = D::default();
         if let Some(Token::Attributes { toml }) = tokens.first() {
             if let Some(v) = toml.get(self.id()) {
-                if let Ok(d) = o.overwrite(v.clone()) {
-                    d
+                match o.overwrite(v.clone()) {
+                    Ok(d) => d,
+                    Err(e) => error!("Failed to parse options for '{}' module: {e}", self.id()),
                 }
             }
         }
@@ -143,7 +144,7 @@ impl HtmlRenderer {
             warn!("{token:?} not renderered");
         }
 
-        println!("{tree}");
+        // println!("{tree}");
         return Ok(tree.to_html_string());
     }
 }
