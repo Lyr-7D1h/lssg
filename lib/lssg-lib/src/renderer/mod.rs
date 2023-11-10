@@ -3,9 +3,11 @@ pub use blog_module::BlogModule;
 mod default_module;
 pub use default_module::{DefaultModule, DefaultModuleOptions};
 
-use std::collections::VecDeque;
+pub mod render_queue;
+pub use render_queue::RenderQueue;
 
 use log::{error, warn};
+use serde_extensions::Overwrite;
 
 use crate::{
     domtree::DomTree,
@@ -19,45 +21,38 @@ pub trait RendererModule {
     fn id(&self) -> &'static str;
 
     /// This gets run once just after site_tree has been created
-    fn site_init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError>;
+    fn init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
+        Ok(())
+    }
 
     /// Modify DomTree on init
-    fn init<'n>(&mut self, tree: &mut DomTree, context: &RendererModuleContext<'n>);
+    fn render_page<'n>(&mut self, tree: &mut DomTree, context: &RendererModuleContext<'n>) {}
 
     /// Render a token before default token renderer returns true if it parsed this token otherwise false
-    fn body<'n>(
+    fn render_body<'n>(
         &mut self,
-        tree: &mut DomTree,
+        dom_tree: &mut DomTree,
         context: &RendererModuleContext<'n>,
         render_queue: &mut RenderQueue,
         parent_dom_id: usize,
         token: &Token,
-    ) -> bool;
-}
-
-pub struct RenderQueue {
-    tokens: VecDeque<(Token, usize)>,
-}
-
-impl RenderQueue {
-    pub fn pop_front(&mut self) -> Option<(Token, usize)> {
-        self.tokens.pop_front()
+    ) -> bool {
+        false
     }
 
-    pub fn from_tokens(tokens: Vec<Token>, parent_id: usize) -> Self {
-        Self {
-            tokens: VecDeque::from(
-                tokens
-                    .into_iter()
-                    .map(|t| (t, parent_id))
-                    .collect::<Vec<(Token, usize)>>(),
-            ),
+    fn options<D: Overwrite + Default>(&self, tokens: &Vec<Token>) -> D
+    where
+        Self: Sized,
+    {
+        let mut o = D::default();
+        if let Some(Token::Attributes { toml }) = tokens.first() {
+            if let Some(v) = toml.get(self.id()) {
+                if let Ok(d) = o.overwrite(v.clone()) {
+                    d
+                }
+            }
         }
-    }
-
-    pub fn push_tokens_front(&mut self, tokens: &Vec<Token>, parent_id: usize) {
-        self.tokens
-            .extend(tokens.clone().into_iter().map(|t| (t, parent_id)).rev());
+        o
     }
 }
 
@@ -65,7 +60,20 @@ pub struct RendererModuleContext<'n> {
     pub site_tree: &'n SiteTree,
     pub site_id: usize,
     pub tokens: &'n Vec<Token>,
-    // pub metadata: HashMap<String, String>,
+}
+
+impl<'n> RendererModuleContext<'n> {
+    pub fn options<D: Overwrite + Default>(&self, module: &impl RendererModule) -> D {
+        let mut o = D::default();
+        if let Some(Token::Attributes { toml }) = self.tokens.first() {
+            if let Some(v) = toml.get(module.id()) {
+                if let Ok(d) = o.overwrite(v.clone()) {
+                    d
+                }
+            }
+        }
+        o
+    }
 }
 
 /// HtmlRenderer is responsible for the process of converting the site tree into the final HTML output.
@@ -88,7 +96,7 @@ impl HtmlRenderer {
         let failed: Vec<usize> = (&mut self.modules)
             .into_iter()
             .enumerate()
-            .filter_map(|(i, module)| match module.site_init(site_tree) {
+            .filter_map(|(i, module)| match module.init(site_tree) {
                 Ok(_) => None,
                 Err(e) => {
                     error!("Failed to do site_init on {}: {e}", module.id());
@@ -120,7 +128,7 @@ impl HtmlRenderer {
 
         // initialize modules
         for module in &mut self.modules {
-            module.init(&mut tree, &context);
+            module.render_page(&mut tree, &context);
         }
 
         // create body
@@ -128,7 +136,7 @@ impl HtmlRenderer {
         let mut queue = RenderQueue::from_tokens(context.tokens.clone(), body);
         'l: while let Some((token, parent_id)) = queue.pop_front() {
             for module in &mut self.modules {
-                if module.body(&mut tree, &context, &mut queue, parent_id, &token) {
+                if module.render_body(&mut tree, &context, &mut queue, parent_id, &token) {
                     continue 'l;
                 }
             }

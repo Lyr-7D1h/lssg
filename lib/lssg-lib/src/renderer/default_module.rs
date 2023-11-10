@@ -21,7 +21,7 @@ pub struct ExternalPage {
     output: PathBuf,
 }
 
-#[derive(Debug, Clone, Deserialize, Overwrite)]
+#[derive(Debug, Clone, Overwrite)]
 pub struct DefaultModuleOptions {
     /// which you can you as your not found page.
     // TODO implement external pages
@@ -54,7 +54,6 @@ impl Default for DefaultModuleOptions {
 
 /// Implements all basic default behavior, like rendering all tokens and adding meta tags and title to head
 pub struct DefaultModule {
-    options: DefaultModuleOptions,
     favicon: Option<usize>,
     stylesheet: usize,
 }
@@ -62,7 +61,6 @@ pub struct DefaultModule {
 impl DefaultModule {
     pub fn new() -> Self {
         Self {
-            options: DefaultModuleOptions::default(),
             favicon: None,
             stylesheet: 0,
         }
@@ -74,48 +72,42 @@ impl RendererModule for DefaultModule {
         return "default";
     }
 
-    fn site_init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
-        if let SiteNodeKind::Page {
+    fn init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
+        let root_options = if let SiteNodeKind::Page {
             tokens,
             input,
             keep_name,
         } = &site_tree[site_tree.root()].kind
         {
-            if let Some(Token::Attributes { toml }) = tokens.first() {
-                if let Some(default) = toml.get("default") {
-                    self.options.overwrite(default.clone()).unwrap();
-                }
-            }
-        }
-
-        println!("{:?}", self.options);
-
-        let mut stylesheet = if self.options.overwrite_default_stylesheet {
-            Stylesheet::new()
-        } else {
-            Stylesheet::default()
+            let options: DefaultModuleOptions = self.options(tokens);
         };
-        for path in self.options.stylesheets.iter() {
-            stylesheet.append(&path)?;
-        }
-        self.stylesheet =
-            site_tree.add_stylesheet("main.css".into(), stylesheet, site_tree.root())?;
 
-        self.favicon = if let Some(input) = &self.options.favicon {
-            Some(site_tree.add(
-                SiteNode {
-                    name: "favicon.ico".into(),
-                    parent: Some(site_tree.root()),
-                    children: vec![],
-                    kind: SiteNodeKind::Resource {
-                        input: input.clone(),
-                    },
-                },
-                site_tree.root(),
-            )?)
-        } else {
-            None
-        };
+        // let mut stylesheet = if self.options.overwrite_default_stylesheet {
+        //     Stylesheet::new()
+        // } else {
+        //     Stylesheet::default()
+        // };
+        // for path in self.options.stylesheets.iter() {
+        //     stylesheet.append(&path)?;
+        // }
+        // self.stylesheet =
+        //     site_tree.add_stylesheet("main.css".into(), stylesheet, site_tree.root())?;
+
+        // self.favicon = if let Some(input) = &self.options.favicon {
+        //     Some(site_tree.add(
+        //         SiteNode {
+        //             name: "favicon.ico".into(),
+        //             parent: Some(site_tree.root()),
+        //             children: vec![],
+        //             kind: SiteNodeKind::Resource {
+        //                 input: input.clone(),
+        //             },
+        //         },
+        //         site_tree.root(),
+        //     )?)
+        // } else {
+        //     None
+        // };
 
         // if let Some(input) = &self.options.not_found_page {
         //     let file = File::open(&input)?;
@@ -137,28 +129,30 @@ impl RendererModule for DefaultModule {
         Ok(())
     }
 
-    fn init<'n>(
+    fn render_page<'n>(
         &mut self,
-        tree: &mut crate::domtree::DomTree,
+        dom_tree: &mut crate::domtree::DomTree,
         context: &super::RendererModuleContext<'n>,
     ) {
         let site_id = context.site_id;
         let site_tree = context.site_tree;
 
+        let options: DefaultModuleOptions = context.options(self);
+
         // Add language to html tag
-        let id = tree.get_elements_by_tag_name("html")[0];
-        if let Some(node) = tree.get_mut(id) {
+        let id = dom_tree.get_elements_by_tag_name("html")[0];
+        if let Some(node) = dom_tree.get_mut(id) {
             if let DomNodeKind::Element { attributes, .. } = &mut node.kind {
-                attributes.insert("lang".to_owned(), self.options.language.clone());
+                attributes.insert("lang".to_owned(), options.language.clone());
             }
         }
 
         // fill head
-        let head = tree.get_elements_by_tag_name("head")[0];
-        let title = tree.add(DomNode::element("title"), head);
-        tree.add_text(self.options.title.clone(), title);
+        let head = dom_tree.get_elements_by_tag_name("head")[0];
+        let title = dom_tree.add(DomNode::element("title"), head);
+        dom_tree.add_text(options.title.clone(), title);
         if let Some(favicon) = self.favicon {
-            tree.add_element_with_attributes(
+            dom_tree.add_element_with_attributes(
                 "link",
                 to_attributes([
                     ("rel", "icon"),
@@ -168,7 +162,7 @@ impl RendererModule for DefaultModule {
                 head,
             );
         }
-        tree.add_element_with_attributes(
+        dom_tree.add_element_with_attributes(
             "link",
             to_attributes([
                 ("rel", "stylesheet"),
@@ -176,7 +170,7 @@ impl RendererModule for DefaultModule {
             ]),
             head,
         );
-        tree.add_element_with_attributes(
+        dom_tree.add_element_with_attributes(
             "meta",
             to_attributes([
                 ("name", "viewport"),
@@ -184,13 +178,13 @@ impl RendererModule for DefaultModule {
             ]),
             head,
         );
-        tree.add(
+        dom_tree.add(
             DomNode::element_with_attributes("meta", to_attributes([("charset", "utf-8")])),
             head,
         );
     }
 
-    fn body<'n>(
+    fn render_body<'n>(
         &mut self,
         tree: &mut crate::domtree::DomTree,
         context: &super::RendererModuleContext<'n>,

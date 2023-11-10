@@ -32,10 +32,11 @@ impl RendererModule for BlogModule {
         return "blog";
     }
 
-    fn init(&mut self, tree: &mut DomTree, context: &super::RendererModuleContext) {
+    fn render_page(&mut self, tree: &mut DomTree, context: &super::RendererModuleContext) {
         let RendererModuleContext {
             site_tree,
             site_id,
+            tokens,
             // metadata,
             ..
         } = context;
@@ -89,7 +90,7 @@ impl RendererModule for BlogModule {
         }
     }
 
-    fn body<'n>(
+    fn render_body<'n>(
         &mut self,
         tree: &mut DomTree,
         context: &RendererModuleContext<'n>,
@@ -131,12 +132,5 @@ impl RendererModule for BlogModule {
             _ => {}
         }
         return false;
-    }
-
-    fn site_init(
-        &mut self,
-        site_tree: &mut crate::sitetree::SiteTree,
-    ) -> Result<(), crate::lssg_error::LssgError> {
-        Ok(())
     }
 }
