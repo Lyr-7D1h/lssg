@@ -60,8 +60,8 @@ impl Stylesheet {
         Ok(())
     }
 
-    pub fn resources(&self) -> Vec<PathBuf> {
-        Vec::from_iter(self.resources.keys().map(|k| k.clone()))
+    pub fn resources(&self) -> Vec<&PathBuf> {
+        Vec::from_iter(self.resources.keys())
     }
 
     /// Update a resource input path to a new one

@@ -4,9 +4,9 @@ pub mod sitetree;
 
 mod domtree;
 pub mod lssg_error;
+mod path_extension;
 mod stylesheet;
 mod tree;
-mod util;
 
 use std::{
     fs::{copy, create_dir, create_dir_all, remove_dir_all, write},
@@ -18,9 +18,9 @@ use lssg_error::LssgError;
 use renderer::HtmlRenderer;
 
 use crate::{
+    path_extension::PathExtension,
     renderer::{BlogModule, DefaultModule},
     sitetree::{SiteNodeKind, SiteTree},
-    util::canonicalize_nonexistent_path,
 };
 
 #[derive(Debug, Clone)]
@@ -60,13 +60,13 @@ impl Lssg {
         if self.output_directory.exists() {
             info!(
                 "Removing {:?}",
-                canonicalize_nonexistent_path(&self.output_directory)
+                self.output_directory.canonicalize_nonexistent_path()
             );
             remove_dir_all(&self.output_directory)?;
         }
         info!(
             "Creating {:?}",
-            canonicalize_nonexistent_path(&self.output_directory)
+            self.output_directory.canonicalize_nonexistent_path()
         );
         create_dir_all(&self.output_directory)?;
 
@@ -76,9 +76,10 @@ impl Lssg {
             queue.append(&mut node.children.clone());
             let path = self.output_directory.join(site_tree.path(site_id));
             match &node.kind {
-                SiteNodeKind::Stylesheet(s) => {
+                SiteNodeKind::Stylesheet { stylesheet, links } => {
+                    // TODO: fix resource links
                     info!("Writing stylesheet {path:?}",);
-                    write(path, s.to_string())?;
+                    write(path, stylesheet.to_string())?;
                 }
                 SiteNodeKind::Resource { input } => {
                     copy(input, path)?;
@@ -89,14 +90,15 @@ impl Lssg {
                 SiteNodeKind::Page { keep_name, .. } => {
                     let html = renderer.render(&site_tree, site_id)?;
                     let html_output_path = if *keep_name {
-                        canonicalize_nonexistent_path(&path.join(format!("../{}.html", node.name)))
+                        (&path.join(format!("../{}.html", node.name)))
+                            .canonicalize_nonexistent_path()
                     } else {
                         create_dir_all(&path)?;
-                        canonicalize_nonexistent_path(&path.join("index.html"))
+                        (&path.join("index.html")).canonicalize_nonexistent_path()
                     };
                     info!(
                         "Writing to {:?}",
-                        canonicalize_nonexistent_path(&html_output_path)
+                        (&html_output_path).canonicalize_nonexistent_path()
                     );
                     write(html_output_path, html)?;
                 }

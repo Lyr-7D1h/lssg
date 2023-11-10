@@ -11,19 +11,25 @@ use log::warn;
 
 use crate::{
     lmarkdown::{lexer::Token, parse_lmarkdown},
+    path_extension::PathExtension,
     stylesheet::Stylesheet,
     tree::{Node, Tree},
-    util::{filename_from_path, filestem_from_path},
     LssgError,
 };
 
 #[derive(Debug)]
 pub enum SiteNodeKind {
-    Stylesheet(Stylesheet),
+    Stylesheet {
+        stylesheet: Stylesheet,
+        links: Vec<usize>,
+    },
     Page {
         tokens: Vec<Token>,
+        links: Vec<usize>,
         input: PathBuf,
         /// Keep the original name in the html page
+        /// eg. SiteNode {name: "test.html", kind: {keep_name: true}}
+        /// creates test.html
         keep_name: bool,
     },
     Resource {
@@ -31,12 +37,30 @@ pub enum SiteNodeKind {
     },
     Folder,
 }
+impl SiteNodeKind {
+    pub fn stylesheet(stylesheet: Stylesheet) -> SiteNodeKind {
+        SiteNodeKind::Stylesheet {
+            stylesheet,
+            links: vec![],
+        }
+    }
+    pub fn page(input: PathBuf) -> Result<SiteNodeKind, LssgError> {
+        let file = File::open(&input)?;
+
+        Ok(SiteNodeKind::Page {
+            tokens: parse_lmarkdown(file)?,
+            links: vec![],
+            input,
+            keep_name: false,
+        })
+    }
+}
 impl ToString for SiteNodeKind {
     fn to_string(&self) -> String {
         match self {
-            SiteNodeKind::Stylesheet(..) => "Stylesheet",
+            SiteNodeKind::Stylesheet { .. } => "Stylesheet",
             SiteNodeKind::Page { .. } => "Page",
-            SiteNodeKind::Resource { .. } => "Resources",
+            SiteNodeKind::Resource { .. } => "Resource",
             SiteNodeKind::Folder => "Folder",
         }
         .into()
@@ -113,7 +137,7 @@ fn from_index_recursive(
 
     // create early because of the need of an parent id
     nodes.push(SiteNode {
-        name: filestem_from_path(&input)?,
+        name: (&input).filestem_from_path()?,
         parent,
         children: vec![],           // filling later
         kind: SiteNodeKind::Folder, // hack changing after children created
@@ -121,6 +145,7 @@ fn from_index_recursive(
     let id = nodes.len() - 1;
 
     let mut children = vec![];
+    let mut links = vec![];
     let mut queue = vec![&mut tokens];
     while let Some(tokens) = queue.pop() {
         for t in tokens {
@@ -134,8 +159,8 @@ fn from_index_recursive(
                         // remove file extension
                         // href.replace_range((href.len() - 3)..href.len(), "");
                         let child_id = from_index_recursive(nodes, path, Some(id))?;
-                        *href = rel_path(nodes, id, child_id);
-                        children.push(child_id)
+                        children.push(child_id);
+                        links.push(child_id);
                     }
                 }
                 _ => {}
@@ -146,6 +171,7 @@ fn from_index_recursive(
     nodes[id].children = children;
     nodes[id].kind = SiteNodeKind::Page {
         tokens,
+        links,
         input,
         keep_name: false,
     };
@@ -268,11 +294,11 @@ impl SiteTree {
         }
 
         let node = match kind {
-            SiteNodeKind::Stylesheet(stylesheet) => {
-                self.add_stylesheet(name, stylesheet, parent_id)?
+            SiteNodeKind::Stylesheet { stylesheet, links } => {
+                self.add_stylesheet(name, stylesheet, links, parent_id)?
             }
             // FIXME check if page and then update links, find id by input
-             SiteNodeKind::Page { .. } => SiteNode {
+            SiteNodeKind::Page { .. } => SiteNode {
                 name,
                 parent: Some(parent_id),
                 children: vec![],
@@ -296,7 +322,8 @@ impl SiteTree {
     fn add_stylesheet(
         &mut self,
         name: String,
-        mut stylesheet: Stylesheet,
+        stylesheet: Stylesheet,
+        mut links: Vec<usize>,
         parent_id: usize,
     ) -> Result<SiteNode, LssgError> {
         let root_path = self
@@ -306,12 +333,11 @@ impl SiteTree {
             .to_owned();
 
         for resource in stylesheet.resources() {
-            let resource = resource.clone();
             let relative = resource
                 .strip_prefix(&root_path)
                 .map_err(|_| io::Error::new(io::ErrorKind::Other, "failed to strip prefix"))?;
 
-            let mut parent_id = parent_id.clone();
+            let mut resource_parent = parent_id.clone();
             for path_part in relative.to_str().unwrap_or("").split("/") {
                 if path_part == "." {
                     continue;
@@ -319,17 +345,18 @@ impl SiteTree {
                 // assume file when there is a file extenstion (there is a ".")
                 if path_part.contains(".") {
                     let id = self.add(
-                        filename_from_path(&resource)?,
+                        (&resource).filename_from_path()?,
                         SiteNodeKind::Resource {
                             input: resource.clone(),
                         },
-                        parent_id,
+                        resource_parent,
                     )?;
-                    stylesheet.update_resource(&resource, PathBuf::from(self.path(id)));
+                    links.push(id);
                     break;
                 }
 
-                parent_id = self.add(path_part.to_owned(), SiteNodeKind::Folder, parent_id)?;
+                resource_parent =
+                    self.add(path_part.to_owned(), SiteNodeKind::Folder, parent_id)?;
             }
         }
 
@@ -337,7 +364,10 @@ impl SiteTree {
             name,
             parent: Some(parent_id),
             children: vec![],
-            kind: SiteNodeKind::Stylesheet(stylesheet),
+            kind: SiteNodeKind::Stylesheet {
+                stylesheet,
+                links: vec![],
+            },
         })
     }
 }

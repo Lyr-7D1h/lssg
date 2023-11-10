@@ -1,16 +1,16 @@
 use std::{collections::HashMap, fs::File, path::PathBuf};
 
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_extensions::Overwrite;
 
 use crate::{
     domtree::{to_attributes, DomNode, DomNodeKind},
     lmarkdown::{lexer::Token, parse_lmarkdown},
     lssg_error::LssgError,
-    sitetree::{SiteNode, SiteNodeKind, SiteTree},
+    path_extension::PathExtension,
+    sitetree::{SiteNodeKind, SiteTree},
     stylesheet::Stylesheet,
     tree::BFS,
-    util::filestem_from_path,
 };
 
 use super::{RenderQueue, RendererModule};
@@ -79,6 +79,7 @@ impl RendererModule for DefaultModule {
         return "default";
     }
 
+    /// Add all resources from ResourceOptions to SiteTree
     fn init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
         // get all pages with options
         let pages: Vec<(usize, ResourceOptions, PathBuf)> = BFS::new(site_tree)
@@ -97,8 +98,8 @@ impl RendererModule for DefaultModule {
                 let mut stylesheet = Stylesheet::new();
                 stylesheet.append(&base_directory.join(&p))?;
                 site_tree.add(
-                    filestem_from_path(&p)?,
-                    SiteNodeKind::Stylesheet(stylesheet),
+                    (&p).filestem_from_path()?,
+                    SiteNodeKind::stylesheet(stylesheet),
                     id,
                 )?;
             }
@@ -107,9 +108,10 @@ impl RendererModule for DefaultModule {
                 let input = base_directory.join(&p.input);
                 let file = File::open(&input)?;
                 site_tree.add(
-                    filestem_from_path(&input)?,
+                    (&input).filestem_from_path()?,
                     SiteNodeKind::Page {
                         tokens: parse_lmarkdown(file)?,
+                        links: vec![],
                         input,
                         keep_name: true,
                     },
