@@ -96,7 +96,11 @@ impl RendererModule for DefaultModule {
             for p in options.stylesheets {
                 let mut stylesheet = Stylesheet::new();
                 stylesheet.append(&base_directory.join(&p))?;
-                site_tree.add(filestem_from_path(&p)?, SiteNodeKind::Stylesheet(stylesheet), id)?;
+                site_tree.add(
+                    filestem_from_path(&p)?,
+                    SiteNodeKind::Stylesheet(stylesheet),
+                    id,
+                )?;
             }
 
             for p in options.external_pages {
@@ -118,52 +122,6 @@ impl RendererModule for DefaultModule {
                 site_tree.add("favicon.ico".into(), SiteNodeKind::Resource { input }, id)?;
             }
         }
-
-        // TODO: go through all pages and create resources when necessary
-
-        // let mut stylesheet = if self.options.overwrite_default_stylesheet {
-        //     Stylesheet::new()
-        // } else {
-        //     Stylesheet::default()
-        // };
-        // for path in self.options.stylesheets.iter() {
-        //     stylesheet.append(&path)?;
-        // }
-        // self.stylesheet =
-        //     site_tree.add_stylesheet("main.css".into(), stylesheet, site_tree.root())?;
-
-        // self.favicon = if let Some(input) = &self.options.favicon {
-        //     Some(site_tree.add(
-        //         SiteNode {
-        //             name: "favicon.ico".into(),
-        //             parent: Some(site_tree.root()),
-        //             children: vec![],
-        //             kind: SiteNodeKind::Resource {
-        //                 input: input.clone(),
-        //             },
-        //         },
-        //         site_tree.root(),
-        //     )?)
-        // } else {
-        //     None
-        // };
-
-        // if let Some(input) = &self.options.not_found_page {
-        //     let file = File::open(&input)?;
-        //     let _ = site_tree.add(
-        //         SiteNode {
-        //             name: filestem_from_path(input)?,
-        //             parent: Some(site_tree.root()),
-        //             children: vec![],
-        //             kind: SiteNodeKind::Page {
-        //                 tokens: LMarkdownParser::parse(file)?,
-        //                 input: input.to_path_buf(),
-        //                 keep_name: true,
-        //             },
-        //         },
-        //         site_tree.root(),
-        //     );
-        // }
 
         Ok(())
     }
