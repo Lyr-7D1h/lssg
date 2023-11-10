@@ -5,7 +5,8 @@ favicon="./favicon.ico"
 stylesheets=[
   "./lib/fontawesome.css",
   "./lib/fa-solid.css",
-  "./lib/fa-brands.css"
+  "./lib/fa-brands.css",
+  "./main.css"
 ]
 external_pages=[
   { input= "./404.md", output= "./404.html" }  
