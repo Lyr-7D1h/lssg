@@ -56,7 +56,7 @@ impl Renderer {
         let mut tree = DomTree::new();
 
         let context = RendererModuleContext {
-            site_tree: site_tree,
+            site_tree,
             site_id,
             tokens,
         };

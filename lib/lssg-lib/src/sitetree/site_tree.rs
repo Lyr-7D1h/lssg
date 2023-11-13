@@ -17,7 +17,7 @@ use crate::{
     LssgError,
 };
 
-use super::{SiteNode, SiteNodeKind};
+use super::{relational_graph::RelationalGraph, SiteNode, SiteNodeKind};
 
 // Get the relative path between two nodes
 fn rel_path(nodes: &Vec<SiteNode>, from: usize, to: usize) -> String {
@@ -68,6 +68,7 @@ fn rel_path(nodes: &Vec<SiteNode>, from: usize, to: usize) -> String {
 pub struct SiteTree {
     nodes: Vec<SiteNode>,
     root: usize,
+    rel_graph: RelationalGraph,
     // TODO make non pub when css minification is done
     pub cannonical_root_parent_path: PathBuf,
 }
@@ -75,6 +76,7 @@ pub struct SiteTree {
 impl SiteTree {
     pub fn from_index(index: PathBuf) -> Result<SiteTree, LssgError> {
         let mut tree = SiteTree {
+            rel_graph: RelationalGraph::new(),
             nodes: vec![],
             root: 0,
             cannonical_root_parent_path: fs::canonicalize(&index)?
@@ -172,6 +174,7 @@ impl SiteTree {
         let id = self.nodes.len();
         if let Some(parent) = node.parent {
             self.nodes[parent].children.push(id);
+            self.rel_graph.add(parent, id);
         }
         self.nodes.push(node);
         id
@@ -211,6 +214,7 @@ impl SiteTree {
         Ok(id)
     }
 
+    /// Add a page node to tree
     fn add_page(
         &mut self,
         input: PathBuf,
