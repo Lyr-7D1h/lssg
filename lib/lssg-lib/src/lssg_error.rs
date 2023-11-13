@@ -41,8 +41,9 @@ impl LssgError {
         Self::new(message, LssgErrorKind::Io)
     }
 
-    pub fn with_context(&mut self, context: String) {
-        self.context = Some(context);
+    pub fn with_context(mut self, context: impl Into<String>) -> Self {
+        self.context = Some(context.into());
+        self
     }
 }
 impl From<ParseError> for LssgError {

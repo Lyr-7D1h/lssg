@@ -10,7 +10,7 @@ use std::{
 use log::warn;
 
 use crate::{
-    lmarkdown::{lexer::Token, parse_lmarkdown},
+    lmarkdown::{parse_lmarkdown, Token},
     path_extension::PathExtension,
     stylesheet::Stylesheet,
     tree::{Node, Tree},
@@ -21,11 +21,13 @@ use crate::{
 pub enum SiteNodeKind {
     Stylesheet {
         stylesheet: Stylesheet,
-        links: Vec<usize>,
+        // A map from href paths to node ids
+        links: HashMap<String, usize>,
     },
     Page {
         tokens: Vec<Token>,
-        links: Vec<usize>,
+        /// A map from href paths to node ids
+        links: HashMap<String, usize>,
         input: PathBuf,
         /// Keep the original name in the html page
         /// eg. SiteNode {name: "test.html", kind: {keep_name: true}}
@@ -41,17 +43,17 @@ impl SiteNodeKind {
     pub fn stylesheet(stylesheet: Stylesheet) -> SiteNodeKind {
         SiteNodeKind::Stylesheet {
             stylesheet,
-            links: vec![],
+            links: HashMap::new(),
         }
     }
-    pub fn page(input: PathBuf) -> Result<SiteNodeKind, LssgError> {
+    pub fn page(input: PathBuf, keep_name: bool) -> Result<SiteNodeKind, LssgError> {
         let file = File::open(&input)?;
 
         Ok(SiteNodeKind::Page {
             tokens: parse_lmarkdown(file)?,
-            links: vec![],
+            links: HashMap::new(),
             input,
-            keep_name: false,
+            keep_name,
         })
     }
 }
@@ -127,13 +129,15 @@ fn rel_path(nodes: &Vec<SiteNode>, from: usize, to: usize) -> String {
 }
 
 /// parse a markdown file and any markdown references, updates corresponding links
-fn from_index_recursive(
+fn from_page_recursive(
     nodes: &mut Vec<SiteNode>,
     input: PathBuf,
     parent: Option<usize>,
 ) -> Result<usize, LssgError> {
-    let file = File::open(&input)?;
+    let file = File::open(&input)
+        .map_err(|e| LssgError::from(e).with_context(format!("could not open {input:?}")))?;
     let mut tokens = parse_lmarkdown(file)?;
+    println!("{tokens:?}");
 
     // create early because of the need of an parent id
     nodes.push(SiteNode {
@@ -145,7 +149,7 @@ fn from_index_recursive(
     let id = nodes.len() - 1;
 
     let mut children = vec![];
-    let mut links = vec![];
+    let mut links = HashMap::new();
     let mut queue = vec![&mut tokens];
     while let Some(tokens) = queue.pop() {
         for t in tokens {
@@ -158,9 +162,9 @@ fn from_index_recursive(
                         let path = input.parent().unwrap().join(Path::new(&href));
                         // remove file extension
                         // href.replace_range((href.len() - 3)..href.len(), "");
-                        let child_id = from_index_recursive(nodes, path, Some(id))?;
+                        let child_id = from_page_recursive(nodes, path, Some(id))?;
                         children.push(child_id);
-                        links.push(child_id);
+                        links.insert(href.to_string(), child_id);
                     }
                 }
                 _ => {}
@@ -189,7 +193,7 @@ pub struct SiteTree {
 impl SiteTree {
     pub fn from_index(index: PathBuf) -> Result<SiteTree, LssgError> {
         let mut nodes = vec![];
-        let root = from_index_recursive(&mut nodes, index.clone(), None)?;
+        let root = from_page_recursive(&mut nodes, index.clone(), None)?;
         Ok(SiteTree {
             nodes,
             root,
@@ -272,9 +276,14 @@ impl SiteTree {
         path.join("/")
     }
 
-    // Get the relative path between two nodes
+    /// Get the relative path between two nodes
     pub fn rel_path(&self, from: usize, to: usize) -> String {
         rel_path(&self.nodes, from, to)
+    }
+
+    /// Create a new id
+    fn id(&self) -> usize {
+        self.nodes.len() - 1
     }
 
     pub fn add(
@@ -294,16 +303,19 @@ impl SiteTree {
         }
 
         let node = match kind {
-            SiteNodeKind::Stylesheet { stylesheet, links } => {
-                self.add_stylesheet(name, stylesheet, links, parent_id)?
+            SiteNodeKind::Stylesheet { stylesheet, .. } => {
+                self.add_stylesheet(name, stylesheet, parent_id)?
             }
             // FIXME check if page and then update links, find id by input
-            SiteNodeKind::Page { .. } => SiteNode {
-                name,
-                parent: Some(parent_id),
-                children: vec![],
-                kind,
-            },
+            SiteNodeKind::Page { .. } => {
+                // from_page_recursive(&mut self.nodes, input, Some(parent_id))
+                SiteNode {
+                    name,
+                    parent: Some(parent_id),
+                    children: vec![],
+                    kind,
+                }
+            }
             _ => SiteNode {
                 name,
                 parent: Some(parent_id),
@@ -323,7 +335,7 @@ impl SiteTree {
         &mut self,
         name: String,
         stylesheet: Stylesheet,
-        mut links: Vec<usize>,
+        // mut links: Vec<usize>,
         parent_id: usize,
     ) -> Result<SiteNode, LssgError> {
         let root_path = self
@@ -351,7 +363,7 @@ impl SiteTree {
                         },
                         resource_parent,
                     )?;
-                    links.push(id);
+                    // links.push(id);
                     break;
                 }
 
@@ -366,7 +378,7 @@ impl SiteTree {
             children: vec![],
             kind: SiteNodeKind::Stylesheet {
                 stylesheet,
-                links: vec![],
+                links: HashMap::new(),
             },
         })
     }

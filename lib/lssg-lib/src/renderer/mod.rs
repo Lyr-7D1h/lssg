@@ -11,7 +11,7 @@ use serde_extensions::Overwrite;
 
 use crate::{
     domtree::DomTree,
-    lmarkdown::lexer::Token,
+    lmarkdown::Token,
     sitetree::{SiteNodeKind, SiteTree},
     LssgError,
 };

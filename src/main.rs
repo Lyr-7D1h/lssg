@@ -39,9 +39,10 @@ fn main() {
         .unwrap();
 
     let input = args.input;
-    let site_tree = SiteTree::from_index(input.clone()).expect("Failed to generate site tree");
 
     if args.single_page {
+        let site_tree = SiteTree::from_index(input.clone()).expect("Failed to generate site tree");
+
         let mut renderer = HtmlRenderer::new();
         renderer.add_module(BlogModule::new());
         renderer.add_module(DefaultModule::new());

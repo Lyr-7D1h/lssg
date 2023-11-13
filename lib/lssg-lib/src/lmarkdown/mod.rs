@@ -1,13 +1,10 @@
 use std::io::Read;
 
-use self::{
-    char_reader::CharReader,
-    lexer::{LMarkdownLexer, Token},
-    parse_error::ParseError,
-};
+use self::{char_reader::CharReader, parse_error::ParseError};
 
 pub mod char_reader;
-pub mod lexer;
+mod lexer;
+pub use lexer::*;
 pub mod parse_error;
 
 pub fn parse_lmarkdown(input: impl Read) -> Result<Vec<Token>, ParseError> {

@@ -76,7 +76,7 @@ impl Lssg {
             queue.append(&mut node.children.clone());
             let path = self.output_directory.join(site_tree.path(site_id));
             match &node.kind {
-                SiteNodeKind::Stylesheet { stylesheet, links } => {
+                SiteNodeKind::Stylesheet { stylesheet, .. } => {
                     // TODO: fix resource links
                     info!("Writing stylesheet {path:?}",);
                     write(path.with_extension("css"), stylesheet.to_string())?;

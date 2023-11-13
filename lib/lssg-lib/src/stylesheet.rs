@@ -35,8 +35,8 @@ impl Stylesheet {
     }
 
     pub fn add_resource(&mut self, input: PathBuf, raw: String) {
-        if let Some(r) = self.resources.get_mut(&input) {
-            r.insert(raw);
+        if let Some(set) = self.resources.get_mut(&input) {
+            set.insert(raw);
         } else {
             let mut set = HashSet::new();
             set.insert(raw);

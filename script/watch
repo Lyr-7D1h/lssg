@@ -1,3 +1,5 @@
 #!/usr/bin/env bash
 
-cargo watch -x "run $@ build"
+INPUT=$@
+
+cargo watch -x "run ${INPUT} build"

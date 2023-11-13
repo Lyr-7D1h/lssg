@@ -49,7 +49,7 @@ impl<R: Read> LMarkdownLexer<R> {
                         _ => {}
                     }
                 }
-                if text_start < text_end && text_end < href_start && href_start < href_end {
+                if text_start <= text_end && text_end <= href_start && href_start < href_end {
                     if text.len() > 0 {
                         tokens.push(Token::Text { text: text.clone() });
                         text.clear();
@@ -257,6 +257,11 @@ pub enum Token {
         text: String,
         tokens: Vec<Token>,
     },
+    Html {
+        tag: String,
+        attributes: HashMap<String, String>,
+        tokens: Vec<Token>,
+    },
     /// Anything that is not an already declared inline element
     Paragraph {
         tokens: Vec<Token>,
@@ -280,11 +285,6 @@ pub enum Token {
     },
     Text {
         text: String,
-    },
-    Html {
-        tag: String,
-        attributes: HashMap<String, String>,
-        tokens: Vec<Token>,
     },
     Comment {
         text: String,

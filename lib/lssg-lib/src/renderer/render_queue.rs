@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 
-use crate::lmarkdown::lexer::Token;
+use crate::lmarkdown::Token;
+
 pub struct RenderQueue {
     tokens: VecDeque<(Token, usize)>,
 }

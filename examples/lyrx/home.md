@@ -8,13 +8,13 @@ stylesheets=[
   "./lib/fa-brands.css",
   "./main.css"
 ]
-external_pages=[
-  { input= "./404.md", output= "./404.html" }  
-]
 [default.meta]
 description="Lyr's little space of the internet"
 author="Lyr"
 -->
+<!-- Add external pages -->
+[](./404.md)
+
 # LyrX
 
 <p class="small">
