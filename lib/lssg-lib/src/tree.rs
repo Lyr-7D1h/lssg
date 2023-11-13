@@ -1,7 +1,9 @@
+/// Implement this trait to get generic functionality over tree structures
 pub trait Node {
     fn children(&self) -> &Vec<usize>;
 }
 
+/// Implement this trait to get generic functionality over tree structures
 pub trait Tree {
     type Node: Node;
     fn root(&self) -> usize;

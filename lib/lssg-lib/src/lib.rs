@@ -78,13 +78,16 @@ impl Lssg {
             match &node.kind {
                 SiteNodeKind::Stylesheet { stylesheet, .. } => {
                     // TODO: fix resource links
+                    let path = path.with_extension("css");
                     info!("Writing stylesheet {path:?}",);
-                    write(path.with_extension("css"), stylesheet.to_string())?;
+                    write(path, stylesheet.to_string())?;
                 }
                 SiteNodeKind::Resource { input } => {
+                    info!("Writing resource {path:?}",);
                     copy(input, path)?;
                 }
                 SiteNodeKind::Folder => {
+                    info!("Creating folder {path:?}",);
                     create_dir(path)?;
                 }
                 SiteNodeKind::Page { .. } => {
@@ -92,11 +95,6 @@ impl Lssg {
                     create_dir_all(&path)?;
                     let html_output_path = path.join("index.html").canonicalize_nonexistent_path();
 
-                    //     if *keep_name {
-                    //     (&path.join(format!("../{}.html", node.name)))
-                    //         .canonicalize_nonexistent_path()
-                    // } else {
-                    // };
                     info!(
                         "Writing to {:?}",
                         (&html_output_path).canonicalize_nonexistent_path()

@@ -131,7 +131,8 @@ fn rel_path(nodes: &Vec<SiteNode>, from: usize, to: usize) -> String {
 pub struct SiteTree {
     nodes: Vec<SiteNode>,
     root: usize,
-    cannonical_root_parent_path: PathBuf,
+    // TODO make non pub when css minification is done
+    pub cannonical_root_parent_path: PathBuf,
 }
 
 impl SiteTree {
@@ -333,7 +334,7 @@ impl SiteTree {
                 .strip_prefix(&self.cannonical_root_parent_path)
                 .map_err(|_| io::Error::new(io::ErrorKind::Other, "failed to strip prefix"))?;
 
-            let mut resource_parent = parent_id.clone();
+            let mut resource_parent = self.root();
             for path_part in relative_to_root.to_str().unwrap_or("").split("/") {
                 if path_part == "." {
                     continue;
@@ -353,7 +354,7 @@ impl SiteTree {
                 }
 
                 resource_parent =
-                    self.add(path_part.to_owned(), SiteNodeKind::Folder, parent_id)?;
+                    self.add(path_part.to_owned(), SiteNodeKind::Folder, resource_parent)?;
             }
         }
 
