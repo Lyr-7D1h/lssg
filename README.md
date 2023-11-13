@@ -2,7 +2,7 @@
 
 The idea is to generate static html, css, js files based on custom markdown format.
 
-This uses a custom markdown parser which will not necessarly follow official specifications. I'm making it to the point that it is usable for me, PR's are welcome!
+This uses a custom markdown parser which will not necessarly follow official specifications. I'm making it to the point that it is usable for me, PR's are welcome! See `LMarkdown` down for more information.
 
 ## Usage
 
@@ -28,6 +28,8 @@ lssg ./content/home.md ./build/
 ```
 
 ## LMarkdown (Lyr's Markdown)
+
+The goal of LMarkdown is to be as similar as markdown to support markdown live preview and correct syntax highlighting while still offering features that allow you to specify how the page should be renderered.
 
 Structure of a lmarkdown file:
 
@@ -90,6 +92,7 @@ if page => use modular HtmlRenderer to turn lmarkdown tokens into html, and writ
 ```
 
 ## Roadmap
+- Download and install links to external resources (fonts, css, enc.)
 - Make importing pages from notion easier
 - Code support
 - Add file minification for css
