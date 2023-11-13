@@ -27,6 +27,9 @@ cd examples/lyrx
 lssg ./content/home.md ./build/ 
 ```
 
+> [!NOTE]
+> Any links from the input markdown file to other markdown files have to be contained within the parent folder of your input markdown file
+
 ## LMarkdown (Lyr's Markdown)
 
 The goal of LMarkdown is to be as similar as markdown to support markdown live preview and correct syntax highlighting while still offering features that allow you to specify how the page should be renderered.
