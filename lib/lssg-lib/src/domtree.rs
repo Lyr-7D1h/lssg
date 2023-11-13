@@ -175,7 +175,12 @@ impl DomTree {
                 };
 
                 if node.children.len() == 0 {
-                    return format!("<{tag}{spacing}{}/>", attributes);
+                    match tag.as_str() {
+                        "link" | "meta" => {
+                            return format!("<{tag}{spacing}{}/>", attributes);
+                        }
+                        _ => {}
+                    }
                 }
 
                 let mut content = String::new();
