@@ -11,7 +11,7 @@ use crate::LssgError;
 const DEFAULT_STYLESHEET: &'static str = include_str!("default_stylesheet.css");
 
 /// Stylesheet representation for resource discovering and condensing multiple stylesheets into one
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Stylesheet {
     content: String,
     /// Map of raw resource strings inside of content indexed by cannonical path to resource
@@ -68,8 +68,7 @@ impl Stylesheet {
     }
 
     /// Update a resource input path to a new one
-    pub fn update_resource(&mut self, resource: &Path, updated_resource: PathBuf) -> bool {
-        let updated_resource = updated_resource.to_string_lossy().to_string();
+    pub fn update_resource(&mut self, resource: &Path, updated_resource: String) -> bool {
         match self.resources.get_mut(resource) {
             None => false,
             Some(raw) => {
@@ -86,10 +85,8 @@ impl Stylesheet {
             }
         }
     }
-}
 
-impl ToString for Stylesheet {
-    fn to_string(&self) -> String {
-        self.content.clone()
+    pub fn to_string(self) -> String {
+        self.content
     }
 }

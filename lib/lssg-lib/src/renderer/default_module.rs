@@ -5,6 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use log::warn;
 use serde::Deserialize;
 use serde_extensions::Overwrite;
 
@@ -102,8 +103,7 @@ impl RendererModule for DefaultModule {
                 let mut parent = id;
                 for piece in rel_path.to_str().unwrap_or("").split("/") {
                     if piece.len() > 0 {
-
-                    parent = site_tree.add(piece.to_owned(), SiteNodeKind::Folder, id)?;
+                        parent = site_tree.add(piece.to_owned(), SiteNodeKind::Folder, id)?;
                     }
                 }
 
@@ -240,16 +240,26 @@ impl RendererModule for DefaultModule {
                         ]),
                         parent_id,
                     );
-                } else if href.ends_with(".md") {
-                    // TODO handle local links to markdown files
-                } else {
-                    let parent_id = tree.add_element_with_attributes(
-                        "a",
-                        to_attributes([("href", href)]),
-                        parent_id,
-                    );
-                    tree.add_text(text, parent_id);
+                    return true;
                 }
+                if href.ends_with(".md") {
+                    if let Some(to_id) = site_tree[*site_id].get_link_from_raw_path(href) {
+                        let parent_id = tree.add_element_with_attributes(
+                            "a",
+                            to_attributes([("href", site_tree.rel_path(*site_id, *to_id))]),
+                            parent_id,
+                        );
+                        tree.add_text(text, parent_id);
+                        return true;
+                    }
+                    warn!("Could not find node where {href:?} points to");
+                }
+                let parent_id = tree.add_element_with_attributes(
+                    "a",
+                    to_attributes([("href", href)]),
+                    parent_id,
+                );
+                tree.add_text(text, parent_id);
             }
             Token::Text { text } => {
                 tree.add_text(text, parent_id);

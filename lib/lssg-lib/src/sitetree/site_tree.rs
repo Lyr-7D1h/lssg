@@ -17,70 +17,7 @@ use crate::{
     LssgError,
 };
 
-#[derive(Debug)]
-pub enum SiteNodeKind {
-    Stylesheet {
-        stylesheet: Stylesheet,
-        // A map from href paths to node ids
-        links: HashMap<String, usize>,
-    },
-    Page {
-        tokens: Vec<Token>,
-        /// A map from href paths to node ids
-        links: HashMap<String, usize>,
-        input: PathBuf,
-        // Keep the original name in the html page
-        // eg. SiteNode {name: "test.html", kind: {keep_name: true}}
-        // creates test.html
-        // keep_name: bool,
-    },
-    Resource {
-        input: PathBuf,
-    },
-    Folder,
-}
-impl SiteNodeKind {
-    pub fn stylesheet(stylesheet: Stylesheet) -> SiteNodeKind {
-        SiteNodeKind::Stylesheet {
-            stylesheet,
-            links: HashMap::new(),
-        }
-    }
-    pub fn page(input: PathBuf) -> Result<SiteNodeKind, LssgError> {
-        Ok(SiteNodeKind::Page {
-            tokens: parse_lmarkdown_from_file(&input)?,
-            links: HashMap::new(),
-            input,
-            // keep_name,
-        })
-    }
-}
-impl ToString for SiteNodeKind {
-    fn to_string(&self) -> String {
-        match self {
-            SiteNodeKind::Stylesheet { .. } => "Stylesheet",
-            SiteNodeKind::Page { .. } => "Page",
-            SiteNodeKind::Resource { .. } => "Resource",
-            SiteNodeKind::Folder => "Folder",
-        }
-        .into()
-    }
-}
-
-#[derive(Debug)]
-pub struct SiteNode {
-    /// Unique name within children of node
-    pub name: String,
-    pub parent: Option<usize>,
-    pub children: Vec<usize>,
-    pub kind: SiteNodeKind,
-}
-
-impl Node for SiteNode {
-    fn children(&self) -> &Vec<usize> {
-        &self.children
-    }
-}
+use super::{SiteNode, SiteNodeKind};
 
 // Get the relative path between two nodes
 fn rel_path(nodes: &Vec<SiteNode>, from: usize, to: usize) -> String {
@@ -230,6 +167,7 @@ impl SiteTree {
         rel_path(&self.nodes, from, to)
     }
 
+    /// Utility function to add a node, create a id and add to parent children
     fn add_node(&mut self, node: SiteNode) -> usize {
         let id = self.nodes.len();
         if let Some(parent) = node.parent {

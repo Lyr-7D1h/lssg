@@ -14,6 +14,7 @@ author="Lyr"
 -->
 <!-- Add external pages -->
 [](./404.md)
+[](./blog/how_to_self_study_mathematics.md)
 
 # LyrX
 

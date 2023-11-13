@@ -10,7 +10,7 @@ mod tree;
 
 use std::{
     fs::{copy, create_dir, create_dir_all, remove_dir_all, write},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 use log::info;
@@ -76,8 +76,12 @@ impl Lssg {
             queue.append(&mut node.children.clone());
             let path = self.output_directory.join(site_tree.path(site_id));
             match &node.kind {
-                SiteNodeKind::Stylesheet { stylesheet, .. } => {
-                    // TODO: fix resource links
+                SiteNodeKind::Stylesheet { stylesheet, links } => {
+                    let mut stylesheet = stylesheet.clone();
+                    for (path, to_id) in links {
+                        let updated_resource = site_tree.rel_path(site_id, *to_id);
+                        (&mut stylesheet).update_resource(Path::new(path), updated_resource);
+                    }
                     let path = path.with_extension("css");
                     info!("Writing stylesheet {path:?}",);
                     write(path, stylesheet.to_string())?;
