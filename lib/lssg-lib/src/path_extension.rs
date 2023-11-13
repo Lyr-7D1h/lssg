@@ -26,6 +26,7 @@ impl PathExtension for Path {
         PathBuf::from(canonicalized_path.join("/"))
     }
 
+    /// Make it easier to get the filestem parsed as string
     fn filestem_from_path(&self) -> Result<String, LssgError> {
         Ok(self
             .file_stem()

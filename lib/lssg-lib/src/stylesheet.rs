@@ -1,6 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
-    fs::read_to_string,
+    fs::{self, read_to_string},
     path::{Path, PathBuf},
 };
 
@@ -14,6 +14,7 @@ const DEFAULT_STYLESHEET: &'static str = include_str!("default_stylesheet.css");
 #[derive(Debug)]
 pub struct Stylesheet {
     content: String,
+    /// Map of raw resource strings inside of content indexed by cannonical path to resource
     resources: HashMap<PathBuf, HashSet<String>>,
 }
 
@@ -34,7 +35,8 @@ impl Stylesheet {
         }
     }
 
-    pub fn add_resource(&mut self, input: PathBuf, raw: String) {
+    /// Add resource
+    fn add_resource(&mut self, input: PathBuf, raw: String) {
         if let Some(set) = self.resources.get_mut(&input) {
             set.insert(raw);
         } else {
@@ -49,17 +51,18 @@ impl Stylesheet {
         let content = read_to_string(path)
             .map_err(|_| LssgError::io(&format!("Failed to append stylesheet: {path:?}")))?;
 
+        let parent_path = path.parent().unwrap_or(Path::new("/"));
+
         let re = Regex::new(r#"url\("?(\.[^)"]*)"?\)"#)?;
         for r in re.captures_iter(&content).into_iter() {
-            self.add_resource(
-                path.parent().unwrap_or(Path::new("/")).join(&r[1]),
-                r[0].to_owned(),
-            );
+            let input = fs::canonicalize(parent_path.join(&r[1]))?;
+            self.add_resource(input, r[0].to_owned());
         }
         self.content += &content;
         Ok(())
     }
 
+    /// Get all cannonicalized path to resources in stylesheet
     pub fn resources(&self) -> Vec<&PathBuf> {
         Vec::from_iter(self.resources.keys())
     }

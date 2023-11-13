@@ -87,15 +87,16 @@ impl Lssg {
                 SiteNodeKind::Folder => {
                     create_dir(path)?;
                 }
-                SiteNodeKind::Page { keep_name, .. } => {
+                SiteNodeKind::Page { .. } => {
                     let html = renderer.render(&site_tree, site_id)?;
-                    let html_output_path = if *keep_name {
-                        (&path.join(format!("../{}.html", node.name)))
-                            .canonicalize_nonexistent_path()
-                    } else {
-                        create_dir_all(&path)?;
-                        (&path.join("index.html")).canonicalize_nonexistent_path()
-                    };
+                    create_dir_all(&path)?;
+                    let html_output_path = path.join("index.html").canonicalize_nonexistent_path();
+
+                    //     if *keep_name {
+                    //     (&path.join(format!("../{}.html", node.name)))
+                    //         .canonicalize_nonexistent_path()
+                    // } else {
+                    // };
                     info!(
                         "Writing to {:?}",
                         (&html_output_path).canonicalize_nonexistent_path()

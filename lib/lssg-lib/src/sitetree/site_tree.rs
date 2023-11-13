@@ -1,16 +1,16 @@
 use core::fmt;
 use std::{
     collections::HashMap,
-    fs::File,
+    fs::{self, File},
     io,
-    ops::Index,
+    ops::{Index, IndexMut},
     path::{Path, PathBuf},
 };
 
 use log::warn;
 
 use crate::{
-    lmarkdown::{parse_lmarkdown, Token},
+    lmarkdown::{parse_lmarkdown_from_file, Token},
     path_extension::PathExtension,
     stylesheet::Stylesheet,
     tree::{Node, Tree},
@@ -29,10 +29,10 @@ pub enum SiteNodeKind {
         /// A map from href paths to node ids
         links: HashMap<String, usize>,
         input: PathBuf,
-        /// Keep the original name in the html page
-        /// eg. SiteNode {name: "test.html", kind: {keep_name: true}}
-        /// creates test.html
-        keep_name: bool,
+        // Keep the original name in the html page
+        // eg. SiteNode {name: "test.html", kind: {keep_name: true}}
+        // creates test.html
+        // keep_name: bool,
     },
     Resource {
         input: PathBuf,
@@ -46,14 +46,12 @@ impl SiteNodeKind {
             links: HashMap::new(),
         }
     }
-    pub fn page(input: PathBuf, keep_name: bool) -> Result<SiteNodeKind, LssgError> {
-        let file = File::open(&input)?;
-
+    pub fn page(input: PathBuf) -> Result<SiteNodeKind, LssgError> {
         Ok(SiteNodeKind::Page {
-            tokens: parse_lmarkdown(file)?,
+            tokens: parse_lmarkdown_from_file(&input)?,
             links: HashMap::new(),
             input,
-            keep_name,
+            // keep_name,
         })
     }
 }
@@ -128,77 +126,27 @@ fn rel_path(nodes: &Vec<SiteNode>, from: usize, to: usize) -> String {
     return format!("{}{}", "../".repeat(depth), to_path);
 }
 
-/// parse a markdown file and any markdown references, updates corresponding links
-fn from_page_recursive(
-    nodes: &mut Vec<SiteNode>,
-    input: PathBuf,
-    parent: Option<usize>,
-) -> Result<usize, LssgError> {
-    let file = File::open(&input)
-        .map_err(|e| LssgError::from(e).with_context(format!("could not open {input:?}")))?;
-    let mut tokens = parse_lmarkdown(file)?;
-    println!("{tokens:?}");
-
-    // create early because of the need of an parent id
-    nodes.push(SiteNode {
-        name: (&input).filestem_from_path()?,
-        parent,
-        children: vec![],           // filling later
-        kind: SiteNodeKind::Folder, // hack changing after children created
-    });
-    let id = nodes.len() - 1;
-
-    let mut children = vec![];
-    let mut links = HashMap::new();
-    let mut queue = vec![&mut tokens];
-    while let Some(tokens) = queue.pop() {
-        for t in tokens {
-            match t {
-                Token::Heading { tokens, .. } => queue.push(tokens),
-                Token::Paragraph { tokens, .. } => queue.push(tokens),
-                Token::Html { tokens, .. } => queue.push(tokens),
-                Token::Link { href, .. } => {
-                    if href.starts_with("./") && href.ends_with(".md") {
-                        let path = input.parent().unwrap().join(Path::new(&href));
-                        // remove file extension
-                        // href.replace_range((href.len() - 3)..href.len(), "");
-                        let child_id = from_page_recursive(nodes, path, Some(id))?;
-                        children.push(child_id);
-                        links.insert(href.to_string(), child_id);
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    nodes[id].children = children;
-    nodes[id].kind = SiteNodeKind::Page {
-        tokens,
-        links,
-        input,
-        keep_name: false,
-    };
-    return Ok(id);
-}
-
 /// Code representation of all nodes within the site (hiarchy and how nodes are related)
 #[derive(Debug)]
 pub struct SiteTree {
     nodes: Vec<SiteNode>,
     root: usize,
-    index_path: PathBuf,
+    cannonical_root_parent_path: PathBuf,
 }
 
 impl SiteTree {
     pub fn from_index(index: PathBuf) -> Result<SiteTree, LssgError> {
-        let mut nodes = vec![];
-        let root = from_page_recursive(&mut nodes, index.clone(), None)?;
-        Ok(SiteTree {
-            nodes,
-            root,
-            index_path: index,
-        })
+        let mut tree = SiteTree {
+            nodes: vec![],
+            root: 0,
+            cannonical_root_parent_path: fs::canonicalize(&index)?
+                .parent()
+                .unwrap_or(Path::new("/"))
+                .to_path_buf(),
+        };
+        let tokens = parse_lmarkdown_from_file(&index)?;
+        tree.add_page(index, tokens, None)?;
+        Ok(tree)
     }
 
     /// Check if node `id` has `parent_id` as parent node
@@ -281,9 +229,13 @@ impl SiteTree {
         rel_path(&self.nodes, from, to)
     }
 
-    /// Create a new id
-    fn id(&self) -> usize {
-        self.nodes.len() - 1
+    fn add_node(&mut self, node: SiteNode) -> usize {
+        let id = self.nodes.len();
+        if let Some(parent) = node.parent {
+            self.nodes[parent].children.push(id);
+        }
+        self.nodes.push(node);
+        id
     }
 
     pub fn add(
@@ -302,32 +254,70 @@ impl SiteTree {
             return Ok(*id);
         }
 
-        let node = match kind {
+        let id = match kind {
             SiteNodeKind::Stylesheet { stylesheet, .. } => {
                 self.add_stylesheet(name, stylesheet, parent_id)?
             }
-            // FIXME check if page and then update links, find id by input
-            SiteNodeKind::Page { .. } => {
-                // from_page_recursive(&mut self.nodes, input, Some(parent_id))
-                SiteNode {
-                    name,
-                    parent: Some(parent_id),
-                    children: vec![],
-                    kind,
-                }
+            SiteNodeKind::Page { input, tokens, .. } => {
+                self.add_page(input, tokens, Some(parent_id))?
             }
-            _ => SiteNode {
+            _ => self.add_node(SiteNode {
                 name,
                 parent: Some(parent_id),
                 children: vec![],
                 kind,
-            },
+            }),
         };
 
-        self.nodes.push(node);
-        let id = self.nodes.len() - 1;
-        self.nodes[parent_id].children.push(id);
         Ok(id)
+    }
+
+    fn add_page(
+        &mut self,
+        input: PathBuf,
+        tokens: Vec<Token>,
+        parent: Option<usize>,
+    ) -> Result<usize, LssgError> {
+        // create early because of the need of an parent id
+        let id = self.add_node(SiteNode {
+            name: input.filestem_from_path()?,
+            parent,
+            children: vec![],           // filling later
+            kind: SiteNodeKind::Folder, // hack changing after children created
+        });
+
+        let mut children = vec![];
+        let mut links = HashMap::new();
+        let mut queue = vec![&tokens];
+        while let Some(tokens) = queue.pop() {
+            for t in tokens {
+                match t {
+                    Token::Heading { tokens, .. } => queue.push(tokens),
+                    Token::Paragraph { tokens, .. } => queue.push(tokens),
+                    Token::Html { tokens, .. } => queue.push(tokens),
+                    Token::Link { href, .. } => {
+                        if href.starts_with("./") && href.ends_with(".md") {
+                            let path = input.parent().unwrap().join(Path::new(&href));
+                            // remove file extension
+                            // href.replace_range((href.len() - 3)..href.len(), "");
+                            let tokens = parse_lmarkdown_from_file(&path)?;
+                            let child_id = self.add_page(path, tokens, parent)?;
+                            children.push(child_id);
+                            links.insert(href.to_string(), child_id);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        self[id].children = children;
+        self[id].kind = SiteNodeKind::Page {
+            tokens,
+            links,
+            input,
+        };
+        return Ok(id);
     }
 
     /// Add a stylesheet and all resources needed by the stylesheet
@@ -337,23 +327,18 @@ impl SiteTree {
         stylesheet: Stylesheet,
         // mut links: Vec<usize>,
         parent_id: usize,
-    ) -> Result<SiteNode, LssgError> {
-        let root_path = self
-            .index_path
-            .parent()
-            .unwrap_or(Path::new("/"))
-            .to_owned();
-
+    ) -> Result<usize, LssgError> {
         for resource in stylesheet.resources() {
-            let relative = resource
-                .strip_prefix(&root_path)
+            let relative_to_root = resource
+                .strip_prefix(&self.cannonical_root_parent_path)
                 .map_err(|_| io::Error::new(io::ErrorKind::Other, "failed to strip prefix"))?;
 
             let mut resource_parent = parent_id.clone();
-            for path_part in relative.to_str().unwrap_or("").split("/") {
+            for path_part in relative_to_root.to_str().unwrap_or("").split("/") {
                 if path_part == "." {
                     continue;
                 }
+
                 // assume file when there is a file extenstion (there is a ".")
                 if path_part.contains(".") {
                     let id = self.add(
@@ -372,7 +357,7 @@ impl SiteTree {
             }
         }
 
-        Ok(SiteNode {
+        Ok(self.add_node(SiteNode {
             name,
             parent: Some(parent_id),
             children: vec![],
@@ -380,7 +365,7 @@ impl SiteTree {
                 stylesheet,
                 links: HashMap::new(),
             },
-        })
+        }))
     }
 }
 
@@ -432,5 +417,10 @@ impl Index<usize> for SiteTree {
 
     fn index(&self, index: usize) -> &Self::Output {
         &self.nodes[index]
+    }
+}
+impl IndexMut<usize> for SiteTree {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.nodes[index]
     }
 }

@@ -5,7 +5,7 @@ use serde_extensions::Overwrite;
 
 use crate::{
     domtree::{to_attributes, DomNode, DomNodeKind},
-    lmarkdown::{Token, parse_lmarkdown},
+    lmarkdown::{parse_lmarkdown, Token},
     lssg_error::LssgError,
     path_extension::PathExtension,
     sitetree::{SiteNodeKind, SiteTree},
@@ -26,7 +26,7 @@ pub struct ExternalPage {
 #[derive(Debug, Clone, Overwrite)]
 struct ResourceOptions {
     // TODO implement external pages
-    pub external_pages: Vec<ExternalPage>,
+    // pub external_pages: Vec<ExternalPage>,
     /// Add extra resources
     pub stylesheets: Vec<PathBuf>,
     pub favicon: Option<PathBuf>,
@@ -34,7 +34,7 @@ struct ResourceOptions {
 impl Default for ResourceOptions {
     fn default() -> Self {
         Self {
-            external_pages: vec![],
+            // external_pages: vec![],
             favicon: None,
             stylesheets: vec![],
         }
@@ -104,15 +104,11 @@ impl RendererModule for DefaultModule {
                 )?;
             }
 
-            for p in options.external_pages {
-                let input = base_directory.join(&p.input);
-                let file = File::open(&input)?;
-                site_tree.add(
-                    input.filestem_from_path()?,
-                    SiteNodeKind::page(input, true)?,
-                    id,
-                )?;
-            }
+            // for p in options.external_pages {
+            //     let input = base_directory.join(&p.input);
+            //     let file = File::open(&input)?;
+            //     site_tree.add(input.filestem_from_path()?, SiteNodeKind::page(input)?, id)?;
+            // }
 
             if let Some(path) = options.favicon {
                 let input = base_directory.join(&path);
@@ -240,7 +236,6 @@ impl RendererModule for DefaultModule {
                     );
                 } else if href.ends_with(".md") {
                     // TODO handle local links to markdown files
-
                 } else {
                     let parent_id = tree.add_element_with_attributes(
                         "a",
