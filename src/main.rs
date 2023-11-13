@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use lssg_lib::{
-    renderer::{BlogModule, DefaultModule, HtmlRenderer},
+    renderer::{BlogModule, DefaultModule, Renderer},
     sitetree::SiteTree,
     Lssg, LssgOptions,
 };
@@ -43,7 +43,7 @@ fn main() {
     if args.single_page {
         let site_tree = SiteTree::from_index(input.clone()).expect("Failed to generate site tree");
 
-        let mut renderer = HtmlRenderer::new();
+        let mut renderer = Renderer::new();
         renderer.add_module(BlogModule::new());
         renderer.add_module(DefaultModule::new());
         let html = renderer

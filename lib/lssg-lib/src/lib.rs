@@ -15,7 +15,7 @@ use std::{
 
 use log::info;
 use lssg_error::LssgError;
-use renderer::HtmlRenderer;
+use renderer::Renderer;
 
 use crate::{
     path_extension::PathExtension,
@@ -47,7 +47,7 @@ impl Lssg {
     }
 
     pub fn render(&self) -> Result<(), LssgError> {
-        let mut renderer = HtmlRenderer::new();
+        let mut renderer = Renderer::new();
         renderer.add_module(BlogModule::new());
         renderer.add_module(DefaultModule::new());
 

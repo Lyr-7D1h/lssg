@@ -240,7 +240,7 @@ impl SiteTree {
                             // remove file extension
                             // href.replace_range((href.len() - 3)..href.len(), "");
                             let tokens = parse_lmarkdown_from_file(&path)?;
-                            let child_id = self.add_page(path, tokens, parent)?;
+                            let child_id = self.add_page(path, tokens, Some(id))?;
                             children.push(child_id);
                             links.insert(href.to_string(), child_id);
                         }
