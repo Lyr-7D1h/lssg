@@ -1,4 +1,4 @@
-use std::{fmt, collections::HashSet};
+use std::{collections::HashSet, fmt};
 
 #[derive(Debug)]
 pub struct Link {
@@ -59,7 +59,7 @@ impl RelationalGraph {
 impl fmt::Display for RelationalGraph {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut out: String = String::new();
-        let mut visited = HashSet::new();
+        // let mut visited = HashSet::new();
 
         todo!();
 

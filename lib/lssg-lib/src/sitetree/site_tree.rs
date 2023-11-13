@@ -1,6 +1,6 @@
 use core::fmt;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     fs::{self, File},
     io,
     ops::{Index, IndexMut},
@@ -326,31 +326,67 @@ impl Tree for SiteTree {
 
 impl fmt::Display for SiteTree {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut out: String = String::new();
-
-        // TODO use BFS struct
-        let mut current_depth = 0;
-        let mut queue = vec![(self.root, 0)];
-        while let Some((n, depth)) = queue.pop() {
+        // fill in table
+        let mut row_length = 0;
+        let mut table: Vec<Vec<Option<String>>> = vec![];
+        let mut queue = vec![(self.root(), 0)];
+        while let Some((n, col)) = queue.pop() {
             let node = &self.nodes[n];
             for c in &node.children {
-                queue.push((c.clone(), depth + 1))
+                queue.push((c.clone(), col + 1))
             }
-            if depth < current_depth {
-                out.push('\n');
-                for _ in 0..(depth - 1) * 2 {
-                    out.push('\t')
-                }
+
+            // create col if not exists
+            if let None = table.get(col) {
+                table.push(vec![]);
             }
-            if current_depth != 0 {
-                out += "\t - \t"
+
+            // fill in until we reach the current row where we are
+            let amount_rows_in_col = table[col].len();
+            for _ in amount_rows_in_col + 1..row_length {
+                table[col].push(None);
             }
-            out += &node.name;
-            out += &format!("({})({})", n, node.kind.to_string());
-            current_depth = depth + 1;
+
+            let node_name = format!("{}({})({})", node.name, n, node.kind.to_string());
+            table[col].push(Some(node_name));
+
+            let amount_rows_in_col = table[col].len();
+            // update at what row we are
+            if amount_rows_in_col > row_length {
+                row_length = amount_rows_in_col;
+            }
         }
 
-        f.write_str(&out)?;
+        // fill in each row of output with table
+        let mut out = vec![String::new(); row_length];
+        for col in 0..table.len() {
+            let max_name_length = table[col]
+                .iter()
+                .map(|c| c.as_ref().map(|c| c.len()).unwrap_or(0))
+                .reduce(|a, b| a.max(b))
+                .unwrap_or(0);
+            for (row, entry) in table[col].iter().enumerate() {
+                match entry {
+                    Some(name) => {
+                        out[row] += name;
+                        out[row] += &" ".repeat(max_name_length - name.len());
+                        if let Some(next_column) = table.get(col + 1) {
+                            if let Some(Some(_)) = next_column.get(row) {
+                                out[row] += &" - ";
+                                continue;
+                            }
+                        }
+                        out[row] += &"   ";
+                    }
+                    None => out[row] += &" ".repeat(max_name_length + 3),
+                }
+            }
+            for row in table[col].len()..row_length {
+                out[row] += &" ".repeat(max_name_length + 3);
+            }
+        }
+
+        f.write_str(&out.join("\n"))?;
         Ok(())
     }
 }
