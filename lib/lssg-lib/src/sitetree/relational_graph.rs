@@ -1,15 +1,23 @@
 use std::{collections::HashSet, fmt};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+pub enum Relation {
+    /// from parent to child
+    Family,
+    External,
+    Discovered {
+        path: String,
+    },
+}
+
+#[derive(Debug, Clone)]
 pub struct Link {
+    from: usize,
     to: usize,
-    // internal_path: String,
+    relation: Relation,
 }
-impl Link {
-    pub fn new(to: usize) -> Self {
-        Link { to }
-    }
-}
+
+/// A directional graph that stores relationships between nodes
 #[derive(Debug)]
 pub struct RelationalGraph {
     links: Vec<Option<Vec<Link>>>,
@@ -19,15 +27,21 @@ impl RelationalGraph {
         RelationalGraph { links: vec![] }
     }
 
-    pub fn add(&mut self, from: usize, to: usize) {
+    pub fn add(&mut self, from: usize, to: usize, relation: Relation) {
         // increase size if too short
-        if self.links.len() < from + 1 {
-            for _ in self.links.len()..from + 1 {
+        let max = from.max(to);
+        if self.links.len() < max {
+            for _ in self.links.len()..max  {
                 self.links.push(None);
             }
         }
-        let link = Link { to };
+
+        let link = Link { from, to, relation };
         match self.get_mut(from) {
+            Some(links) => links.push(link.clone()),
+            None => self.links[from] = Some(vec![link.clone()]),
+        }
+        match self.get_mut(to) {
             Some(links) => links.push(link),
             None => self.links[from] = Some(vec![link]),
         }
