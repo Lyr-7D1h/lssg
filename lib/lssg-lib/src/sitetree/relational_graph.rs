@@ -1,4 +1,8 @@
-use std::{collections::HashSet, fmt};
+use std::{
+    collections::HashSet,
+    fmt,
+    ops::{Index, IndexMut},
+};
 
 #[derive(Debug, Clone)]
 pub enum Relation {
@@ -31,7 +35,7 @@ impl RelationalGraph {
         // increase size if too short
         let max = from.max(to);
         if self.links.len() < max {
-            for _ in self.links.len()..max  {
+            for _ in self.links.len()..max {
                 self.links.push(None);
             }
         }
@@ -65,7 +69,24 @@ impl RelationalGraph {
 
     pub fn remove(&mut self, from: usize, to: usize) {
         if let Some(links) = self.get_mut(from) {
-            links.retain(|l| l.to == to);
+            links.retain(|l| l.from == from && l.to == to);
+        }
+        if let Some(links) = self.get_mut(to) {
+            links.retain(|l| l.from == from && l.to == to);
+        }
+    }
+
+    /// remove all links to and from `node_id`
+    pub fn remove_all(&mut self, node_id: usize) {
+        if let Some(links) = self.get(node_id) {
+            for Link { from, to, .. } in links.clone() {
+                if from != node_id {
+                    self[from].retain(|l| l.from == from && l.to == to);
+                } else {
+                    self[from].retain(|l| l.from == from && l.to == to);
+                }
+            }
+            self.links[node_id] = None;
         }
     }
 }
@@ -78,5 +99,18 @@ impl fmt::Display for RelationalGraph {
         todo!();
 
         f.write_str(&out)
+    }
+}
+
+impl Index<usize> for RelationalGraph {
+    type Output = Vec<Link>;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.links[index].as_ref().unwrap()
+    }
+}
+impl IndexMut<usize> for RelationalGraph {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.links[index].as_mut().unwrap()
     }
 }

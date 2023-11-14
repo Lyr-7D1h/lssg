@@ -7,7 +7,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use log::{debug, warn};
+use log::warn;
 
 use crate::{
     lmarkdown::{parse_lmarkdown_from_file, Token},
@@ -131,7 +131,7 @@ impl SiteTree {
         self.root
     }
 
-    pub fn get_by_name(&self, name: &str, parent: usize) -> Option<&usize> {
+    pub fn get_by_name(&self, name: &String, parent: usize) -> Option<&usize> {
         self.nodes[parent]
             .children
             .iter()
@@ -184,11 +184,6 @@ impl SiteTree {
 
     /// Utility function to add a node, create a id and add to parent children
     fn add_node(&mut self, node: SiteNode) -> usize {
-        if let Some(parent) = node.parent {
-            if let Some(id) = self.get_by_name(&node.name, parent) {
-                warn!("{} already exists at {id}", node.name);
-            }
-        }
         let id = self.nodes.len();
         if let Some(parent) = node.parent {
             self.nodes[parent].children.push(id);
@@ -236,8 +231,15 @@ impl SiteTree {
         mut parent: Option<usize>,
     ) -> Result<usize, LssgError> {
         let name = input.filestem_from_path()?;
+        if let Some(parent) = parent {
+            if let Some(id) = self.get_by_name(&name, parent) {
+                // TODO remove if folder and create page with same name and links
+                warn!("couldn't create page node with {name:?} already exists");
+                return Ok(*id);
+            }
+        }
 
-        // update parent to folder or create folders if applicable
+        // create a folder if needed
         if let Some(parent) = &mut parent {
             let input = fs::canonicalize(&input)?;
             let rel_path = input
@@ -249,28 +251,19 @@ impl SiteTree {
             let mut parents = self.parents(*parent);
             parents.push(*parent);
             parents.reverse();
+            println!("{parents:?} {parent:?} {name:?}");
             for i in 0..parts.len() {
-                let name = parts[i];
-                if let Some(parent) = parents.get(i) {
-                    // println!("{part} {parent}");
-                    if self[*parent].name == name {
-                        continue;
+                let part = parts[i];
+                if let Some(node) = self[parents[i]] {
+                    if node.name == part {
+                        continue
                     }
                 }
-                if let Some(id) = self.get_by_name(name, *parent) {
-                    *parent = *id;
-                } else {
-                    debug!("creating folder {name:?} under {parent:?}");
-                    *parent = self.add(name.to_string(), SiteNodeKind::Folder, *parent)?;
-                }
+                *parent = self.add(part.to_string(), SiteNodeKind::Folder, *parent)?;
+                println!("creating folder {part:?} {parent:?}");
             }
         }
-
-        if let Some(parent) = parent {
-            if let Some(id) = self.get_by_name(&name, parent) {
-                return Ok(*id);
-            }
-        }
+        println!(" {parent:?}");
 
         // create early because of the need of an parent id
         let id = self.add_node(SiteNode {
@@ -293,13 +286,6 @@ impl SiteTree {
                             let path = input.parent().unwrap().join(Path::new(&href));
                             let tokens = parse_lmarkdown_from_file(&path)?;
                             let child_id = self.add_page(path, tokens, Some(id))?;
-                            self.rel_graph.add(
-                                id,
-                                child_id,
-                                Relation::Discovered {
-                                    path: href.to_string(),
-                                },
-                            );
                             links.insert(href.to_string(), child_id);
                         }
                     }
@@ -324,22 +310,7 @@ impl SiteTree {
         // mut links: Vec<usize>,
         parent_id: usize,
     ) -> Result<usize, LssgError> {
-        let resources: Vec<PathBuf> = stylesheet
-            .resources()
-            .into_iter()
-            .map(|p| p.clone())
-            .collect();
-        let stylesheet_id = self.add_node(SiteNode {
-            name,
-            parent: Some(parent_id),
-            children: vec![],
-            kind: SiteNodeKind::Stylesheet {
-                stylesheet,
-                links: HashMap::new(),
-            },
-        });
-
-        for resource in resources {
+        for resource in stylesheet.resources() {
             let relative_to_root = resource
                 .strip_prefix(&self.cannonical_root_parent_path)
                 .map_err(|_| io::Error::new(io::ErrorKind::Other, "failed to strip prefix"))?;
@@ -352,31 +323,31 @@ impl SiteTree {
 
                 // assume file when there is a file extenstion (there is a ".")
                 if path_part.contains(".") {
-                    let resource_id = self.add(
+                    let id = self.add(
                         (&resource).filename_from_path()?,
                         SiteNodeKind::Resource {
                             input: resource.clone(),
                         },
                         resource_parent,
                     )?;
-                    self.rel_graph.add(
-                        stylesheet_id,
-                        resource_id,
-                        Relation::Discovered { path: resource.to_string_lossy().to_string() },
-                    );
-
+                    // links.push(id);
                     break;
                 }
 
-                let name = path_part.to_owned();
-                resource_parent = match self.get_by_name(&name, resource_parent) {
-                    Some(id) => *id,
-                    None => self.add(name, SiteNodeKind::Folder, resource_parent)?,
-                };
+                resource_parent =
+                    self.add(path_part.to_owned(), SiteNodeKind::Folder, resource_parent)?;
             }
         }
 
-        Ok(stylesheet_id)
+        Ok(self.add_node(SiteNode {
+            name,
+            parent: Some(parent_id),
+            children: vec![],
+            kind: SiteNodeKind::Stylesheet {
+                stylesheet,
+                links: HashMap::new(),
+            },
+        }))
     }
 
     pub fn remove(&mut self, id: usize) {

@@ -22,6 +22,8 @@ author="Lyr"
 Hi! my name is Ivo. I go by Lyr online, and welcome to my my online space! I like to think of myself as a creator, I love making things and I do this with a bag of tools, with some tools I'm better than others. This is where I share my projects, code, data, 3d models, art, ideas and anything else I find interesting. Feel free to have a look around :)
 </p>
 
+[rled](./projects/rled.md)
+
 <links>
 [<i class="fa-solid fa-rss"></i>Blog](./blog.md)
 [<i class="fa-solid fa-envelope"></i>Email](mailto:lyr-7d1h@pm.me)
