@@ -237,7 +237,6 @@ impl SiteTree {
         tokens: Vec<Token>,
         mut parent: Option<usize>,
     ) -> Result<usize, LssgError> {
-
         let name = input.filestem_from_path()?;
 
         // update parent to folder or create folders if applicable
@@ -399,6 +398,7 @@ impl fmt::Display for SiteTree {
         // fill in table
         let mut row_length = 0;
         let mut table: Vec<Vec<Option<String>>> = vec![];
+        let mut current_col = 0;
         let mut queue = vec![(self.root(), 0)];
         while let Some((n, col)) = queue.pop() {
             let node = &self.nodes[n];
@@ -417,6 +417,13 @@ impl fmt::Display for SiteTree {
                 table[col].push(None);
             }
 
+            if let Some(None) = table[col].last() {
+                if current_col > col {
+                    table[col].push(None);
+                }
+            }
+            current_col = col;
+
             let node_name = format!("{}({})({})", node.name, n, node.kind.to_string());
             table[col].push(Some(node_name));
 
@@ -427,7 +434,7 @@ impl fmt::Display for SiteTree {
             }
         }
 
-        // fill in each row of output with table
+        // display table
         let mut out = vec![String::new(); row_length];
         for col in 0..table.len() {
             let max_name_length = table[col]
