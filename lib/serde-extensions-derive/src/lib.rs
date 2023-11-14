@@ -31,26 +31,26 @@ fn impl_optional_macro(ast: &syn::DeriveInput) -> TokenStream {
         .iter()
         .map(|field| {
             let field_name = &field.ident;
-            let field_type = &field.ty;
+            // let field_type = &field.ty;
 
             // Generate different code based on field type
-            if is_vec_type(field_type) {
-                quote! {
-                    if let Some(mut field) = optional.#field_name {
-                        self.#field_name.append(&mut field);
-                    }
-                }
-            } else if is_hashmap_type(field_type) {
-                quote! {
-                    if let Some(mut field) = optional.#field_name {
-                        self.#field_name.extend(field);
-                    }
-                }
-            } else {
-                quote! {
-                    if let Some(field) = optional.#field_name {
-                        self.#field_name = field;
-                    }
+            // if is_vec_type(field_type) {
+            //     quote! {
+            //         if let Some(mut field) = optional.#field_name {
+            //             self.#field_name.append(&mut field);
+            //         }
+            //     }
+            // } else if is_hashmap_type(field_type) {
+            //     quote! {
+            //         if let Some(mut field) = optional.#field_name {
+            //             self.#field_name.extend(field);
+            //         }
+            //     }
+            // } else {
+            // }
+            quote! {
+                if let Some(field) = optional.#field_name {
+                    self.#field_name = field;
                 }
             }
         })
