@@ -10,20 +10,20 @@ pub trait Tree {
     fn nodes(&self) -> &Vec<Self::Node>;
 }
 
-pub struct BFS<'n, T: Tree> {
+pub struct DFS<'n, T: Tree> {
     stack: Vec<usize>,
     tree: &'n T,
 }
 
-impl<'n, T: Tree> BFS<'n, T> {
+impl<'n, T: Tree> DFS<'n, T> {
     pub fn new(tree: &'n T) -> Self {
         let mut stack = Vec::new();
         stack.push(tree.root());
-        BFS { stack, tree }
+        DFS { stack, tree }
     }
 }
 
-impl<'n, T: Tree> Iterator for BFS<'n, T> {
+impl<'n, T: Tree> Iterator for DFS<'n, T> {
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {

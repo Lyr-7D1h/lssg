@@ -16,6 +16,8 @@ pub struct Stylesheet {
     content: String,
     /// Map of raw resource strings inside of content indexed by cannonical path to resource
     resources: HashMap<PathBuf, HashSet<String>>,
+    // TODO remove with css minification
+    pub input: Option<PathBuf>,
 }
 
 impl Stylesheet {
@@ -24,6 +26,7 @@ impl Stylesheet {
         Stylesheet {
             content: DEFAULT_STYLESHEET.to_owned(),
             resources: HashMap::new(),
+            input: None,
         }
     }
 
@@ -32,6 +35,7 @@ impl Stylesheet {
         Stylesheet {
             content: String::new(),
             resources: HashMap::new(),
+            input: None,
         }
     }
 
@@ -48,6 +52,7 @@ impl Stylesheet {
 
     /// Append stylesheet and discover local referenced resources
     pub fn append(&mut self, path: &Path) -> Result<(), LssgError> {
+        self.input = Some(path.to_owned());
         let content = read_to_string(path)
             .map_err(|_| LssgError::io(&format!("Failed to append stylesheet: {path:?}")))?;
 

@@ -3,7 +3,7 @@ use std::{collections::HashMap, fmt, str::FromStr};
 use crate::{
     lssg_error::LssgError,
     sitetree::SiteNode,
-    tree::{Node, Tree, BFS},
+    tree::{Node, Tree, DFS},
 };
 
 #[derive(Debug, Clone)]
@@ -117,7 +117,7 @@ impl DomTree {
     /// Get all elements with a certain html tag
     pub fn get_elements_by_tag_name(&self, tag_name: impl Into<String>) -> Vec<usize> {
         let tag_name = tag_name.into();
-        return BFS::new(self)
+        return DFS::new(self)
             .filter(|id| match &self.nodes[*id].kind {
                 DomNodeKind::Element { tag, .. } if tag == &tag_name => true,
                 _ => false,

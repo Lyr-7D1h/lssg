@@ -16,7 +16,7 @@ use crate::{
     path_extension::PathExtension,
     sitetree::{SiteNodeKind, SiteTree},
     stylesheet::Stylesheet,
-    tree::BFS,
+    tree::DFS,
 };
 
 use crate::renderer::{RenderQueue, RendererModule, RendererModuleContext};
@@ -80,7 +80,7 @@ impl RendererModule for DefaultModule {
     /// Add all resources from ResourceOptions to SiteTree
     fn init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
         // get all pages with options
-        let pages: Vec<(usize, ResourceOptions, PathBuf)> = BFS::new(site_tree)
+        let pages: Vec<(usize, ResourceOptions, PathBuf)> = DFS::new(site_tree)
             .filter_map(|id| match &site_tree[id].kind {
                 SiteNodeKind::Page { tokens, input, .. } => {
                     Some((id, self.options(tokens), input.clone()))
@@ -94,25 +94,12 @@ impl RendererModule for DefaultModule {
 
             for mut stylesheet_path in options.stylesheets {
                 stylesheet_path = base_directory.join(stylesheet_path);
-                // TODO(css): remove me when css minification is done
-                let rel_path = stylesheet_path
-                    .strip_prefix(&site_tree.cannonical_root_parent_path)
-                    .map_err(|_| io::Error::new(io::ErrorKind::Other, "failed to strip prefix"))?
-                    .parent()
-                    .unwrap_or(Path::new(""));
-                let mut parent = id;
-                for piece in rel_path.to_str().unwrap_or("").split("/") {
-                    if piece.len() > 0 {
-                        parent = site_tree.add(piece.to_owned(), SiteNodeKind::Folder, id)?;
-                    }
-                }
-
                 let mut stylesheet = Stylesheet::new();
                 stylesheet.append(&stylesheet_path)?;
                 site_tree.add(
                     stylesheet_path.filestem_from_path()?,
                     SiteNodeKind::stylesheet(stylesheet),
-                    parent,
+                    site_tree.root(),
                 )?;
             }
 

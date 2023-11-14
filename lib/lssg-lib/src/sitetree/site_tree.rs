@@ -70,21 +70,22 @@ fn rel_path(nodes: &Vec<SiteNode>, from: usize, to: usize) -> String {
 pub struct SiteTree {
     nodes: Vec<SiteNode>,
     root: usize,
-    rel_graph: RelationalGraph,
     // TODO make non pub when css minification is done
     pub cannonical_root_parent_path: PathBuf,
+
+    rel_graph: RelationalGraph,
 }
 
 impl SiteTree {
     pub fn from_index(index: PathBuf) -> Result<SiteTree, LssgError> {
         let mut tree = SiteTree {
-            rel_graph: RelationalGraph::new(),
             nodes: vec![],
             root: 0,
             cannonical_root_parent_path: fs::canonicalize(&index)?
                 .parent()
                 .unwrap_or(Path::new("/"))
                 .to_path_buf(),
+            rel_graph: RelationalGraph::new(),
         };
         let tokens = parse_lmarkdown_from_file(&index)?;
         tree.add_page(index, tokens, None)?;
@@ -105,6 +106,7 @@ impl SiteTree {
 
     /// Find a node by input path
     pub fn find_by_input(&self, finput: &Path) -> Option<usize> {
+        // TODO use files_to_ids
         let mut queue = vec![self.root];
         while let Some(id) = queue.pop() {
             let node = &self.nodes[id];
@@ -235,35 +237,12 @@ impl SiteTree {
         tokens: Vec<Token>,
         mut parent: Option<usize>,
     ) -> Result<usize, LssgError> {
+
         let name = input.filestem_from_path()?;
 
         // update parent to folder or create folders if applicable
         if let Some(parent) = &mut parent {
-            let input = fs::canonicalize(&input)?;
-            let rel_path = input
-                .strip_prefix(&self.cannonical_root_parent_path)
-                .map_err(|_| io::Error::new(io::ErrorKind::Other, "failed to strip prefix"))?;
-            let parts: Vec<&str> = rel_path.to_str().unwrap_or("").split("/").collect();
-            let parts = &parts[0..parts.len() - 1];
-
-            let mut parents = self.parents(*parent);
-            parents.push(*parent);
-            parents.reverse();
-            for i in 0..parts.len() {
-                let name = parts[i];
-                if let Some(parent) = parents.get(i) {
-                    // println!("{part} {parent}");
-                    if self[*parent].name == name {
-                        continue;
-                    }
-                }
-                if let Some(id) = self.get_by_name(name, *parent) {
-                    *parent = *id;
-                } else {
-                    debug!("creating folder {name:?} under {parent:?}");
-                    *parent = self.add(name.to_string(), SiteNodeKind::Folder, *parent)?;
-                }
-            }
+            *parent = self.create_folders(&input, *parent)?;
         }
 
         if let Some(parent) = parent {
@@ -316,6 +295,36 @@ impl SiteTree {
         return Ok(id);
     }
 
+    /// Creates folders if needed returns the new or old parent
+    fn create_folders(&mut self, input: &Path, mut parent: usize) -> Result<usize, LssgError> {
+        let input = fs::canonicalize(&input)?;
+        let rel_path = input
+            .strip_prefix(&self.cannonical_root_parent_path)
+            .map_err(|_| io::Error::new(io::ErrorKind::Other, "failed to strip prefix"))?;
+        let parts: Vec<&str> = rel_path.to_str().unwrap_or("").split("/").collect();
+        let parts = &parts[0..parts.len() - 1];
+
+        let mut parents = self.parents(parent);
+        parents.push(parent);
+        parents.reverse();
+        for i in 0..parts.len() {
+            let name = parts[i];
+            if let Some(parent) = parents.get(i) {
+                if self[*parent].name == name {
+                    continue;
+                }
+            }
+            if let Some(id) = self.get_by_name(name, parent) {
+                parent = *id;
+            } else {
+                debug!("creating folder {name:?} under {parent:?}");
+                parent = self.add(name.to_string(), SiteNodeKind::Folder, parent)?;
+            }
+        }
+
+        return Ok(parent);
+    }
+
     /// Add a stylesheet and all resources needed by the stylesheet
     fn add_stylesheet(
         &mut self,
@@ -324,6 +333,13 @@ impl SiteTree {
         // mut links: Vec<usize>,
         parent_id: usize,
     ) -> Result<usize, LssgError> {
+        let parent_id = self.create_folders(
+            stylesheet
+                .input
+                .as_ref()
+                .expect("every stylehsheet needs an input for now"),
+            parent_id,
+        )?;
         let resources: Vec<PathBuf> = stylesheet
             .resources()
             .into_iter()
@@ -340,40 +356,21 @@ impl SiteTree {
         });
 
         for resource in resources {
-            let relative_to_root = resource
-                .strip_prefix(&self.cannonical_root_parent_path)
-                .map_err(|_| io::Error::new(io::ErrorKind::Other, "failed to strip prefix"))?;
-
-            let mut resource_parent = self.root();
-            for path_part in relative_to_root.to_str().unwrap_or("").split("/") {
-                if path_part == "." {
-                    continue;
-                }
-
-                // assume file when there is a file extenstion (there is a ".")
-                if path_part.contains(".") {
-                    let resource_id = self.add(
-                        (&resource).filename_from_path()?,
-                        SiteNodeKind::Resource {
-                            input: resource.clone(),
-                        },
-                        resource_parent,
-                    )?;
-                    self.rel_graph.add(
-                        stylesheet_id,
-                        resource_id,
-                        Relation::Discovered { path: resource.to_string_lossy().to_string() },
-                    );
-
-                    break;
-                }
-
-                let name = path_part.to_owned();
-                resource_parent = match self.get_by_name(&name, resource_parent) {
-                    Some(id) => *id,
-                    None => self.add(name, SiteNodeKind::Folder, resource_parent)?,
-                };
-            }
+            let parent_id = self.create_folders(&resource, parent_id)?;
+            let resource_id = self.add(
+                resource.filename_from_path()?,
+                SiteNodeKind::Resource {
+                    input: resource.clone(),
+                },
+                parent_id,
+            )?;
+            self.rel_graph.add(
+                stylesheet_id,
+                resource_id,
+                Relation::Discovered {
+                    path: resource.to_string_lossy().to_string(),
+                },
+            );
         }
 
         Ok(stylesheet_id)
