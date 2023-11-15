@@ -305,7 +305,7 @@ impl RendererModule for DefaultModule {
                     });
                     if let Some(to_id) = to_id {
                         // TODO make absolute path from root
-                        let rel_path = site_tree.rel_path(*site_id, to_id);
+                        let rel_path = site_tree.absolute_path(to_id);
                         let parent_id = tree.add_element_with_attributes(
                             "a",
                             to_attributes([("href", rel_path)]),

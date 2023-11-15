@@ -23,7 +23,19 @@ use super::{
     SiteNode, SiteNodeKind,
 };
 
-// Get the relative path between two nodes
+fn absolute_path(nodes: &Vec<SiteNode>, to: usize) -> String {
+    let mut names = vec![nodes[to].name.clone()];
+    let mut parent = nodes[to].parent;
+    while let Some(p) = parent {
+        names.push(nodes[p].name.clone());
+        parent = nodes[p].parent;
+    }
+    names.reverse();
+    names[0] = "".into(); // replace first name with root
+    return names.join("/");
+}
+
+/// Get the relative path between two nodes
 fn rel_path(nodes: &Vec<SiteNode>, from: usize, to: usize) -> String {
     let mut visited = HashMap::new();
     let mut to_path = vec![nodes[to].name.clone()];
@@ -203,6 +215,10 @@ impl SiteTree {
     /// Get the relative path between two nodes
     pub fn rel_path(&self, from: usize, to: usize) -> String {
         rel_path(&self.nodes, from, to)
+    }
+
+    pub fn absolute_path(&self, to: usize) -> String {
+        absolute_path(&self.nodes, to)
     }
 
     pub fn add_link(&mut self, from: usize, to: usize) {
