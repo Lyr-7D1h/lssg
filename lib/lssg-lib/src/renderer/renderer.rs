@@ -1,4 +1,4 @@
-use log::{error, warn};
+use log::{error, info, warn};
 use serde_extensions::Overwrite;
 
 use crate::{
@@ -26,8 +26,9 @@ impl Renderer {
         self.modules.push(Box::new(module));
     }
 
-    /// Will run site_init on all modules, will remove modules if it fails
-    pub fn site_init(&mut self, site_tree: &mut SiteTree) {
+    /// Will run init on all modules, will remove modules if it fails
+    pub fn init(&mut self, site_tree: &mut SiteTree) {
+        info!("running init");
         let failed: Vec<usize> = (&mut self.modules)
             .into_iter()
             .enumerate()
@@ -44,6 +45,24 @@ impl Renderer {
         }
     }
 
+    /// Will run after_init on all modules, will remove modules if it fails
+    pub fn after_init(&mut self, site_tree: &mut SiteTree) {
+        info!("running after_init");
+        let failed: Vec<usize> = (&mut self.modules)
+            .into_iter()
+            .enumerate()
+            .filter_map(|(i, module)| match module.after_init(site_tree) {
+                Ok(_) => None,
+                Err(e) => {
+                    error!("Failed to do site_init on {}: {e}", module.id());
+                    Some(i)
+                }
+            })
+            .collect();
+        for i in failed.into_iter().rev() {
+            self.modules.remove(i);
+        }
+    }
     /// Transform site id into a html page
     pub fn render(&mut self, site_tree: &SiteTree, site_id: usize) -> Result<String, LssgError> {
         // get the site node

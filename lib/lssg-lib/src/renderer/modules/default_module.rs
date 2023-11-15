@@ -14,9 +14,9 @@ use crate::{
     lmarkdown::{parse_lmarkdown, Token},
     lssg_error::LssgError,
     path_extension::PathExtension,
-    sitetree::{SiteNodeKind, SiteTree},
+    sitetree::{Relation, SiteNodeKind, SiteTree},
     stylesheet::Stylesheet,
-    tree::DFS,
+    tree::{Tree, DFS},
 };
 
 use crate::renderer::{RenderQueue, RendererModule, RendererModuleContext};
@@ -60,17 +60,42 @@ impl Default for DefaultModuleOptions {
     }
 }
 
+fn create_options_map(
+    module: &DefaultModule,
+    site_tree: &SiteTree,
+) -> Result<HashMap<usize, DefaultModuleOptions>, LssgError> {
+    let mut options_map: HashMap<usize, DefaultModuleOptions> = HashMap::new();
+    for id in DFS::new(site_tree) {
+        if let SiteNodeKind::Page { tokens, input, .. } = &site_tree[id].kind {
+            if let Some(parent) = site_tree.page_parent(id) {
+                if let Some(parent_options) = options_map.get(&parent) {
+                    let parent_options = parent_options.clone();
+                    let mut options: DefaultModuleOptions =
+                        module.options_with_default(tokens, parent_options);
+                    options.make_paths_absolute(input)?;
+                    options_map.insert(id, options.clone());
+                    continue;
+                }
+            }
+
+            let mut options: DefaultModuleOptions = module.options(tokens);
+            options.make_paths_absolute(input)?;
+            options_map.insert(id, options.clone());
+        }
+    }
+    Ok(options_map)
+}
+
 /// Implements all basic default behavior, like rendering all tokens and adding meta tags and title to head
 pub struct DefaultModule {
-    favicon: Option<usize>,
-    stylesheet: usize,
+    /// Map of all site pages to options
+    options_map: HashMap<usize, DefaultModuleOptions>,
 }
 
 impl DefaultModule {
     pub fn new() -> Self {
         Self {
-            favicon: None,
-            stylesheet: 0,
+            options_map: HashMap::new(),
         }
     }
 }
@@ -83,57 +108,46 @@ impl RendererModule for DefaultModule {
     /// Add all resources from ResourceOptions to SiteTree
     fn init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
         // get pages and options, each page will use its parent options and overwrite it
-        let mut options_map: HashMap<usize, DefaultModuleOptions> = HashMap::new();
-        let mut pages = vec![];
-        for id in DFS::new(site_tree) {
-            if let SiteNodeKind::Page { tokens, input, .. } = &site_tree[id].kind {
-                if let Some(parent) = site_tree.page_parent(id) {
-                    if let Some(parent_options) = options_map.get(&parent) {
-                        let parent_options = parent_options.clone();
-                        let mut options: DefaultModuleOptions =
-                            self.options_with_default(tokens, parent_options);
-                        options.make_paths_absolute(input)?;
-                        options_map.insert(id, options.clone());
-                        pages.push((id, options, input.clone()));
-                        continue;
-                    }
-                }
-
-                let mut options: DefaultModuleOptions = self.options(tokens);
-                options.make_paths_absolute(input)?;
-                options_map.insert(id, options.clone());
-                pages.push((id, options, input.clone()));
-            }
-        }
+        let options_map = create_options_map(&self, site_tree)?;
 
         // create resources from options
-        for (id, options, input) in pages {
-            println!("{id} {options:?}");
+        for id in site_tree.ids() {
+            if let SiteNodeKind::Page { input, .. } = &site_tree[id].kind {
+                let options = options_map
+                    .get(&id)
+                    .expect(&format!("options map is missing {id}"));
+                let base_directory = fs::canonicalize(input.parent().unwrap_or(&input))?;
 
-            // TODO link all children to parent resources
-            let base_directory = fs::canonicalize(input.parent().unwrap_or(&input))?;
+                for stylesheet_path in options.stylesheets.iter() {
+                    let stylesheet_path = base_directory.join(stylesheet_path);
+                    let mut stylesheet = Stylesheet::new();
+                    stylesheet.append(&stylesheet_path)?;
+                    let stylesheet_id = site_tree.add(
+                        stylesheet_path.filename_from_path()?,
+                        SiteNodeKind::stylesheet(stylesheet),
+                        site_tree.root(),
+                    )?;
+                    site_tree.add_link(id, stylesheet_id);
+                }
 
-            for mut stylesheet_path in options.stylesheets {
-                stylesheet_path = base_directory.join(stylesheet_path);
-                let mut stylesheet = Stylesheet::new();
-                stylesheet.append(&stylesheet_path)?;
-                site_tree.add(
-                    stylesheet_path.filestem_from_path()?,
-                    SiteNodeKind::stylesheet(stylesheet),
-                    site_tree.root(),
-                )?;
-            }
-
-            if let Some(path) = options.favicon {
-                let input = base_directory.join(&path);
-                site_tree.add(
-                    "favicon.ico".into(),
-                    SiteNodeKind::Resource { input },
-                    site_tree.root(),
-                )?;
+                if let Some(path) = &options.favicon {
+                    let input = base_directory.join(path);
+                    let favicon_id = site_tree.add(
+                        "favicon.ico".into(),
+                        SiteNodeKind::Resource { input },
+                        site_tree.root(),
+                    )?;
+                    site_tree.add_link(id, favicon_id);
+                }
             }
         }
 
+        Ok(())
+    }
+
+    fn after_init(&mut self, site_tree: &SiteTree) -> Result<(), LssgError> {
+        // save options map after site tree has been created to get all pages
+        self.options_map = create_options_map(&self, site_tree)?;
         Ok(())
     }
 
@@ -145,8 +159,10 @@ impl RendererModule for DefaultModule {
         let site_id = context.site_id;
         let site_tree = context.site_tree;
 
-        // TODO get default options of site node parent and overwrite with current one
-        let options: DefaultModuleOptions = context.options(self);
+        let options = self
+            .options_map
+            .get(&site_id)
+            .expect("expected options map to contain all page ids");
 
         // Add language to html tag
         let id = dom_tree.get_elements_by_tag_name("html")[0];
@@ -158,27 +174,39 @@ impl RendererModule for DefaultModule {
 
         // fill head
         let head = dom_tree.get_elements_by_tag_name("head")[0];
+
         let title = dom_tree.add(DomNode::element("title"), head);
         dom_tree.add_text(options.title.clone(), title);
-        if let Some(favicon) = self.favicon {
-            dom_tree.add_element_with_attributes(
-                "link",
-                to_attributes([
-                    ("rel", "icon"),
-                    ("type", "image/x-icon"),
-                    ("href", &site_tree.rel_path(site_id, favicon)),
-                ]),
-                head,
-            );
+
+        for link in site_tree.links_from(site_id) {
+            match link.relation {
+                Relation::External | Relation::Discovered { .. } => match site_tree[link.to].kind {
+                    SiteNodeKind::Resource { .. } if site_tree[link.to].name == "favicon.ico" => {
+                        dom_tree.add_element_with_attributes(
+                            "link",
+                            to_attributes([
+                                ("rel", "icon"),
+                                ("type", "image/x-icon"),
+                                ("href", &site_tree.rel_path(site_id, link.to)),
+                            ]),
+                            head,
+                        );
+                    }
+                    SiteNodeKind::Stylesheet { .. } => {
+                        dom_tree.add_element_with_attributes(
+                            "link",
+                            to_attributes([
+                                ("rel", "stylesheet"),
+                                ("href", &site_tree.rel_path(site_id, link.to)),
+                            ]),
+                            head,
+                        );
+                    }
+                    _ => {}
+                },
+                _ => {}
+            }
         }
-        dom_tree.add_element_with_attributes(
-            "link",
-            to_attributes([
-                ("rel", "stylesheet"),
-                ("href", &site_tree.rel_path(site_id, self.stylesheet)),
-            ]),
-            head,
-        );
         dom_tree.add_element_with_attributes(
             "meta",
             to_attributes([
@@ -191,6 +219,12 @@ impl RendererModule for DefaultModule {
             DomNode::element_with_attributes("meta", to_attributes([("charset", "utf-8")])),
             head,
         );
+        for (key, value) in &options.meta {
+            dom_tree.add(
+                DomNode::element_with_attributes("meta", to_attributes([(key, value)])),
+                head,
+            );
+        }
     }
 
     fn render_body<'n>(
@@ -258,8 +292,16 @@ impl RendererModule for DefaultModule {
                     return true;
                 }
                 if href.ends_with(".md") {
-                    if let Some(to_id) = site_tree[*site_id].get_link_from_raw_path(href) {
-                        let rel_path = site_tree.rel_path(*site_id, *to_id);
+                    let to_id = site_tree.links_from(*site_id).into_iter().find_map(|l| {
+                        if let Relation::Discovered { path } = &l.relation {
+                            if path == href {
+                                return Some(l.to);
+                            }
+                        }
+                        None
+                    });
+                    if let Some(to_id) = to_id {
+                        let rel_path = site_tree.rel_path(*site_id, to_id);
                         let parent_id = tree.add_element_with_attributes(
                             "a",
                             to_attributes([("href", rel_path)]),

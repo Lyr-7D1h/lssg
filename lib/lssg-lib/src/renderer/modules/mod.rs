@@ -24,6 +24,11 @@ pub trait RendererModule {
         Ok(())
     }
 
+    /// Gets run after all changes to site tree has been made
+    fn after_init(&mut self, site_tree: &SiteTree) -> Result<(), LssgError> {
+        Ok(())
+    }
+
     /// Modify DomTree on init
     fn render_page<'n>(&mut self, tree: &mut DomTree, context: &RendererModuleContext<'n>) {}
 
@@ -53,6 +58,7 @@ pub trait RendererModule {
         }
         default
     }
+
     fn options<D: Overwrite + Default>(&self, tokens: &Vec<Token>) -> D
     where
         Self: Sized,

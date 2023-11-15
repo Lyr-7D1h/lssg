@@ -18,7 +18,9 @@ use crate::{
 };
 
 use super::{
-    relational_graph::Relation, relational_graph::RelationalGraph, SiteNode, SiteNodeKind,
+    relational_graph::RelationalGraph,
+    relational_graph::{Link, Relation},
+    SiteNode, SiteNodeKind,
 };
 
 // Get the relative path between two nodes
@@ -62,7 +64,11 @@ fn rel_path(nodes: &Vec<SiteNode>, from: usize, to: usize) -> String {
     };
 
     // get remaining path
-    return format!("{}{}", "../".repeat(depth), to_path);
+    if depth > 0 {
+        return format!("{}{}", "../".repeat(depth), to_path);
+    } else {
+        return format!("./{}", to_path);
+    }
 }
 
 /// Code representation of all nodes within the site (hiarchy and how nodes are related)
@@ -190,13 +196,22 @@ impl SiteTree {
         path.join("/")
     }
 
+    pub fn ids(&self) -> Vec<usize> {
+        (0..self.nodes.len() - 1).collect()
+    }
+
     /// Get the relative path between two nodes
     pub fn rel_path(&self, from: usize, to: usize) -> String {
         rel_path(&self.nodes, from, to)
     }
 
-    pub fn add_relation(&mut self, from: usize, to: usize) {
+    pub fn add_link(&mut self, from: usize, to: usize) {
         self.rel_graph.add(from, to, Relation::External);
+    }
+
+    /// Get all the relations from a single node to other nodes
+    pub fn links_from(&self, from: usize) -> Vec<&Link> {
+        self.rel_graph.links_from(from)
     }
 
     /// Utility function to add a node, create a id and add to parent children
@@ -273,7 +288,6 @@ impl SiteTree {
             kind: SiteNodeKind::Folder, // hack changing after children created
         });
 
-        let mut links = HashMap::new();
         let mut queue = vec![&tokens];
         while let Some(tokens) = queue.pop() {
             for t in tokens {
@@ -293,7 +307,6 @@ impl SiteTree {
                                     path: href.to_string(),
                                 },
                             );
-                            links.insert(href.to_string(), child_id);
                         }
                     }
                     _ => {}
@@ -301,11 +314,7 @@ impl SiteTree {
             }
         }
 
-        self[id].kind = SiteNodeKind::Page {
-            tokens,
-            links,
-            input,
-        };
+        self[id].kind = SiteNodeKind::Page { tokens, input };
         return Ok(id);
     }
 
@@ -366,10 +375,7 @@ impl SiteTree {
             name,
             parent: Some(parent_id),
             children: vec![],
-            kind: SiteNodeKind::Stylesheet {
-                stylesheet,
-                links: HashMap::new(),
-            },
+            kind: SiteNodeKind::Stylesheet { stylesheet },
         });
 
         for resource in resources {

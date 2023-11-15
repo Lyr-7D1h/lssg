@@ -16,15 +16,15 @@ pub enum Relation {
 
 #[derive(Debug, Clone)]
 pub struct Link {
-    from: usize,
-    to: usize,
-    relation: Relation,
+    pub from: usize,
+    pub to: usize,
+    pub relation: Relation,
 }
 
 /// A directional graph that stores relationships between nodes
 #[derive(Debug)]
 pub struct RelationalGraph {
-    links: Vec<Option<Vec<Link>>>,
+    links: Vec<Vec<Link>>,
 }
 impl RelationalGraph {
     pub fn new() -> Self {
@@ -36,58 +36,50 @@ impl RelationalGraph {
         let max = from.max(to);
         if self.links.len() < max + 1 {
             for _ in self.links.len()..max + 1 {
-                self.links.push(None);
+                self.links.push(vec![]);
             }
         }
 
         let link = Link { from, to, relation };
-        match self.get_mut(from) {
-            Some(links) => links.push(link.clone()),
-            None => self.links[from] = Some(vec![link.clone()]),
-        }
-        match self.get_mut(to) {
-            Some(links) => links.push(link),
-            None => self.links[from] = Some(vec![link]),
-        }
+        self[from].push(link.clone());
+        self[to].push(link.clone());
     }
 
-    pub fn get(&self, node_id: usize) -> Option<&Vec<Link>> {
-        if let Some(links) = self.links.get(node_id) {
-            links.as_ref()
-        } else {
-            None
-        }
+    pub fn links_from(&self, node_id: usize) -> Vec<&Link> {
+        self.links[node_id]
+            .iter()
+            .filter(|l| l.from == node_id)
+            .collect()
     }
 
-    pub fn get_mut(&mut self, node_id: usize) -> Option<&mut Vec<Link>> {
-        if let Some(links) = self.links.get_mut(node_id) {
-            links.as_mut()
-        } else {
-            None
-        }
+    pub fn get(&self, node_id: usize) -> &Vec<Link> {
+        self.links
+            .get(node_id)
+            .expect(&format!("{node_id} not found in rel graph"))
+    }
+
+    pub fn get_mut(&mut self, node_id: usize) -> &mut Vec<Link> {
+        self.links
+            .get_mut(node_id)
+            .expect(&format!("{node_id} not found in rel graph"))
     }
 
     pub fn remove(&mut self, from: usize, to: usize) {
-        if let Some(links) = self.get_mut(from) {
-            links.retain(|l| l.from == from && l.to == to);
-        }
-        if let Some(links) = self.get_mut(to) {
-            links.retain(|l| l.from == from && l.to == to);
-        }
+        let links = self.get_mut(from);
+        links.retain(|l| l.from == from && l.to == to);
+        let links = self.get_mut(to);
+        links.retain(|l| l.from == from && l.to == to);
     }
 
     /// remove all links to and from `node_id`
     pub fn remove_all(&mut self, node_id: usize) {
-        if let Some(links) = self.get(node_id) {
-            for Link { from, to, .. } in links.clone() {
-                if from != node_id {
-                    self[from].retain(|l| l.from == from && l.to == to);
-                } else {
-                    self[from].retain(|l| l.from == from && l.to == to);
-                }
+        // remove links pointing to node_id
+        for Link { from, to, .. } in self[node_id].clone() {
+            if from != node_id {
+                self[from].retain(|l| l.from == from && l.to == to);
             }
-            self.links[node_id] = None;
         }
+        self[node_id] = vec![];
     }
 }
 
@@ -95,11 +87,11 @@ impl Index<usize> for RelationalGraph {
     type Output = Vec<Link>;
 
     fn index(&self, index: usize) -> &Self::Output {
-        self.links[index].as_ref().unwrap()
+        &self.links[index]
     }
 }
 impl IndexMut<usize> for RelationalGraph {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        self.links[index].as_mut().unwrap()
+        &mut self.links[index]
     }
 }

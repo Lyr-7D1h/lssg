@@ -20,7 +20,7 @@ use renderer::Renderer;
 use crate::{
     path_extension::PathExtension,
     renderer::{BlogModule, DefaultModule},
-    sitetree::{SiteNodeKind, SiteTree},
+    sitetree::{Relation, SiteNodeKind, SiteTree},
 };
 
 #[derive(Debug, Clone)]
@@ -54,8 +54,10 @@ impl Lssg {
         info!("Generating SiteTree");
         let mut site_tree = SiteTree::from_index(self.index.clone())?;
 
-        renderer.site_init(&mut site_tree);
+        renderer.init(&mut site_tree);
         info!("SiteTree:\n{site_tree}");
+
+        renderer.after_init(&mut site_tree);
 
         if self.output_directory.exists() {
             info!(
@@ -76,13 +78,14 @@ impl Lssg {
             queue.append(&mut node.children.clone());
             let path = self.output_directory.join(site_tree.path(site_id));
             match &node.kind {
-                SiteNodeKind::Stylesheet { stylesheet, links } => {
+                SiteNodeKind::Stylesheet { stylesheet } => {
                     let mut stylesheet = stylesheet.clone();
-                    for (path, to_id) in links {
-                        let updated_resource = site_tree.rel_path(site_id, *to_id);
-                        (&mut stylesheet).update_resource(Path::new(path), updated_resource);
+                    for link in site_tree.links_from(site_id) {
+                        if let Relation::Discovered { path } = &link.relation {
+                            let updated_resource = site_tree.rel_path(site_id, link.to);
+                            (&mut stylesheet).update_resource(Path::new(path), updated_resource);
+                        }
                     }
-                    let path = path.with_extension("css");
                     info!("Writing stylesheet {path:?}",);
                     write(path, stylesheet.to_string())?;
                 }
