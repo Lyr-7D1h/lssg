@@ -133,8 +133,9 @@ impl SiteTree {
         self.root
     }
 
-    pub fn get_by_name(&self, name: &str, parent: usize) -> Option<&usize> {
-        self.nodes[parent]
+    // get a node by name by checking the children of `id`
+    pub fn get_by_name(&self, name: &str, id: usize) -> Option<&usize> {
+        self.nodes[id]
             .children
             .iter()
             .find(|n| &self.nodes[**n].name == name)
@@ -144,6 +145,20 @@ impl SiteTree {
         self.nodes.get(id).ok_or(LssgError::sitetree(&format!(
             "Could not find {id} in SiteTree"
         )))
+    }
+
+    /// get next parent of page
+    pub fn page_parent(&self, id: usize) -> Option<usize> {
+        let mut parent = self.nodes[id].parent;
+        let mut parents = vec![];
+        while let Some(p) = parent {
+            if let SiteNodeKind::Page { .. } = self.nodes[p].kind {
+                return Some(p);
+            }
+            parents.push(p);
+            parent = self.nodes[p].parent;
+        }
+        None
     }
 
     /// Get all parents from a node
@@ -208,7 +223,7 @@ impl SiteTree {
     ) -> Result<usize, LssgError> {
         // return id if already exists
         if let Some(id) = self.get_by_name(&name, parent_id) {
-            warn!("{} already exists using existing node instead", name);
+            // warn!("{} already exists using existing node instead", name);
             return Ok(*id);
         }
 
@@ -339,6 +354,9 @@ impl SiteTree {
                 .expect("every stylehsheet needs an input for now"),
             parent_id,
         )?;
+        if let Some(id) = self.get_by_name(&name, parent_id) {
+            return Ok(*id);
+        }
         let resources: Vec<PathBuf> = stylesheet
             .resources()
             .into_iter()
@@ -377,7 +395,7 @@ impl SiteTree {
 
     pub fn remove(&mut self, id: usize) {
         self.rel_graph.remove_all(id);
-        // TODO remove from tree
+        todo!("remove from tree");
     }
 }
 

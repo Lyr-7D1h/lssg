@@ -34,8 +34,8 @@ impl RelationalGraph {
     pub fn add(&mut self, from: usize, to: usize, relation: Relation) {
         // increase size if too short
         let max = from.max(to);
-        if self.links.len() < max {
-            for _ in self.links.len()..max {
+        if self.links.len() < max + 1 {
+            for _ in self.links.len()..max + 1 {
                 self.links.push(None);
             }
         }
@@ -88,17 +88,6 @@ impl RelationalGraph {
             }
             self.links[node_id] = None;
         }
-    }
-}
-
-impl fmt::Display for RelationalGraph {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut out: String = String::new();
-        // let mut visited = HashSet::new();
-
-        todo!();
-
-        f.write_str(&out)
     }
 }
 

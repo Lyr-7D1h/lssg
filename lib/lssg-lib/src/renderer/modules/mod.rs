@@ -39,6 +39,20 @@ pub trait RendererModule {
         false
     }
 
+    fn options_with_default<D: Overwrite + Default>(&self, tokens: &Vec<Token>, mut default: D) -> D
+    where
+        Self: Sized,
+    {
+        if let Some(Token::Attributes { toml }) = tokens.first() {
+            if let Some(v) = toml.get(self.id()) {
+                match default.overwrite(v.clone()) {
+                    Ok(d) => d,
+                    Err(e) => error!("Failed to parse options for '{}' module: {e}", self.id()),
+                }
+            }
+        }
+        default
+    }
     fn options<D: Overwrite + Default>(&self, tokens: &Vec<Token>) -> D
     where
         Self: Sized,

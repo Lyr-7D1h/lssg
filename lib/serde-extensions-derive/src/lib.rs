@@ -66,7 +66,7 @@ fn impl_optional_macro(ast: &syn::DeriveInput) -> TokenStream {
             /// Overwrite self with a serde object
             fn overwrite<'de, D>(&mut self, d: D) -> Result<(), D::Error>
             where
-                D: serde::de::Deserializer<'de>
+                D: serde::Deserializer<'de>
             {
                 let optional: #optional_name = serde::de::Deserialize::deserialize(d)?;
                 #( #overwrite_code )*

@@ -3,7 +3,7 @@ pub use serde_extensions_derive::*;
 pub trait Overwrite {
     fn overwrite<'de, D>(&mut self, d: D) -> Result<(), D::Error>
     where
-        D: serde::de::Deserializer<'de>;
+        D: serde::Deserializer<'de>;
 }
 
 #[cfg(test)]
@@ -45,7 +45,7 @@ test="asdf"
 
         assert_eq!(
             format!("{test:?}"),
-            r#"Test { a: "/test/asdf", b: "b", c: ["asdf", "c", "c"], d: 0, e: {"test": "asdf"} }"#
+            r#"Test { a: "/test/asdf", b: "b", c: ["c", "c"], d: 0, e: {"test": "asdf"} }"#
         )
     }
 }
