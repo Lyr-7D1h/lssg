@@ -221,7 +221,10 @@ impl RendererModule for DefaultModule {
         );
         for (key, value) in &options.meta {
             dom_tree.add(
-                DomNode::element_with_attributes("meta", to_attributes([(key, value)])),
+                DomNode::element_with_attributes(
+                    "meta",
+                    to_attributes([("name", key), ("content", value)]),
+                ),
                 head,
             );
         }
@@ -301,6 +304,7 @@ impl RendererModule for DefaultModule {
                         None
                     });
                     if let Some(to_id) = to_id {
+                        // TODO make absolute path from root
                         let rel_path = site_tree.rel_path(*site_id, to_id);
                         let parent_id = tree.add_element_with_attributes(
                             "a",

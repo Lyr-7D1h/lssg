@@ -160,7 +160,7 @@ impl DomTree {
                     .into_iter()
                     .map(|(k, v)| {
                         if v.len() > 0 {
-                            format!("{k}='{v}'")
+                            format!(r#"{k}="{v}""#)
                         } else {
                             k.into()
                         }

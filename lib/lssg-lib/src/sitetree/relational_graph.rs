@@ -28,7 +28,9 @@ pub struct RelationalGraph {
 }
 impl RelationalGraph {
     pub fn new() -> Self {
-        RelationalGraph { links: vec![] }
+        RelationalGraph {
+            links: vec![vec![]],
+        }
     }
 
     pub fn add(&mut self, from: usize, to: usize, relation: Relation) {

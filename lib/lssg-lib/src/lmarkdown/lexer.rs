@@ -174,15 +174,12 @@ impl<R: Read> LMarkdownLexer<R> {
                 }
 
                 if c == '<' {
-                    let start_tag = self.reader.peek_until(|c| c == '>')?;
+                    let start_tag = self.reader.read_until_inclusive(|c| c == '>')?;
 
                     // comment
                     if let Some("!--") = start_tag.get(1..4) {
                         if let Some("-->") = start_tag.get(start_tag.len() - 3..start_tag.len()) {
-                            self.reader.read_string(4)?;
-                            let comment = self.reader.read_string(start_tag.len() - 7)?;
-                            self.reader.read_string(3)?;
-                            let text = sanitize_text(comment);
+                            let text = sanitize_text(start_tag[4..start_tag.len() - 3].to_string());
                             return Ok(Token::Comment { text });
                         }
                     }
