@@ -438,7 +438,7 @@ impl fmt::Display for SiteTree {
         // fill in table
         let mut row_length = 0;
         let mut table: Vec<Vec<Option<String>>> = vec![];
-        let mut current_col = 0;
+        let mut prev_col = 0;
         let mut queue = vec![(self.root(), 0)];
         while let Some((n, col)) = queue.pop() {
             let node = &self.nodes[n];
@@ -453,16 +453,18 @@ impl fmt::Display for SiteTree {
 
             // fill in until we reach the current row where we are
             let amount_rows_in_col = table[col].len();
-            for _ in amount_rows_in_col + 1..row_length {
-                table[col].push(None);
-            }
-
-            if let Some(None) = table[col].last() {
-                if current_col > col {
+            // if going back fill all the way
+            if prev_col > col {
+                for _ in amount_rows_in_col..row_length {
+                    table[col].push(None);
+                }
+            } else {
+                // if going forward fill to current row - 1
+                for _ in amount_rows_in_col + 1..row_length {
                     table[col].push(None);
                 }
             }
-            current_col = col;
+            prev_col = col;
 
             let node_name = format!("{}({})({})", node.name, n, node.kind.to_string());
             table[col].push(Some(node_name));

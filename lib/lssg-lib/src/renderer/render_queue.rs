@@ -24,6 +24,6 @@ impl RenderQueue {
 
     pub fn push_tokens_front(&mut self, tokens: &Vec<Token>, parent_id: usize) {
         self.tokens
-            .extend(tokens.clone().into_iter().map(|t| (t, parent_id)).rev());
+            .extend(tokens.clone().into_iter().map(|t| (t, parent_id)));
     }
 }
