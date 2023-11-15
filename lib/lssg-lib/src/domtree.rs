@@ -200,39 +200,134 @@ impl DomTree {
     }
 }
 
+// impl fmt::Display for DomTree {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         let mut out: String = String::new();
+//
+//         let mut current_depth = 0;
+//         let mut queue = vec![(self.root, 0)];
+//         while let Some((n, depth)) = queue.pop() {
+//             let node = &self.nodes[n];
+//             for c in node.children.iter().rev() {
+//                 queue.push((c.clone(), depth + 1))
+//             }
+//             if depth < current_depth {
+//                 out.push('\n');
+//                 for _ in 0..(depth - 1) * 2 {
+//                     out.push('\t')
+//                 }
+//             }
+//             if current_depth != 0 {
+//                 out += "\t - \t"
+//             }
+//             out += &match &node.kind {
+//                 DomNodeKind::Text { text, .. } => {
+//                     let mut text = text.clone();
+//                     text.truncate(10);
+//                     if text.len() == 10 {
+//                         format!(r#"{text}.."#)
+//                     } else {
+//                         format!(r#"{text}"#)
+//                     }
+//                 }
+//                 DomNodeKind::Element { tag: kind, .. } => kind.to_owned(),
+//             };
+//             out += &format!("({})", n);
+//             current_depth = depth + 1;
+//         }
+//
+//         f.write_str(&out)?;
+//         Ok(())
+//     }
+// }
 impl fmt::Display for DomTree {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut out: String = String::new();
-
-        let mut current_depth = 0;
-        let mut queue = vec![(self.root, 0)];
-        while let Some((n, depth)) = queue.pop() {
+        // fill in table
+        let mut row_length = 0;
+        let mut table: Vec<Vec<Option<String>>> = vec![];
+        let mut prev_col = 0;
+        let mut queue = vec![(self.root(), 0)];
+        while let Some((n, col)) = queue.pop() {
             let node = &self.nodes[n];
-            for c in node.children.iter().rev() {
-                queue.push((c.clone(), depth + 1))
+            for c in &node.children {
+                queue.push((c.clone(), col + 1))
             }
-            if depth < current_depth {
-                out.push('\n');
-                for _ in 0..(depth - 1) * 2 {
-                    out.push('\t')
+
+            // create col if not exists
+            if let None = table.get(col) {
+                table.push(vec![]);
+            }
+
+            // fill in until we reach the current row where we are
+            let amount_rows_in_col = table[col].len();
+            // if going back fill all the way
+            if prev_col > col {
+                for _ in amount_rows_in_col..row_length {
+                    table[col].push(None);
+                }
+            } else {
+                // if going forward fill to current row - 1
+                for _ in amount_rows_in_col + 1..row_length {
+                    table[col].push(None);
                 }
             }
-            if current_depth != 0 {
-                out += "\t - \t"
-            }
-            out += &match &node.kind {
-                DomNodeKind::Text { text, .. } => format!(r#"{text}"#),
-                DomNodeKind::Element { tag: kind, .. } => kind.to_owned(),
+            prev_col = col;
+
+            let name = match &node.kind {
+                DomNodeKind::Text { text, .. } => {
+                    let mut text = text.clone();
+                    text.truncate(10);
+                    if text.len() == 10 {
+                        format!(r#"{text}.."#)
+                    } else {
+                        format!(r#"{text}"#)
+                    }
+                }
+                DomNodeKind::Element { tag: kind, .. } => format!("<{}>", kind.to_owned()),
             };
-            out += &format!("({})", n);
-            current_depth = depth + 1;
+            let node_name = format!("{}({})", name, n);
+            table[col].push(Some(node_name));
+
+            let amount_rows_in_col = table[col].len();
+            // update at what row we are
+            if amount_rows_in_col > row_length {
+                row_length = amount_rows_in_col;
+            }
         }
 
-        f.write_str(&out)?;
+        // display table
+        let mut out = vec![String::new(); row_length];
+        for col in 0..table.len() {
+            let max_name_length = table[col]
+                .iter()
+                .map(|c| c.as_ref().map(|c| c.len()).unwrap_or(0))
+                .reduce(|a, b| a.max(b))
+                .unwrap_or(0);
+            for (row, entry) in table[col].iter().enumerate() {
+                match entry {
+                    Some(name) => {
+                        out[row] += name;
+                        out[row] += &" ".repeat(max_name_length - name.len());
+                        if let Some(next_column) = table.get(col + 1) {
+                            if let Some(Some(_)) = next_column.get(row) {
+                                out[row] += &" - ";
+                                continue;
+                            }
+                        }
+                        out[row] += &"   ";
+                    }
+                    None => out[row] += &" ".repeat(max_name_length + 3),
+                }
+            }
+            for row in table[col].len()..row_length {
+                out[row] += &" ".repeat(max_name_length + 3);
+            }
+        }
+
+        f.write_str(&out.join("\n"))?;
         Ok(())
     }
 }
-
 /// Utility function to convert iteratables into attributes hashmap
 pub fn to_attributes<I: IntoIterator<Item = (impl Into<String>, impl Into<String>)>>(
     arr: I,
