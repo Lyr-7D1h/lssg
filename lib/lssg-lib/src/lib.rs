@@ -82,7 +82,7 @@ impl Lssg {
                     let mut stylesheet = stylesheet.clone();
                     for link in site_tree.links_from(site_id) {
                         if let Relation::Discovered { path } = &link.relation {
-                            let updated_resource = site_tree.rel_path(site_id, link.to);
+                            let updated_resource = site_tree.absolute_path(link.to);
                             (&mut stylesheet).update_resource(Path::new(path), updated_resource);
                         }
                     }
