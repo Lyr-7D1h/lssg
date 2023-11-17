@@ -2,4 +2,7 @@
 
 INPUT=$@
 
+mkdir build
+serve build/ &
+
 cargo watch -x "run ${INPUT} build -l debug"
