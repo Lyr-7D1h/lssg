@@ -1,18 +1,18 @@
 <!--
 [default]
 title="Lyrx"
-favicon="./favicon.ico"
-stylesheets=[
-  "./lib/fontawesome.css",
-  "./lib/fa-solid.css",
-  "./lib/fa-brands.css",
-  "./main.css"
-]
 [default.meta]
 description="Lyr's little space of the internet"
 author="Lyr"
 -->
-<!-- Add external pages -->
+<!-- add favicon -->
+[](./favicon.ico)
+<!-- stylesheets -->
+[](./lib/fontawesome.css)
+[](./lib/fa-solid.css)
+[](./lib/fa-brands.css)
+[](./main.css)
+<!-- external pages -->
 [](./404.md)
 [](./blog/how_to_self_study_mathematics.md)
 

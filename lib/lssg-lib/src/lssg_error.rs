@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{fmt::Display, io};
+use std::{error::Error, fmt::Display, io};
 
 use crate::lmarkdown::parse_error::ParseError;
 
@@ -61,6 +61,8 @@ impl From<regex::Error> for LssgError {
         Self::new(&error.to_string(), LssgErrorKind::Regex)
     }
 }
+
+impl std::error::Error for LssgError {}
 
 impl fmt::Display for LssgError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

@@ -91,6 +91,45 @@ impl<R: Read> CharReader<R> {
         return Ok(result);
     }
 
+    pub fn peek_until_match(&mut self, pattern: &str) -> Result<String, ParseError> {
+        let mut result = String::new();
+
+        let chars: Vec<char> = pattern.chars().collect();
+
+        let mut buffer = vec![0; 2];
+        let mut char_i = 0;
+        let mut i = 0;
+        'n: loop {
+            // fill buffer
+            if self.peek(&mut buffer)? == 0 {
+                break;
+            }
+            // iterate where we left off
+            for j in i..buffer.len() {
+                // If an entire byte is 0 than it is eof
+                if buffer[j] == 0 {
+                    break 'n;
+                }
+                let c = buffer[j] as char; // TODO not utf-8
+                result.push(c);
+                if chars[char_i] == c {
+                    char_i += 1;
+                    if char_i == chars.len() {
+                        break 'n;
+                    }
+                } else {
+                    char_i = 0;
+                }
+            }
+            // save pos
+            i = buffer.len();
+            // resize buffer to twice its prev length
+            buffer.resize(buffer.len() * 2, 0);
+        }
+
+        return Ok(result);
+    }
+
     /// Read {length} bytes returning a smaller string on EOF
     pub fn read_string(&mut self, length: usize) -> Result<String, ParseError> {
         let mut buffer = vec![0; length];
@@ -120,6 +159,29 @@ impl<R: Read> CharReader<R> {
         let mut buffer = [0; 1];
         self.read_exact(&mut buffer)?;
         return Ok(buffer[0] as char);
+    }
+
+    pub fn read_until_match_inclusive(&mut self, pattern: &str) -> Result<String, ParseError> {
+        let chars: Vec<char> = pattern.chars().collect();
+        let mut char_i = 0;
+
+        let mut result = String::new();
+        loop {
+            let c = match self.read_char()? {
+                Some(c) => c,
+                None => break,
+            };
+            result.push(c);
+            if c == chars[char_i] {
+                char_i += 1;
+                if char_i == chars.len() {
+                    break;
+                }
+            } else {
+                char_i = 0;
+            }
+        }
+        return Ok(result);
     }
 
     /// Will read until eof or `op` is true including the true match

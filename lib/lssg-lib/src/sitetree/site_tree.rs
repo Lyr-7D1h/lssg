@@ -10,17 +10,18 @@ use std::{
 use log::{debug, warn};
 
 use crate::{
-    lmarkdown::{parse_lmarkdown_from_file, Token},
+    lmarkdown::{parse_lmarkdown, parse_lmarkdown_from_file, Token},
     path_extension::PathExtension,
-    stylesheet::Stylesheet,
     tree::Tree,
     LssgError,
 };
 
 use super::{
+    page::Page,
     relational_graph::RelationalGraph,
     relational_graph::{Link, Relation},
-    SiteNode, SiteNodeKind,
+    stylesheet::Stylesheet,
+    Input, SiteNode, SiteNodeKind,
 };
 
 fn absolute_path(nodes: &Vec<SiteNode>, to: usize) -> String {
@@ -88,28 +89,25 @@ fn rel_path(nodes: &Vec<SiteNode>, from: usize, to: usize) -> String {
 pub struct SiteTree {
     nodes: Vec<SiteNode>,
     root: usize,
-    // TODO make non pub when css minification is done
-    pub cannonical_root_parent_path: PathBuf,
+    // used for detecting if inputs are outside of the root input file
+    root_input: Input,
 
     /// cannonical paths to node ids
-    files_to_ids: HashMap<PathBuf, usize>,
+    input_to_id: HashMap<Input, usize>,
     rel_graph: RelationalGraph,
 }
 
 impl SiteTree {
-    pub fn from_index(index: PathBuf) -> Result<SiteTree, LssgError> {
+    /// `input` is a markdown input file from where to start discovering resources and pages
+    pub fn from_input(input: Input) -> Result<SiteTree, LssgError> {
         let mut tree = SiteTree {
             nodes: vec![],
             root: 0,
-            cannonical_root_parent_path: fs::canonicalize(&index)?
-                .parent()
-                .unwrap_or(Path::new("/"))
-                .to_path_buf(),
-            files_to_ids: HashMap::new(),
+            root_input: input.clone(),
+            input_to_id: HashMap::new(),
             rel_graph: RelationalGraph::new(),
         };
-        let tokens = parse_lmarkdown_from_file(&index)?;
-        tree.add_page(index, tokens, None)?;
+        tree.add_page_with_root(input, None)?;
         Ok(tree)
     }
 
@@ -123,12 +121,6 @@ impl SiteTree {
             parent = self.nodes[id].parent
         }
         return false;
-    }
-
-    /// Find a node by input path
-    pub fn get_by_input(&self, input: &Path) -> Result<Option<&usize>, LssgError> {
-        let input = fs::canonicalize(input)?;
-        Ok(self.files_to_ids.get(&input))
     }
 
     // get a node by name by checking the children of `id`
@@ -174,26 +166,9 @@ impl SiteTree {
         parents
     }
 
-    /// Get the path of a node
-    pub fn path(&self, mut id: usize) -> String {
-        if id == self.root {
-            return String::new();
-        }
-
-        let mut path = vec![self.nodes[id].name.clone()];
-        while let Some(i) = self.nodes[id].parent {
-            if i == self.root {
-                break;
-            }
-            path.push(self.nodes[i].name.clone());
-            id = i;
-        }
-        path.reverse();
-        path.join("/")
-    }
-
-    pub fn ids(&self) -> Vec<usize> {
-        (0..self.nodes.len() - 1).collect()
+    /// Get the absolute path of a node
+    pub fn path(&self, id: usize) -> String {
+        absolute_path(&self.nodes, id)
     }
 
     /// Get the relative path between two nodes
@@ -201,8 +176,8 @@ impl SiteTree {
         rel_path(&self.nodes, from, to)
     }
 
-    pub fn absolute_path(&self, to: usize) -> String {
-        absolute_path(&self.nodes, to)
+    pub fn ids(&self) -> Vec<usize> {
+        (0..self.nodes.len() - 1).collect()
     }
 
     pub fn add_link(&mut self, from: usize, to: usize) {
@@ -216,133 +191,125 @@ impl SiteTree {
 
     /// Utility function to add a node, create a id and add to parent children
     fn add_node(&mut self, mut node: SiteNode) -> Result<usize, LssgError> {
-        // small check if already exists
+        // check for name collisions
         if let Some(parent) = node.parent {
             if let Some(id) = self.get_by_name(&node.name, parent) {
                 warn!("{} already exists at {id}", node.name);
             }
         }
 
-        // cannonicalize inputs
-        let input = match &mut node.kind {
-            SiteNodeKind::Stylesheet { stylesheet } => {
-                if let Some(input) = &mut stylesheet.input {
-                    *input = fs::canonicalize(&input)?;
-                    Some(input.clone())
-                } else {
-                    None
+        let id = self.nodes.len();
+
+        // register input to files to ids
+        match &mut node.kind {
+            SiteNodeKind::Stylesheet { input, .. }
+            | SiteNodeKind::Page { input, .. }
+            | SiteNodeKind::Resource { input } => {
+                if let Some(id) = self.input_to_id.get(&input) {
+                    warn!("{input:?} already added under {id}");
+                    return Ok(*id);
                 }
+                self.input_to_id.insert(input.clone(), id);
             }
-            SiteNodeKind::Page { input, .. } | SiteNodeKind::Resource { input } => {
-                *input = fs::canonicalize(&input)?;
-                Some(input.clone())
-            }
-            _ => None,
+            _ => {}
         };
 
-        let id = self.nodes.len();
         if let Some(parent) = node.parent {
             self.nodes[parent].children.push(id);
             self.rel_graph.add(parent, id, Relation::Family);
         }
         self.nodes.push(node);
 
-        // register input to files to ids
-        if let Some(input) = input {
-            self.files_to_ids.insert(input, id);
-        }
-
         Ok(id)
     }
 
-    pub fn add(
-        &mut self,
-        name: String,
-        kind: SiteNodeKind,
-        parent_id: usize,
-    ) -> Result<usize, LssgError> {
+    /// add from Input, will figure out what node to add from input
+    pub fn add(&mut self, input: Input, parent_id: usize) -> Result<usize, LssgError> {
         // return id if already exists
-        if let Some(id) = self.get_by_name(&name, parent_id) {
+        if let Some(id) = self.input_to_id.get(&input) {
             // warn!("{} already exists using existing node instead", name);
             return Ok(*id);
         }
 
-        let id = match kind {
-            SiteNodeKind::Stylesheet { stylesheet, .. } => {
-                self.add_stylesheet(name, stylesheet, parent_id)?
-            }
-            SiteNodeKind::Page { input, tokens, .. } => {
-                self.add_page(input, tokens, Some(parent_id))?
-            }
-            _ => self.add_node(SiteNode {
-                name,
-                parent: Some(parent_id),
-                children: vec![],
-                kind,
-            })?,
-        };
+        if SiteNodeKind::is_stylesheet(&input) {
+            return self.add_stylesheet(input, parent_id);
+        }
+        if SiteNodeKind::is_stylesheet(&input) {
+            return self.add_page(input, parent_id);
+        }
 
-        Ok(id)
+        return self.add_node(SiteNode {
+            name: input.filename()?,
+            parent: Some(parent_id),
+            children: vec![],
+            kind: SiteNodeKind::Resource { input },
+        });
     }
 
     /// Add a page node to tree and discover any other new pages
-    fn add_page(
+    /// will error if input is not a markdown file
+    pub fn add_page(&mut self, input: Input, parent: usize) -> Result<usize, LssgError> {
+        self.add_page_with_root(input, Some(parent))
+    }
+
+    /// Add a page node to tree and discover any other new pages with possibility of adding root
+    fn add_page_with_root(
         &mut self,
-        input: PathBuf,
-        tokens: Vec<Token>,
+        input: Input,
         mut parent: Option<usize>,
     ) -> Result<usize, LssgError> {
-        let name = input.filestem_from_path()?;
+        if let Some(id) = self.input_to_id.get(&input) {
+            // TODO check if needs to move pointing input
+            return Ok(*id);
+        }
 
-        // update parent to folder or create folders if applicable
         if let Some(parent) = &mut parent {
             *parent = self.create_folders(&input, *parent)?;
         }
 
-        if let Some(id) = self.get_by_input(&input)? {
-            return Ok(*id);
-        }
-
         // create early because of the need of an parent id
+        let page = Page::from_input(&input)?;
         let id = self.add_node(SiteNode {
-            name,
+            name: input.filestem()?,
             parent,
             children: vec![],
-            kind: SiteNodeKind::Page { tokens, input },
+            kind: SiteNodeKind::Page {
+                page,
+                input: input.clone(),
+            },
         })?;
 
-        let (tokens, input) = match &self.nodes[id].kind {
-            SiteNodeKind::Page { tokens, input } => (tokens.clone(), input.clone()),
+        let links: Vec<(String, String)> = match &self.nodes[id].kind {
+            SiteNodeKind::Page { page, .. } => page
+                .links()
+                .into_iter()
+                .map(|(text, href)| (text.clone(), href.clone()))
+                .collect(),
             _ => panic!("has to be page"),
         };
 
-        let mut queue = vec![tokens];
-        while let Some(tokens) = queue.pop() {
-            for t in tokens {
-                match t {
-                    Token::Heading { tokens, .. } => queue.push(tokens),
-                    Token::Paragraph { tokens, .. } => queue.push(tokens),
-                    Token::Html { tokens, .. } => queue.push(tokens),
-                    Token::Link { href, .. } => {
-                        if href.ends_with(".md") {
-                            let input = input
-                                .parent()
-                                .unwrap_or(Path::new("?"))
-                                .join(Path::new(&href));
-                            if input.exists() {
-                                let tokens = parse_lmarkdown_from_file(&input)?;
-                                let child_id = self.add_page(input, tokens, Some(id))?;
-                                self.rel_graph.add(
-                                    id,
-                                    child_id,
-                                    Relation::Discovered {
-                                        path: href.to_string(),
-                                    },
-                                );
-                            }
-                        }
-                    }
-                    _ => {}
+        for (text, href) in links {
+            // if link has no text add whatever is in it
+            if text.len() == 0 {
+                let input = input.new(&href)?;
+                let child_id = self.add(input, id)?;
+                self.rel_graph
+                    .add(id, child_id, Relation::Discovered { raw_path: href });
+                continue;
+            }
+
+            // only support relative links to markdown files for now
+            // because this will allow absolute links to markdown files links to for
+            // example https://github.com/Lyr-7D1h/airap/blob/master/README.md
+            // will render a readme even though this might not be appropiate
+            if href.ends_with(".md") {
+                if Input::is_relative(&href) {
+                    println!("{href}");
+                    let input = input.new(&href)?;
+                    let child_id = self.add_page(input, id)?;
+                    self.rel_graph
+                        .add(id, child_id, Relation::Discovered { raw_path: href });
+                    continue;
                 }
             }
         }
@@ -351,89 +318,90 @@ impl SiteTree {
     }
 
     /// Add a stylesheet and all resources needed by the stylesheet
-    fn add_stylesheet(
-        &mut self,
-        name: String,
-        stylesheet: Stylesheet,
-        // mut links: Vec<usize>,
-        parent_id: usize,
-    ) -> Result<usize, LssgError> {
-        let parent_id = self.create_folders(
-            stylesheet
-                .input
-                .as_ref()
-                .expect("every stylesheet needs an input for now"),
-            parent_id,
-        )?;
-        if let Some(id) = self.get_by_name(&name, parent_id) {
-            return Ok(*id);
-        }
-        let resources: Vec<PathBuf> = stylesheet
-            .resources()
+    pub fn add_stylesheet(&mut self, input: Input, mut parent: usize) -> Result<usize, LssgError> {
+        parent = self.create_folders(&input, parent)?;
+
+        let stylesheet = Stylesheet::from_input(&input)?;
+        let resources: Vec<String> = stylesheet
+            .resources()?
             .into_iter()
-            .map(|p| p.clone())
+            .map(|p| p.to_string())
             .collect();
+
         let stylesheet_id = self.add_node(SiteNode {
-            name,
-            parent: Some(parent_id),
+            name: input.filename()?,
+            parent: Some(parent),
             children: vec![],
-            kind: SiteNodeKind::Stylesheet { stylesheet },
+            kind: SiteNodeKind::Stylesheet {
+                stylesheet,
+                input: input.clone(),
+            },
         })?;
 
         for resource in resources {
-            let parent_id = self.create_folders(&resource, parent_id)?;
-            let resource_id = self.add(
-                resource.filename_from_path()?,
-                SiteNodeKind::Resource {
-                    input: resource.clone(),
-                },
-                parent_id,
-            )?;
+            let input = input.new(&resource)?;
+            let parent = self.create_folders(&input, parent)?;
+            let resource_id = self.add_node(SiteNode {
+                name: input.filename()?,
+                parent: Some(parent),
+                children: vec![],
+                kind: SiteNodeKind::Resource { input },
+            })?;
             self.rel_graph.add(
                 stylesheet_id,
                 resource_id,
-                Relation::Discovered {
-                    path: resource.to_string_lossy().to_string(),
-                },
+                Relation::Discovered { raw_path: resource },
             );
         }
 
         Ok(stylesheet_id)
     }
 
-    /// Creates folders if needed returns the new or old parent
-    fn create_folders(&mut self, input: &Path, mut parent: usize) -> Result<usize, LssgError> {
-        let input = fs::canonicalize(&input)?;
-        let rel_path = input
-            .strip_prefix(&self.cannonical_root_parent_path)
-            .map_err(|_| io::Error::new(io::ErrorKind::Other, "failed to strip prefix"))?;
-        let parts: Vec<&str> = rel_path.to_str().unwrap_or("").split("/").collect();
-        let parts = &parts[0..parts.len() - 1];
+    /// If local input and not outside of `root_input` it will create some extra folders for
+    /// structuring SiteTree
+    fn create_folders(&mut self, input: &Input, mut parent: usize) -> Result<usize, LssgError> {
+        if let Some(rel_path) = self.root_input.make_relative(input) {
+            // don't allow backtrack from root
+            if rel_path.starts_with("..") {
+                return Ok(parent);
+            }
+            let parts: Vec<&str> = rel_path.split("/").collect();
+            let parts = &parts[0..parts.len() - 1];
 
-        let mut parents = self.parents(parent);
-        parents.push(parent);
-        parents.reverse();
-        for i in 0..parts.len() {
-            let name = parts[i];
-            if let Some(parent) = parents.get(i) {
-                if self[*parent].name == name {
-                    continue;
+            let mut parents = self.parents(parent);
+            parents.push(parent);
+            parents.reverse();
+            for i in 0..parts.len() {
+                let name = parts[i];
+                if let Some(parent) = parents.get(i) {
+                    if self[*parent].name == name {
+                        continue;
+                    }
+                }
+                if let Some(id) = self.get_by_name(name, parent) {
+                    parent = *id;
+                } else {
+                    debug!("creating folder {name:?} under {parent:?}");
+                    parent = self.add_node(SiteNode {
+                        name: name.to_string(),
+                        parent: Some(parent),
+                        children: vec![],
+                        kind: SiteNodeKind::Folder,
+                    })?;
                 }
             }
-            if let Some(id) = self.get_by_name(name, parent) {
-                parent = *id;
-            } else {
-                debug!("creating folder {name:?} under {parent:?}");
-                parent = self.add(name.to_string(), SiteNodeKind::Folder, parent)?;
-            }
         }
-
         return Ok(parent);
     }
 
     pub fn remove(&mut self, id: usize) {
         self.rel_graph.remove_all(id);
         todo!("remove from tree");
+    }
+
+    /// Concat resources and minify what can be minified
+    pub fn minify(&mut self) {
+        todo!()
     }
 }
 

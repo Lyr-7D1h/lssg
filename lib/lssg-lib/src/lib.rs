@@ -5,59 +5,54 @@ pub mod sitetree;
 mod domtree;
 pub mod lssg_error;
 mod path_extension;
-mod stylesheet;
 mod tree;
 
 use std::{
-    fs::{copy, create_dir, create_dir_all, remove_dir_all, write},
+    fs::{create_dir, create_dir_all, remove_dir_all, write, File},
+    io::{self, Write},
     path::{Path, PathBuf},
 };
 
 use log::info;
 use lssg_error::LssgError;
-use renderer::Renderer;
+use renderer::{Renderer, RendererModule};
+use sitetree::Input;
 
 use crate::{
     path_extension::PathExtension,
-    renderer::{BlogModule, DefaultModule},
     sitetree::{Relation, SiteNodeKind, SiteTree},
 };
 
-#[derive(Debug, Clone)]
-pub struct LssgOptions {
-    pub index: PathBuf,
-    pub output_directory: PathBuf,
-}
-
 pub struct Lssg {
-    index: PathBuf,
+    input: Input,
     output_directory: PathBuf,
+    renderer: Renderer,
 }
 
 impl Lssg {
-    pub fn new(options: LssgOptions) -> Lssg {
-        let LssgOptions {
-            index,
-            output_directory,
-        } = options;
+    pub fn new(input: Input, output_directory: PathBuf) -> Lssg {
+        let renderer = Renderer::new();
         Lssg {
-            index,
+            input,
             output_directory,
+            renderer,
         }
     }
 
-    pub fn render(&self) -> Result<(), LssgError> {
-        let mut renderer = Renderer::new();
-        renderer.add_module(BlogModule::new());
-        renderer.add_module(DefaultModule::new());
+    pub fn add_module(&mut self, module: impl RendererModule + 'static) {
+        self.renderer.add_module(module)
+    }
 
+    pub fn render(&mut self) -> Result<(), LssgError> {
         info!("Generating SiteTree");
-        let mut site_tree = SiteTree::from_index(self.index.clone())?;
+        let mut site_tree = SiteTree::from_input(self.input.clone())?;
 
-        renderer.init(&mut site_tree);
+        self.renderer.init(&mut site_tree);
         info!("SiteTree:\n{site_tree}");
 
-        renderer.after_init(&mut site_tree);
+        // site_tree.minify();
+
+        self.renderer.after_init(&mut site_tree);
 
         if self.output_directory.exists() {
             info!(
@@ -76,29 +71,37 @@ impl Lssg {
         while let Some(site_id) = queue.pop() {
             let node = site_tree.get(site_id)?;
             queue.append(&mut node.children.clone());
-            let path = self.output_directory.join(site_tree.path(site_id));
+            let rel_path = site_tree.rel_path(site_tree.root(), site_id);
+            let path = self
+                .output_directory
+                .join(rel_path)
+                .canonicalize_nonexistent_path();
             match &node.kind {
-                SiteNodeKind::Stylesheet { stylesheet } => {
+                SiteNodeKind::Stylesheet { stylesheet, .. } => {
                     let mut stylesheet = stylesheet.clone();
+
                     for link in site_tree.links_from(site_id) {
-                        if let Relation::Discovered { path } = &link.relation {
-                            let updated_resource = site_tree.absolute_path(link.to);
-                            (&mut stylesheet).update_resource(Path::new(path), updated_resource);
+                        if let Relation::Discovered { raw_path } = &link.relation {
+                            let updated_resource = site_tree.path(link.to);
+                            stylesheet.update_resource(raw_path, &updated_resource);
                         }
                     }
+
                     info!("Writing stylesheet {path:?}",);
                     write(path, stylesheet.to_string())?;
                 }
                 SiteNodeKind::Resource { input } => {
                     info!("Writing resource {path:?}",);
-                    copy(input, path)?;
+                    let mut file = File::create(path)?;
+                    let mut readable = input.readable()?;
+                    io::copy(&mut readable, &mut file)?;
                 }
                 SiteNodeKind::Folder => {
                     info!("Creating folder {path:?}",);
                     create_dir(path)?;
                 }
                 SiteNodeKind::Page { .. } => {
-                    let html = renderer.render(&site_tree, site_id)?;
+                    let html = self.renderer.render(&site_tree, site_id)?;
                     create_dir_all(&path)?;
                     let html_output_path = path.join("index.html").canonicalize_nonexistent_path();
 

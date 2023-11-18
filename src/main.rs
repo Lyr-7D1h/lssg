@@ -4,8 +4,8 @@ use std::path::PathBuf;
 use clap::Parser;
 use lssg_lib::{
     renderer::{BlogModule, DefaultModule, Renderer},
-    sitetree::SiteTree,
-    Lssg, LssgOptions,
+    sitetree::{Input, SiteTree},
+    Lssg,
 };
 use simple_logger::SimpleLogger;
 
@@ -18,7 +18,8 @@ use simple_logger::SimpleLogger;
     long_about = "Generate static websites using the command line"
 )]
 struct Args {
-    input: PathBuf,
+    #[clap(value_parser = Input::from_string)]
+    input: Input,
 
     output: PathBuf,
 
@@ -41,7 +42,7 @@ fn main() {
     let input = args.input;
 
     if args.single_page {
-        let site_tree = SiteTree::from_index(input.clone()).expect("Failed to generate site tree");
+        let site_tree = SiteTree::from_input(input.clone()).expect("Failed to generate site tree");
 
         let mut renderer = Renderer::new();
         renderer.add_module(BlogModule::new());
@@ -53,10 +54,8 @@ fn main() {
         return;
     }
 
-    Lssg::new(LssgOptions {
-        output_directory: args.output,
-        index: input,
-    })
-    .render()
-    .unwrap()
+    let mut lssg = Lssg::new(input, args.output);
+    lssg.add_module(BlogModule::new());
+    lssg.add_module(DefaultModule::new());
+    lssg.render().unwrap()
 }

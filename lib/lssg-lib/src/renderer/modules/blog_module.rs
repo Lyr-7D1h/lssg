@@ -36,7 +36,6 @@ impl RendererModule for BlogModule {
         let RendererModuleContext {
             site_tree,
             site_id,
-            tokens,
             // metadata,
             ..
         } = context;
@@ -108,25 +107,26 @@ impl RendererModule for BlogModule {
                     && self.post_enabled_site_ids.contains(&site_id) =>
             {
                 if let SiteNodeKind::Page { input, .. } = &site_tree[site_id].kind {
-                    match input.metadata() {
-                        Ok(m) => match m.modified() {
-                            Ok(date) => {
-                                self.has_inserted_date = true;
-                                let date: DateTime<Utc> = date.into();
-                                let date = date.format("Updated on %B %d, %Y").to_string();
-                                let div = tree.add_element_with_attributes(
-                                    "div",
-                                    to_attributes([("class", "post-updated-on")]),
-                                    parent_dom_id,
-                                );
-                                tree.add_text(date, div);
-                            }
-                            Err(e) => {
-                                error!("failed to read modified date from input metadata: {e}")
-                            }
-                        },
-                        Err(e) => error!("failed to read input metadata: {e}"),
-                    }
+                    // TODO get date
+                    // match input.metadata() {
+                    //     Ok(m) => match m.modified() {
+                    //         Ok(date) => {
+                    //             self.has_inserted_date = true;
+                    //             let date: DateTime<Utc> = date.into();
+                    //             let date = date.format("Updated on %B %d, %Y").to_string();
+                    //             let div = tree.add_element_with_attributes(
+                    //                 "div",
+                    //                 to_attributes([("class", "post-updated-on")]),
+                    //                 parent_dom_id,
+                    //             );
+                    //             tree.add_text(date, div);
+                    //         }
+                    //         Err(e) => {
+                    //             error!("failed to read modified date from input metadata: {e}")
+                    //         }
+                    //     },
+                    //     Err(e) => error!("failed to read input metadata: {e}"),
+                    // }
                 }
             }
             _ => {}

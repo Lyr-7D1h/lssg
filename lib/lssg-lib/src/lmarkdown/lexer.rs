@@ -125,7 +125,7 @@ impl<R: Read> LMarkdownLexer<R> {
         if self.reader.has_read() == false {
             if let Some(c) = self.reader.peek_char()? {
                 if c == '<' {
-                    let comment = self.reader.peek_until(|c| c == '>')?;
+                    let comment = self.reader.peek_until_match("-->")?;
 
                     if let Some("!--") = comment.get(1..4) {
                         if let Some("-->") = comment.get(comment.len() - 3..comment.len()) {
@@ -174,15 +174,14 @@ impl<R: Read> LMarkdownLexer<R> {
                 }
 
                 if c == '<' {
-                    let start_tag = self.reader.read_until_inclusive(|c| c == '>')?;
-
                     // comment
-                    if let Some("!--") = start_tag.get(1..4) {
-                        if let Some("-->") = start_tag.get(start_tag.len() - 3..start_tag.len()) {
-                            let text = sanitize_text(start_tag[4..start_tag.len() - 3].to_string());
-                            return Ok(Token::Comment { text });
-                        }
+                    if "<!--".to_string() == self.reader.peek_string(4)? {
+                        let comment = self.reader.read_until_match_inclusive("-->")?;
+                        let text = sanitize_text(comment[4..comment.len() - 3].to_string());
+                        return Ok(Token::Comment { text });
                     }
+
+                    let start_tag = self.reader.read_until_inclusive(|c| c == '>')?;
 
                     // html
                     let mut tag = String::new();

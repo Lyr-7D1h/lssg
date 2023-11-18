@@ -10,7 +10,7 @@ pub enum Relation {
     Family,
     External,
     Discovered {
-        path: String,
+        raw_path: String,
     },
 }
 

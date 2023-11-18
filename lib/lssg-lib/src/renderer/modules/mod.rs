@@ -4,7 +4,7 @@ use serde_extensions::Overwrite;
 use crate::{
     domtree::DomTree,
     lmarkdown::Token,
-    sitetree::{SiteNodeKind, SiteTree},
+    sitetree::{Page, SiteNodeKind, SiteTree},
     LssgError,
 };
 
@@ -44,11 +44,11 @@ pub trait RendererModule {
         false
     }
 
-    fn options_with_default<D: Overwrite + Default>(&self, tokens: &Vec<Token>, mut default: D) -> D
+    fn options_with_default<D: Overwrite + Default>(&self, page: &Page, mut default: D) -> D
     where
         Self: Sized,
     {
-        if let Some(Token::Attributes { toml }) = tokens.first() {
+        if let Some(Token::Attributes { toml }) = page.tokens().first() {
             if let Some(v) = toml.get(self.id()) {
                 match default.overwrite(v.clone()) {
                     Ok(d) => d,
@@ -59,12 +59,12 @@ pub trait RendererModule {
         default
     }
 
-    fn options<D: Overwrite + Default>(&self, tokens: &Vec<Token>) -> D
+    fn options<D: Overwrite + Default>(&self, page: &Page) -> D
     where
         Self: Sized,
     {
         let mut o = D::default();
-        if let Some(Token::Attributes { toml }) = tokens.first() {
+        if let Some(Token::Attributes { toml }) = page.tokens().first() {
             if let Some(v) = toml.get(self.id()) {
                 match o.overwrite(v.clone()) {
                     Ok(d) => d,
@@ -79,19 +79,5 @@ pub trait RendererModule {
 pub struct RendererModuleContext<'n> {
     pub site_tree: &'n SiteTree,
     pub site_id: usize,
-    pub tokens: &'n Vec<Token>,
-}
-
-impl<'n> RendererModuleContext<'n> {
-    pub fn options<D: Overwrite + Default>(&self, module: &impl RendererModule) -> D {
-        let mut o = D::default();
-        if let Some(Token::Attributes { toml }) = self.tokens.first() {
-            if let Some(v) = toml.get(module.id()) {
-                if let Ok(d) = o.overwrite(v.clone()) {
-                    d
-                }
-            }
-        }
-        o
-    }
+    pub page: &'n Page,
 }

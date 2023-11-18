@@ -67,8 +67,8 @@ impl Renderer {
     pub fn render(&mut self, site_tree: &SiteTree, site_id: usize) -> Result<String, LssgError> {
         // get the site node
         let site_node = site_tree.get(site_id)?;
-        let (tokens, ..) = match &site_node.kind {
-            SiteNodeKind::Page { tokens, input, .. } => (tokens, input),
+        let (page, ..) = match &site_node.kind {
+            SiteNodeKind::Page { page, input } => (page, input),
             _ => return Err(LssgError::render("Invalid node type given")),
         };
 
@@ -77,7 +77,7 @@ impl Renderer {
         let context = RendererModuleContext {
             site_tree,
             site_id,
-            tokens,
+            page,
         };
 
         // initialize modules
@@ -87,7 +87,7 @@ impl Renderer {
 
         // create body
         let body = tree.get_elements_by_tag_name("body")[0];
-        let mut queue = RenderQueue::from_tokens(context.tokens.clone(), body);
+        let mut queue = RenderQueue::from_tokens(context.page.tokens().clone(), body);
         'l: while let Some((token, parent_id)) = queue.pop_front() {
             for module in &mut self.modules {
                 if module.render_body(&mut tree, &context, &mut queue, parent_id, &token) {
