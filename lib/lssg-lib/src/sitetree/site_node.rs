@@ -90,13 +90,13 @@ impl Input {
     pub fn filestem(&self) -> Result<String, LssgError> {
         match self {
             Input::Local { path } => path.filestem_from_path(),
-            Input::External { url } => url.to_file_path().unwrap().filestem_from_path(),
+            Input::External { url } => Path::new(url.path()).filestem_from_path(),
         }
     }
     pub fn filename(&self) -> Result<String, LssgError> {
         match self {
             Input::Local { path } => path.filename_from_path(),
-            Input::External { url } => url.to_file_path().unwrap().filename_from_path(),
+            Input::External { url } => Path::new(url.path()).filename_from_path(),
         }
     }
     pub fn to_string(&self) -> String {
