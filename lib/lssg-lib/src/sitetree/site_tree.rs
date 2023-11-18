@@ -231,10 +231,10 @@ impl SiteTree {
             return Ok(*id);
         }
 
-        if SiteNodeKind::is_stylesheet(&input) {
+        if SiteNodeKind::input_is_stylesheet(&input) {
             return self.add_stylesheet(input, parent_id);
         }
-        if SiteNodeKind::is_page(&input) {
+        if SiteNodeKind::input_is_page(&input) {
             return self.add_page(input, parent_id);
         }
 

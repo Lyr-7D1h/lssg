@@ -138,11 +138,18 @@ pub enum SiteNodeKind {
     Folder,
 }
 impl SiteNodeKind {
-    pub fn is_page(input: &Input) -> bool {
+    pub fn input_is_page(input: &Input) -> bool {
         input.to_string().ends_with(".md")
     }
-    pub fn is_stylesheet(input: &Input) -> bool {
+    pub fn input_is_stylesheet(input: &Input) -> bool {
         input.to_string().ends_with(".css")
+    }
+    pub fn is_page(&self) -> bool {
+        if let SiteNodeKind::Page { .. } = self {
+            true
+        } else {
+            false
+        }
     }
     // pub fn from_input(input: Input) -> Result<SiteNodeKind, LssgError> {
     //     let filename = input.filename();

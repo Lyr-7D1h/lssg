@@ -1,11 +1,11 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs::{self, File},
     io::{self, Write},
     path::{Path, PathBuf},
 };
 
-use log::warn;
+use log::{error, warn};
 use serde::Serialize;
 use serde_extensions::Overwrite;
 
@@ -55,14 +55,14 @@ fn create_options_map(
             if let Some(parent) = site_tree.page_parent(id) {
                 if let Some(parent_options) = options_map.get(&parent) {
                     let parent_options = parent_options.clone();
-                    let mut options: DefaultModuleOptions =
+                    let options: DefaultModuleOptions =
                         module.options_with_default(page, parent_options);
                     options_map.insert(id, options.clone());
                     continue;
                 }
             }
 
-            let mut options: DefaultModuleOptions = module.options(page);
+            let options: DefaultModuleOptions = module.options(page);
             options_map.insert(id, options.clone());
         }
     }
@@ -90,41 +90,52 @@ impl RendererModule for DefaultModule {
 
     /// Add all resources from ResourceOptions to SiteTree
     fn init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
-        // get pages and options, each page will use its parent options and overwrite it
-        let options_map = create_options_map(&self, site_tree)?;
+        let mut relation_map = HashMap::new();
 
-        // create resources from options
-        // for id in site_tree.ids() {
-        //     if let SiteNodeKind::Page { input, .. } = &site_tree[id].kind {
-        //         let options = options_map
-        //             .get(&id)
-        //             .expect(&format!("options map is missing {id}"));
-        //         let base_directory = fs::canonicalize(input.parent().unwrap_or(&input))?;
-        //
-        //         for stylesheet_path in options.stylesheets.iter() {
-        //             let stylesheet_path = base_directory.join(stylesheet_path);
-        //             let mut stylesheet = Stylesheet::new();
-        //             stylesheet.append(&stylesheet_path)?;
-        //             let stylesheet_id = site_tree.add(
-        //                 stylesheet_path.filename_from_path()?,
-        //                 SiteNodeKind::stylesheet(stylesheet),
-        //                 site_tree.root(),
-        //             )?;
-        //             site_tree.add_link(id, stylesheet_id);
-        //         }
-        //
-        //         if let Some(path) = &options.favicon {
-        //             let input = base_directory.join(path);
-        //             let favicon_id = site_tree.add(
-        //                 "favicon.ico".into(),
-        //                 SiteNodeKind::Resource { input },
-        //                 site_tree.root(),
-        //             )?;
-        //             site_tree.add_link(id, favicon_id);
-        //         }
-        //     }
-        // }
-        //
+        let pages: Vec<usize> = DFS::new(site_tree)
+            .filter(|id| site_tree[*id].kind.is_page())
+            .collect();
+
+        // propegate relations to stylesheets and favicon from parent to child
+        for id in pages {
+            let mut set: HashSet<usize> = site_tree
+                .links_from(id)
+                .into_iter()
+                .filter_map(|link| match link.relation {
+                    Relation::External | Relation::Discovered { .. } => {
+                        match &site_tree[link.to].kind {
+                            SiteNodeKind::Stylesheet { .. } => Some(link.to),
+                            SiteNodeKind::Resource { input } => match input.filename() {
+                                Ok(filename) => {
+                                    if filename == "favicon.ico" {
+                                        Some(link.to)
+                                    } else {
+                                        None
+                                    }
+                                }
+                                Err(e) => {
+                                    error!("Invalid filename {e}");
+                                    None
+                                }
+                            },
+                            _ => None,
+                        }
+                    }
+                    _ => None,
+                })
+                .collect();
+
+            if let Some(parent) = site_tree.page_parent(id) {
+                if let Some(parent_set) = relation_map.get(&parent) {
+                    for to in (parent_set - &set).iter() {
+                        site_tree.add_link(id, *to);
+                    }
+                    set = set.union(parent_set).cloned().collect();
+                }
+            }
+            relation_map.insert(id, set);
+        }
+
         Ok(())
     }
 
