@@ -224,7 +224,7 @@ impl SiteTree {
     }
 
     /// add from Input, will figure out what node to add from input
-    pub fn add(&mut self, input: Input, parent_id: usize) -> Result<usize, LssgError> {
+    pub fn add(&mut self, input: Input, mut parent_id: usize) -> Result<usize, LssgError> {
         // return id if already exists
         if let Some(id) = self.input_to_id.get(&input) {
             // warn!("{} already exists using existing node instead", name);
@@ -238,6 +238,7 @@ impl SiteTree {
             return self.add_page(input, parent_id);
         }
 
+        parent_id = self.create_folders(&input, parent_id)?;
         return self.add_node(SiteNode {
             name: input.filename()?,
             parent: Some(parent_id),
@@ -304,7 +305,6 @@ impl SiteTree {
             // will render a readme even though this might not be appropiate
             if href.ends_with(".md") {
                 if Input::is_relative(&href) {
-                    println!("{href}");
                     let input = input.new(&href)?;
                     let child_id = self.add_page(input, id)?;
                     self.rel_graph
@@ -328,6 +328,7 @@ impl SiteTree {
             .map(|p| p.to_string())
             .collect();
 
+        let parent = self.create_folders(&input, parent)?;
         let stylesheet_id = self.add_node(SiteNode {
             name: input.filename()?,
             parent: Some(parent),

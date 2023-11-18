@@ -35,14 +35,21 @@ impl Input {
     pub fn make_relative(&self, to: &Input) -> Option<String> {
         match self {
             Input::Local { path: from_path } => match to {
+                Input::Local { path: to_path } => {
+                    let from_path = if from_path.is_file() {
+                        from_path.parent().unwrap_or(&from_path)
+                    } else {
+                        from_path
+                    };
+                    return diff_paths(to_path, from_path)
+                        .map(|p| p.to_str().map(|s| s.to_string()))
+                        .flatten();
+                }
                 _ => return None,
-                Input::Local { path: to_path } => diff_paths(from_path, to_path)
-                    .map(|p| p.to_str().map(|s| s.to_string()))
-                    .flatten(),
             },
             Input::External { url: from_url } => match to {
-                _ => return None,
                 Input::External { url: to_url } => from_url.make_relative(to_url),
+                _ => return None,
             },
         }
     }
