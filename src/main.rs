@@ -18,9 +18,13 @@ use simple_logger::SimpleLogger;
     long_about = "Generate static websites using the command line"
 )]
 struct Args {
+    /// a reference to the first markdown input file
+    /// this can either be a path (eg. ./my_blog/index.md)
+    /// or an url (eg. http://github.com/project/readme.md)
     #[clap(value_parser = Input::from_string)]
     input: Input,
 
+    /// path to put the static files into, any needed parent folders are automatically created
     output: PathBuf,
 
     /// Print output of a single page

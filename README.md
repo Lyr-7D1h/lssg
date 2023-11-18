@@ -24,7 +24,13 @@ This is how you would generate lyrx from its content
 
 ```bash
 cd examples/lyrx
-lssg ./content/home.md ./build/ 
+lssg ./content/home.md ./build
+```
+
+You can also use links to markdown to generate content
+
+```bash
+lssg https://raw.githubusercontent.com/Lyr-7D1h/lssg/wip/examples/lyrx/home.md ./build
 ```
 
 > [!NOTE]
