@@ -101,6 +101,7 @@ if page => use modular HtmlRenderer to turn lmarkdown tokens into html, and writ
 ```
 
 ## Roadmap
+- LMarkdown: convert html to markdown tokens when suitable (h6 html to Header enc)
 - Make default options root of Attributes (don't require [default] block) 
 - Add recovery and logging instead of panicking
     - panic on broken link
