@@ -288,21 +288,15 @@ impl RendererModule for DefaultModule {
                     return true;
                 }
                 if href.starts_with("http") || href.starts_with("mailto:") {
-                    let parent_id = tree.add_element_with_attributes(
+                    let a = tree.add_element_with_attributes(
                         "a",
                         to_attributes([("href", href)]),
                         parent_id,
                     );
-                    tree.add_text(text, parent_id);
-                    // TODO seperate from font awesome
-                    tree.add_element_with_attributes(
-                        "i",
-                        to_attributes([
-                            ("class", "fas fas-external-link-alt"),
-                            ("style", "font-size: 0.8em"),
-                        ]),
-                        parent_id,
-                    );
+                    tree.add_text(text, a);
+                    // TODO use html! macro
+                    // external link symbol
+                    tree.add_text(r##"<svg width="1em" height="1em" viewBox="0 0 24 24" style="cursor:pointer"><g stroke-width="2.1" stroke="#666" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 13.5 17 19.5 5 19.5 5 7.5 11 7.5"></polyline><path d="M14,4.5 L20,4.5 L20,10.5 M20,4.5 L11,13.5"></path></g></svg>"##, parent_id);
                     return true;
                 }
                 if href.ends_with(".md") {
