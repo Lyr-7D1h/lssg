@@ -1,5 +1,5 @@
 use core::fmt;
-use std::{error::Error, fmt::Display, io};
+use std::{io};
 
 use crate::lmarkdown::parse_error::ParseError;
 

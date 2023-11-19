@@ -1,6 +1,4 @@
 use std::{
-    collections::HashSet,
-    fmt,
     ops::{Index, IndexMut},
 };
 

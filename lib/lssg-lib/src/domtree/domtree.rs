@@ -2,7 +2,6 @@ use std::{collections::HashMap, fmt, str::FromStr};
 
 use crate::{
     lssg_error::LssgError,
-    sitetree::SiteNode,
     tree::{Node, Tree, DFS},
 };
 
@@ -26,7 +25,7 @@ pub struct DomNode {
 impl FromStr for DomNode {
     type Err = LssgError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(_s: &str) -> Result<Self, Self::Err> {
         todo!()
     }
 }
@@ -62,7 +61,7 @@ impl DomNode {
     pub fn element_with_children(
         tag: impl Into<String>,
         attributes: HashMap<String, String>,
-        children: Vec<usize>,
+        _children: Vec<usize>,
     ) -> DomNode {
         DomNode {
             kind: DomNodeKind::Element {

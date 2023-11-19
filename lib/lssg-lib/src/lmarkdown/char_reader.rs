@@ -245,8 +245,9 @@ impl<R: Read> Read for CharReader<R> {
     }
 }
 
+#[cfg(test)]
 mod tests {
-    use crate::lmarkdown::{char_reader::CharReader, parse_error::ParseError};
+    use super::*;
 
     #[test]
     fn test_peek() -> Result<(), ParseError> {

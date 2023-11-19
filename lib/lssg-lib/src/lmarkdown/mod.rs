@@ -30,8 +30,9 @@ pub fn parse_lmarkdown_from_file(path: &Path) -> Result<Vec<Token>, LssgError> {
     return Ok(parse_lmarkdown(file)?);
 }
 
+#[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, io::Cursor};
+    use std::io::Cursor;
 
     use crate::domtree::to_attributes;
 

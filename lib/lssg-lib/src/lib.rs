@@ -9,8 +9,8 @@ mod tree;
 
 use std::{
     fs::{create_dir, create_dir_all, remove_dir_all, write, File},
-    io::{self, Write},
-    path::{Path, PathBuf},
+    io::{self},
+    path::{PathBuf},
 };
 
 use log::info;

@@ -1,5 +1,5 @@
-use chrono::{DateTime, Utc};
-use log::error;
+
+
 
 use crate::{
     domtree::{to_attributes, DomTree},
@@ -91,10 +91,10 @@ impl RendererModule for BlogModule {
 
     fn render_body<'n>(
         &mut self,
-        tree: &mut DomTree,
+        _tree: &mut DomTree,
         context: &RendererModuleContext<'n>,
-        render_queue: &mut RenderQueue,
-        parent_dom_id: usize,
+        _render_queue: &mut RenderQueue,
+        _parent_dom_id: usize,
         token: &Token,
     ) -> bool {
         let site_id = context.site_id;
@@ -106,7 +106,7 @@ impl RendererModule for BlogModule {
                     && !self.has_inserted_date
                     && self.post_enabled_site_ids.contains(&site_id) =>
             {
-                if let SiteNodeKind::Page { input, .. } = &site_tree[site_id].kind {
+                if let SiteNodeKind::Page {  .. } = &site_tree[site_id].kind {
                     // TODO get date
                     // match input.metadata() {
                     //     Ok(m) => match m.modified() {

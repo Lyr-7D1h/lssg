@@ -1,10 +1,10 @@
-use log::{error, warn};
+use log::{error};
 use serde_extensions::Overwrite;
 
 use crate::{
     domtree::DomTree,
     lmarkdown::Token,
-    sitetree::{Page, SiteNodeKind, SiteTree},
+    sitetree::{Page, SiteTree},
     LssgError,
 };
 
@@ -20,26 +20,26 @@ pub trait RendererModule {
     fn id(&self) -> &'static str;
 
     /// This gets run once just after site_tree has been created
-    fn init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
+    fn init(&mut self, _site_tree: &mut SiteTree) -> Result<(), LssgError> {
         Ok(())
     }
 
     /// Gets run after all changes to site tree has been made
-    fn after_init(&mut self, site_tree: &SiteTree) -> Result<(), LssgError> {
+    fn after_init(&mut self, _site_tree: &SiteTree) -> Result<(), LssgError> {
         Ok(())
     }
 
     /// Modify DomTree on init
-    fn render_page<'n>(&mut self, tree: &mut DomTree, context: &RendererModuleContext<'n>) {}
+    fn render_page<'n>(&mut self, _tree: &mut DomTree, _context: &RendererModuleContext<'n>) {}
 
     /// Render a token before default token renderer returns true if it parsed this token otherwise false
     fn render_body<'n>(
         &mut self,
-        dom_tree: &mut DomTree,
-        context: &RendererModuleContext<'n>,
-        render_queue: &mut RenderQueue,
-        parent_dom_id: usize,
-        token: &Token,
+        _dom_tree: &mut DomTree,
+        _context: &RendererModuleContext<'n>,
+        _render_queue: &mut RenderQueue,
+        _parent_dom_id: usize,
+        _token: &Token,
     ) -> bool {
         false
     }

@@ -1,17 +1,12 @@
 use core::fmt;
 use std::{
     collections::HashMap,
-    fs::{self},
-    io,
     ops::{Index, IndexMut},
-    path::{Path, PathBuf},
 };
 
 use log::{debug, warn};
 
 use crate::{
-    lmarkdown::{parse_lmarkdown, parse_lmarkdown_from_file, Token},
-    path_extension::PathExtension,
     tree::Tree,
     LssgError,
 };

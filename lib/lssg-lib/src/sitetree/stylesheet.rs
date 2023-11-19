@@ -1,8 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    fs::{self, read_to_string},
-    path::{Path, PathBuf},
-};
+
 
 use regex::Regex;
 
@@ -57,7 +53,7 @@ impl Stylesheet {
     }
 
     /// Append stylesheet and discover local referenced resources
-    pub fn append(&mut self, stylesheet: Stylesheet) -> Result<(), LssgError> {
+    pub fn append(&mut self, _stylesheet: Stylesheet) -> Result<(), LssgError> {
         todo!()
     }
 
