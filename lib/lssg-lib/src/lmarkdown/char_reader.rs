@@ -245,34 +245,39 @@ impl<R: Read> Read for CharReader<R> {
     }
 }
 
-#[test]
-fn test_peek() -> Result<(), ParseError> {
-    let mut reader = CharReader::new("This is a piece of text".as_bytes());
-    assert_eq!(reader.peek_string(4)?, "This".to_owned());
-    assert_eq!(reader.read_string_exact(4)?, "This".to_owned());
-    assert_eq!(reader.read_char_exact()?, ' ');
+mod tests {
+    use crate::lmarkdown::{parse_error::ParseError, char_reader::CharReader};
 
-    assert_eq!(reader.peek_string(3)?, "is ".to_owned());
-    assert_eq!(reader.peek_string(2)?, "is".to_owned());
 
-    assert_eq!(reader.peek_char_exact()?, 'i');
-    assert_eq!(reader.peek_string(2)?, "is".to_owned());
-    assert_eq!(reader.read_string_exact(10)?, "is a piece".to_owned());
+    #[test]
+    fn test_peek() -> Result<(), ParseError> {
+        let mut reader = CharReader::new("This is a piece of text".as_bytes());
+        assert_eq!(reader.peek_string(4)?, "This".to_owned());
+        assert_eq!(reader.read_string_exact(4)?, "This".to_owned());
+        assert_eq!(reader.read_char_exact()?, ' ');
 
-    assert_eq!(reader.peek_char_exact()?, ' ');
-    assert_eq!(reader.read_char_exact()?, ' ');
-    assert_eq!(reader.read_string_exact(7)?, "of text".to_owned());
-    assert!(reader.read_char_exact().is_err());
-    Ok(())
-}
+        assert_eq!(reader.peek_string(3)?, "is ".to_owned());
+        assert_eq!(reader.peek_string(2)?, "is".to_owned());
 
-#[test]
-fn test_newline() -> Result<(), ParseError> {
-    let mut reader = CharReader::new(
-        "This is a
+        assert_eq!(reader.peek_char_exact()?, 'i');
+        assert_eq!(reader.peek_string(2)?, "is".to_owned());
+        assert_eq!(reader.read_string_exact(10)?, "is a piece".to_owned());
+
+        assert_eq!(reader.peek_char_exact()?, ' ');
+        assert_eq!(reader.read_char_exact()?, ' ');
+        assert_eq!(reader.read_string_exact(7)?, "of text".to_owned());
+        assert!(reader.read_char_exact().is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn test_newline() -> Result<(), ParseError> {
+        let mut reader = CharReader::new(
+            "This is a
 Very important test"
-            .as_bytes(),
-    );
-    assert_eq!(reader.peek_string(11)?, "This is a\nV".to_owned());
-    Ok(())
+                .as_bytes(),
+        );
+        assert_eq!(reader.peek_string(11)?, "This is a\nV".to_owned());
+        Ok(())
+    }
 }

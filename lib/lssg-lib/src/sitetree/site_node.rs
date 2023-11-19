@@ -108,7 +108,6 @@ impl Input {
     pub fn readable(&self) -> Result<Box<dyn Read>, LssgError> {
         match self {
             Input::Local { path } => {
-                // FIXME unwrap
                 let file = File::open(path)?;
                 Ok(Box::new(file))
             }

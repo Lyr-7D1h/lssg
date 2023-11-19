@@ -193,16 +193,45 @@ impl<R: Read> LMarkdownLexer<R> {
                         }
                     }
 
+                    // get attributes
                     let mut attributes = HashMap::new();
-                    for a in start_tag[1 + tag.len()..start_tag.len() - 1].split(" ") {
-                        let mut parts = a.splitn(2, "=");
-                        if let Some(k) = parts.next() {
-                            if let Some(v) = parts.next() {
-                                attributes.insert(k.into(), v.replace("\"", ""));
-                            } else {
-                                attributes.insert(k.into(), "".into());
+                    let chars: Vec<char> = start_tag[1 + tag.len()..start_tag.len() - 1]
+                        .chars()
+                        .collect();
+                    let mut key = String::new();
+                    let mut value = String::new();
+                    let mut in_value = false;
+                    let mut i = 0;
+                    while i < chars.len() {
+                        match chars[i] {
+                            ' ' if in_value == false => {
+                                if key.len() > 0 {
+                                    attributes.insert(key, value);
+                                    key = String::new();
+                                    value = String::new();
+                                    in_value = false;
+                                }
+                            }
+                            '=' => match chars.get(i + 1) {
+                                Some('"') | Some('\'') => {
+                                    i += 1;
+                                    in_value = true
+                                }
+                                _ => {}
+                            },
+                            '\'' | '"' if in_value => in_value = false,
+                            c => {
+                                if in_value {
+                                    value.push(c)
+                                } else {
+                                    key.push(c)
+                                }
                             }
                         }
+                        i += 1;
+                    }
+                    if key.len() > 0 {
+                        attributes.insert(key, value);
                     }
 
                     let mut content = String::new();
@@ -242,7 +271,7 @@ impl<R: Read> LMarkdownLexer<R> {
 }
 
 /// https://github.com/markedjs/marked/blob/master/src/Tokenizer.js
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Attributes {
         toml: toml::Value,

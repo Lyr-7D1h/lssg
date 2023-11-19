@@ -260,7 +260,7 @@ impl SiteTree {
         mut parent: Option<usize>,
     ) -> Result<usize, LssgError> {
         if let Some(id) = self.input_to_id.get(&input) {
-            // TODO check if needs to move pointing input
+            // TODO if this page exists should the location of the page be updated?
             return Ok(*id);
         }
 

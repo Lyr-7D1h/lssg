@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 
+set -e
+
 INPUT=$@
 
-mkdir build
+mkdir -p build
 serve build/ &
 
 cargo watch -x "run ${INPUT} build -l debug"
