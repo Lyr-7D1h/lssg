@@ -2,7 +2,7 @@ pub mod lmarkdown;
 pub mod renderer;
 pub mod sitetree;
 
-mod domtree;
+pub mod domtree;
 pub mod lssg_error;
 mod path_extension;
 mod tree;
