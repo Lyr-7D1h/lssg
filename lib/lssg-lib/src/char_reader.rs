@@ -40,7 +40,7 @@ impl<R: Read> CharReader<R> {
         Ok(())
     }
 
-    /// Read a character
+    /// Read a character. `pos` is 0 indexed
     pub fn peek_char(&mut self, pos: usize) -> Result<Option<char>, ParseError> {
         self.try_fill(pos + 1)?;
         return Ok(self.buffer.get(pos).copied());
@@ -157,11 +157,8 @@ impl<R: Read> CharReader<R> {
         return Ok(result);
     }
 
-    /// will read until eof or `op` is true excluding the c that matched
-    pub fn consume_until_exclusive(
-        &mut self,
-        op: fn(char) -> bool,
-    ) -> Result<Option<String>, ParseError> {
+    /// will read until eof or `op` is true excluding the character that matched
+    pub fn consume_until_exclusive(&mut self, op: fn(char) -> bool) -> Result<String, ParseError> {
         let mut i = 0;
         loop {
             match self.peek_char(i)? {
@@ -170,12 +167,11 @@ impl<R: Read> CharReader<R> {
                         break;
                     }
                 }
-                None => return Ok(None),
+                None => break,
             };
             i += 1;
         }
-        let string = self.consume_string(i)?;
-        return Ok(Some(string));
+        return self.consume_string(i);
     }
 
     pub fn consume_until_match_inclusive(&mut self, pattern: &str) -> Result<String, ParseError> {
@@ -211,7 +207,7 @@ mod tests {
     fn test_propegation() -> Result<(), ParseError> {
         let mut reader = CharReader::new("This is a piece of text".as_bytes());
         assert_eq!(reader.peek_string(4)?, "This".to_owned());
-        assert_eq!(reader.peek_char(4)?, Some('s'));
+        assert_eq!(reader.peek_char(3)?, Some('s'));
 
         assert_eq!(reader.consume_string(5)?, "This ".to_owned());
 
@@ -220,9 +216,9 @@ mod tests {
 
         assert_eq!(reader.consume_string(11)?, "is a piece ".to_owned());
         assert_eq!(reader.peek_string(3)?, "of ".to_owned());
-        assert_eq!(reader.peek_char(2)?, Some('f'));
+        assert_eq!(reader.peek_char(1)?, Some('f'));
         assert_eq!(reader.consume_char()?, Some('o'));
-        assert_eq!(reader.peek_char(2)?, Some(' '));
+        assert_eq!(reader.peek_char(1)?, Some(' '));
 
         Ok(())
     }

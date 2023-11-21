@@ -14,10 +14,25 @@ pub fn parse_html(input: impl Read) -> Result<Vec<Html>, ParseError> {
         }
     }
 
-    Ok(tokens)
+    // add texts together
+    let mut reduced_tokens = vec![];
+    for token in tokens.into_iter() {
+        if let Some(Html::Text { text: a }) = reduced_tokens.last_mut() {
+            if let Html::Text { text: b } = &token {
+                *a += b;
+                continue;
+            }
+        }
+        reduced_tokens.push(token)
+    }
+
+    Ok(reduced_tokens)
 }
 
-/// Read the next token
+/// A "simple" streaming html parser function. This is a fairly simplified way of parsing html
+/// ignoring a lot of edge cases and validation normally seen when parsing html.
+///
+/// **NOTE: Might return multiple Text tokens one after another.**
 pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, ParseError> {
     match reader.peek_char(0)? {
         None => return Ok(None),
@@ -104,12 +119,16 @@ pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, Pa
                         }));
                     }
                 }
+
+                // non html opening
+                reader.consume(1)?;
+                let mut text = "<".to_string();
+                text.push_str(&reader.consume_until_exclusive(|c| c == '<')?);
+                return Ok(Some(Html::Text { text }));
             }
 
-            return match reader.consume_until_exclusive(|c| c == '<')? {
-                Some(text) => Ok(Some(Html::Text { text })),
-                None => Ok(None),
-            };
+            let text = reader.consume_until_exclusive(|c| c == '<')?;
+            return Ok(Some(Html::Text { text }));
         }
     }
 }
@@ -139,12 +158,21 @@ mod tests {
 
     #[test]
     fn test_html() {
-        let input = r#"<i class="fa-solid fa-rss"></i><button disabled></button>"#;
+        let input = r#"<a href="test.com"><i class="fa-solid fa-rss"></i>Test</a><button disabled></button>"#;
         let expected = vec![
             Html::Element {
-                tag: "i".into(),
-                attributes: to_attributes([("class", "fa-solid fa-rss")]),
-                children: vec![],
+                tag: "a".into(),
+                attributes: to_attributes([("href", "test.com")]),
+                children: vec![
+                    Html::Element {
+                        tag: "i".into(),
+                        attributes: to_attributes([("class", "fa-solid fa-rss")]),
+                        children: vec![],
+                    },
+                    Html::Text {
+                        text: "Test".into(),
+                    },
+                ],
             },
             Html::Element {
                 tag: "button".into(),
@@ -152,6 +180,27 @@ mod tests {
                 children: vec![],
             },
         ];
+
+        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
+        let tokens = parse_html(reader).unwrap();
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_text_looks_like_html() {
+        let input = r#"<Lots of people say Rust > c++. even though it might be
+< then c++. Who knows? 
+<nonclosing>
+This should be text
+"#;
+        let expected = vec![Html::Text {
+            text: "<Lots of people say Rust > c++. even though it might be
+< then c++. Who knows? 
+<nonclosing>
+This should be text
+"
+            .into(),
+        }];
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
         let tokens = parse_html(reader).unwrap();

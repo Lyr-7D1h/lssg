@@ -218,9 +218,7 @@ pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Token, ParseErro
                         reader.peek_until_match_inclusive(&format!("</{tag}>"))?
                     {
                         raw_html.push_str(&content);
-                        let mut reader = CharReader::new(raw_html.as_bytes());
-                        let html = html::read_token(&mut reader)?
-                            .expect("has to contain a single html element");
+                        let html = html::parse_html(content.as_bytes())?.into_iter().next().expect("Has to contain a single html element");
 
                         return html_to_token(html);
                     }
