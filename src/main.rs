@@ -46,11 +46,14 @@ fn main() {
     let input = args.input;
 
     if args.single_page {
-        let site_tree = SiteTree::from_input(input.clone()).expect("Failed to generate site tree");
+        let mut site_tree =
+            SiteTree::from_input(input.clone()).expect("Failed to generate site tree");
 
         let mut renderer = Renderer::new();
         renderer.add_module(BlogModule::new());
         renderer.add_module(DefaultModule::new());
+        renderer.init(&mut site_tree);
+        renderer.after_init(&site_tree);
         let html = renderer
             .render(&site_tree, site_tree.root())
             .expect("failed to render");

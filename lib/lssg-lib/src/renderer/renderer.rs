@@ -1,8 +1,7 @@
 use log::{error, info, warn};
 
-
 use crate::{
-    domtree::DomTree,
+    html::DomTree,
     sitetree::{SiteNodeKind, SiteTree},
     LssgError,
 };
@@ -45,7 +44,7 @@ impl Renderer {
     }
 
     /// Will run after_init on all modules, will remove modules if it fails
-    pub fn after_init(&mut self, site_tree: &mut SiteTree) {
+    pub fn after_init(&mut self, site_tree: &SiteTree) {
         info!("running after_init");
         let failed: Vec<usize> = (&mut self.modules)
             .into_iter()

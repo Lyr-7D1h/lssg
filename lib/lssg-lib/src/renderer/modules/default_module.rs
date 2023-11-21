@@ -1,17 +1,15 @@
-use std::{
-    collections::{HashMap, HashSet},
-};
+use std::collections::{HashMap, HashSet};
 
 use log::{error, warn};
 
 use serde_extensions::Overwrite;
 
 use crate::{
-    domtree::{to_attributes, DomNode, DomNodeKind},
-    lmarkdown::{Token},
+    html::{to_attributes, DomNode, DomNodeKind},
+    lmarkdown::Token,
     lssg_error::LssgError,
     sitetree::{Relation, SiteNodeKind, SiteTree},
-    tree::{DFS},
+    tree::DFS,
 };
 
 use crate::renderer::{RenderQueue, RendererModule, RendererModuleContext};
@@ -163,7 +161,7 @@ impl RendererModule for DefaultModule {
 
     fn render_page<'n>(
         &mut self,
-        dom_tree: &mut crate::domtree::DomTree,
+        dom_tree: &mut crate::html::DomTree,
         context: &super::RendererModuleContext<'n>,
     ) {
         let site_id = context.site_id;
@@ -242,7 +240,7 @@ impl RendererModule for DefaultModule {
 
     fn render_body<'n>(
         &mut self,
-        tree: &mut crate::domtree::DomTree,
+        tree: &mut crate::html::DomTree,
         context: &super::RendererModuleContext<'n>,
         render_queue: &mut RenderQueue,
         parent_id: usize,
@@ -252,6 +250,9 @@ impl RendererModule for DefaultModule {
             site_tree, site_id, ..
         } = context;
         match token {
+            Token::Break { raw: _ } => {
+                tree.add_element("br", parent_id);
+            }
             Token::Heading {
                 depth,
                 text: _,

@@ -1,8 +1,10 @@
 pub mod lmarkdown;
 pub mod renderer;
 pub mod sitetree;
+pub mod parse_error;
+pub mod char_reader;
 
-pub mod domtree;
+pub mod html;
 pub mod lssg_error;
 mod path_extension;
 mod tree;
@@ -10,7 +12,7 @@ mod tree;
 use std::{
     fs::{create_dir, create_dir_all, remove_dir_all, write, File},
     io::{self},
-    path::{PathBuf},
+    path::PathBuf,
 };
 
 use log::info;

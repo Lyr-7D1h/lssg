@@ -2,20 +2,18 @@ use std::{fs::File, io::Read, path::Path};
 
 use crate::lssg_error::LssgError;
 
-use self::{char_reader::CharReader, parse_error::ParseError};
+use crate::{char_reader::CharReader, parse_error::ParseError};
 
-pub mod char_reader;
 mod lexer;
 pub use lexer::*;
-pub mod parse_error;
 
 pub fn parse_lmarkdown(input: impl Read) -> Result<Vec<Token>, ParseError> {
-    let mut lexer = LMarkdownLexer::new(CharReader::new(input));
+    let mut reader = CharReader::new(input);
 
     let mut tokens = vec![];
 
     loop {
-        match lexer.read_token()? {
+        match lexer::read_token(&mut reader)? {
             Token::EOF => break,
             t => tokens.push(t),
         }
@@ -23,34 +21,35 @@ pub fn parse_lmarkdown(input: impl Read) -> Result<Vec<Token>, ParseError> {
 
     Ok(tokens)
 }
-pub fn parse_lmarkdown_from_file(path: &Path) -> Result<Vec<Token>, LssgError> {
-    let file = File::open(path)
-        .map_err(|e| LssgError::from(e).with_context(format!("could not open {path:?}")))?;
-
-    return Ok(parse_lmarkdown(file)?);
-}
 
 #[cfg(test)]
 mod tests {
     use std::io::Cursor;
 
-    use crate::domtree::to_attributes;
-
     use super::*;
 
     #[test]
-    fn test_html() {
-        let input = r#"<i class="fa-solid fa-rss"></i><button disabled></button>"#;
+    fn test_text_that_looks_like_html() {
+        let input = r#"# Rust > c++
+Lots of people say Rust > c++. even though it might be
+< then c++. Who knows? 
+<nonclosing>
+This should be text
+"#;
         let expected = vec![
-            Token::Html {
-                tag: "i".into(),
-                attributes: to_attributes([("class", "fa-solid fa-rss")]),
+            Token::Heading {
+                depth: 1,
+                text: "Rust > c++".into(),
                 tokens: vec![],
             },
-            Token::Html {
-                tag: "button".into(),
-                attributes: to_attributes([("disabled", "")]),
-                tokens: vec![],
+            Token::Paragraph {
+                tokens: vec![Token::Text {
+                    text: "Lots of people say Rust > c++. even though it might be
+< then c++. Who knows? 
+<nonclosing>
+This should be text"
+                        .into(),
+                }],
             },
         ];
 

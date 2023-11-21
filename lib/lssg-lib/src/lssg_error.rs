@@ -1,7 +1,7 @@
 use core::fmt;
 use std::{io};
 
-use crate::lmarkdown::parse_error::ParseError;
+use crate::parse_error::ParseError;
 
 #[derive(Debug)]
 pub enum LssgErrorKind {

@@ -1,8 +1,5 @@
-
-
-
 use crate::{
-    domtree::{to_attributes, DomTree},
+    html::{to_attributes, DomTree},
     lmarkdown::Token,
     renderer::RendererModuleContext,
     sitetree::SiteNodeKind,
@@ -106,7 +103,7 @@ impl RendererModule for BlogModule {
                     && !self.has_inserted_date
                     && self.post_enabled_site_ids.contains(&site_id) =>
             {
-                if let SiteNodeKind::Page {  .. } = &site_tree[site_id].kind {
+                if let SiteNodeKind::Page { .. } = &site_tree[site_id].kind {
                     // TODO get date
                     // match input.metadata() {
                     //     Ok(m) => match m.modified() {

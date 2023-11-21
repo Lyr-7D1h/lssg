@@ -38,7 +38,7 @@ lssg https://raw.githubusercontent.com/Lyr-7D1h/lssg/wip/examples/lyrx/home.md .
 
 ## LMarkdown (Lyr's Markdown)
 
-The goal of LMarkdown is to be as similar as markdown to support markdown live preview and correct syntax highlighting while still offering features that allow you to specify how the page should be renderered.
+LMarkdown tries to follow [Commonmark](https://commonmark.org/) markdown specifications although deviating wherever it makes sense to make page renderning easier.
 
 Structure of a lmarkdown file:
 

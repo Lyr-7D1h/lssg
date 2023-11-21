@@ -22,14 +22,6 @@ pub struct DomNode {
     children: Vec<usize>,
 }
 
-impl FromStr for DomNode {
-    type Err = LssgError;
-
-    fn from_str(_s: &str) -> Result<Self, Self::Err> {
-        todo!()
-    }
-}
-
 impl DomNode {
     pub fn text(text: impl Into<String>) -> DomNode {
         DomNode {
@@ -199,46 +191,6 @@ impl DomTree {
     }
 }
 
-// impl fmt::Display for DomTree {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         let mut out: String = String::new();
-//
-//         let mut current_depth = 0;
-//         let mut queue = vec![(self.root, 0)];
-//         while let Some((n, depth)) = queue.pop() {
-//             let node = &self.nodes[n];
-//             for c in node.children.iter().rev() {
-//                 queue.push((c.clone(), depth + 1))
-//             }
-//             if depth < current_depth {
-//                 out.push('\n');
-//                 for _ in 0..(depth - 1) * 2 {
-//                     out.push('\t')
-//                 }
-//             }
-//             if current_depth != 0 {
-//                 out += "\t - \t"
-//             }
-//             out += &match &node.kind {
-//                 DomNodeKind::Text { text, .. } => {
-//                     let mut text = text.clone();
-//                     text.truncate(10);
-//                     if text.len() == 10 {
-//                         format!(r#"{text}.."#)
-//                     } else {
-//                         format!(r#"{text}"#)
-//                     }
-//                 }
-//                 DomNodeKind::Element { tag: kind, .. } => kind.to_owned(),
-//             };
-//             out += &format!("({})", n);
-//             current_depth = depth + 1;
-//         }
-//
-//         f.write_str(&out)?;
-//         Ok(())
-//     }
-// }
 impl fmt::Display for DomTree {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // fill in table
@@ -327,6 +279,7 @@ impl fmt::Display for DomTree {
         Ok(())
     }
 }
+
 /// Utility function to convert iteratables into attributes hashmap
 pub fn to_attributes<I: IntoIterator<Item = (impl Into<String>, impl Into<String>)>>(
     arr: I,

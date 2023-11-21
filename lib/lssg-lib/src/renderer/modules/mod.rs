@@ -1,8 +1,8 @@
-use log::{error};
+use log::error;
 use serde_extensions::Overwrite;
 
 use crate::{
-    domtree::DomTree,
+    html::DomTree,
     lmarkdown::Token,
     sitetree::{Page, SiteTree},
     LssgError,
