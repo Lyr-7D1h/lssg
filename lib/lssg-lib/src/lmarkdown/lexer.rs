@@ -8,27 +8,29 @@ use crate::{
     parse_error::ParseError,
 };
 
+use super::parse_lmarkdown;
+
 /// Remove any tailing new line or starting and ending spaces
 fn sanitize_text(text: String) -> String {
-    let mut result = String::new();
+    let mut lines = vec![];
     for line in text.lines() {
-        result += line.trim_start_matches(' ').trim_end_matches(' ');
-        result.push('\n');
+        lines.push(line.trim_start_matches(' ').trim_end_matches(' '));
     }
 
+    let mut text = lines.join("\n");
     if let Some('\n') = text.chars().last() {
-        result.pop();
+        text.pop();
     }
 
-    return result;
+    return text;
 }
 
-fn html_to_token(html: Html) -> Result<Token, ParseError> {
+fn html_to_token(html: Html) -> Result<Vec<Token>, ParseError> {
     match html {
-        Html::Comment { text } => Ok(Token::Comment { raw: text }),
+        Html::Comment { text } => Ok(vec![Token::Comment { raw: text }]),
         Html::Text { text } => {
-            let mut reader = CharReader::new(text.as_bytes());
-            return read_token(&mut reader);
+            let tokens = parse_lmarkdown(text.as_bytes())?;
+            return Ok(tokens);
         }
         Html::Element {
             tag,
@@ -38,12 +40,15 @@ fn html_to_token(html: Html) -> Result<Token, ParseError> {
             let tokens = children
                 .into_iter()
                 .map(|c| html_to_token(c))
-                .collect::<Result<Vec<Token>, ParseError>>()?;
-            return Ok(Token::Html {
+                .collect::<Result<Vec<Vec<Token>>, ParseError>>()?
+                .into_iter()
+                .flatten()
+                .collect();
+            return Ok(vec![Token::Html {
                 tag,
                 attributes,
                 tokens,
-            });
+            }]);
         }
     }
 }
@@ -55,13 +60,13 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
     while let Some(c) = reader.peek_char(0)? {
         if c == '[' {
             if let Some(raw_text) = reader.peek_until_from(1, |c| c == ']')? {
-                let text_start = raw_text.len() + 1;
-                if let Some('(') = reader.peek_char(text_start)? {
-                    if let Some(raw_href) = reader.peek_until_from(text_start + 1, |c| c == ')')? {
+                let href_start = 1 + raw_text.len();
+                if let Some('(') = reader.peek_char(href_start)? {
+                    if let Some(raw_href) = reader.peek_until_from(href_start + 1, |c| c == ')')? {
                         reader.consume(1)?;
                         let text = reader.consume_string(raw_text.len() - 1)?;
                         reader.consume(2)?;
-                        let href = reader.consume_string(raw_text.len() - 1)?;
+                        let href = reader.consume_string(raw_href.len() - 1)?;
                         reader.consume(1)?;
                         tokens.push(Token::Link { text, href });
                         continue;
@@ -145,7 +150,6 @@ pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Token, ParseErro
         Some(mut c) => {
             // if you start a new block with a newline skip it
             if c == '\n' {
-                debug!("possibly prev tokens left a newline");
                 reader.consume_until_inclusive(|c| c == '\n' || c == '\r')?;
                 c = match reader.peek_char(0)? {
                     Some(c) => c,
@@ -216,17 +220,19 @@ pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Token, ParseErro
                         }
                     }
 
-                    let mut raw_html = start_tag;
                     if let Some(content) =
                         reader.peek_until_match_inclusive(&format!("</{tag}>"))?
                     {
-                        raw_html.push_str(&content);
+                        let content = reader.consume_string(content.len())?;
                         let html = html::parse_html(content.as_bytes())?
                             .into_iter()
                             .next()
                             .expect("Has to contain a single html element");
 
-                        return html_to_token(html);
+                        return Ok(html_to_token(html)?
+                            .into_iter()
+                            .next()
+                            .expect("only contains one html parent"));
                     }
                 }
             }

@@ -54,15 +54,20 @@ impl<R: Read> CharReader<R> {
         return Ok(self.buffer.get(pos).copied());
     }
 
-    // TODO(perf): return a str[], a slice of the characters in buf. Currently not possible
+    pub fn peek_string(&mut self, length: usize) -> Result<String, ParseError> {
+        return self.peek_string_from(0, length);
+    }
+
+    // TODO(perf): return a &str[], a slice of the characters in buf. Currently not possible
     // because rust stores chars as 4 bytes meaning `a` looks like 0x6100, you can't have multiple
     // zero bytes in utf-8 strings so needs to be converted. Possible fix by implementing a utf-8
     // reader storing only bytes and iterating over it.
     //
     /// Try to fill string with `length` bytes
-    pub fn peek_string(&mut self, length: usize) -> Result<String, ParseError> {
-        self.try_fill(length)?;
-        let chars = &self.buffer[0..length.min(self.buffer.len())];
+    pub fn peek_string_from(&mut self, pos: usize, length: usize) -> Result<String, ParseError> {
+        self.try_fill(pos + length)?;
+        let stop = (pos + length).min(self.buffer.len());
+        let chars = &self.buffer[pos..stop];
 
         // have to convert characters to utf-8 because by default each char has 4 bytes.
         let mut bytes: Vec<u8> = Vec::with_capacity(chars.len() * 4);
@@ -73,9 +78,11 @@ impl<R: Read> CharReader<R> {
         return Ok(string);
     }
 
+    // TODO should return usize?
     pub fn peek_until(&mut self, op: fn(char) -> bool) -> Result<Option<String>, ParseError> {
         return self.peek_until_from(0, op);
     }
+
     pub fn peek_until_from(
         &mut self,
         pos: usize,
@@ -94,7 +101,7 @@ impl<R: Read> CharReader<R> {
             i += 1;
         }
 
-        let string = self.peek_string(i + 1)?;
+        let string = self.peek_string_from(pos, i - pos + 1)?;
         return Ok(Some(string));
     }
 
@@ -129,11 +136,14 @@ impl<R: Read> CharReader<R> {
         return Ok(Some(string));
     }
 
-    pub fn consume(&mut self, length: usize) -> Result<(), ParseError> {
+    pub fn consume(&mut self, length: usize) -> Result<Option<()>, ParseError> {
         self.has_read = true;
         self.try_fill(length)?;
+        if self.buffer.len() == 0 {
+            return Ok(None);
+        }
         self.buffer.drain(0..length);
-        Ok(())
+        Ok(Some(()))
     }
 
     pub fn consume_char(&mut self) -> Result<Option<char>, ParseError> {

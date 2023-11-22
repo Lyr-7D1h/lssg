@@ -158,7 +158,8 @@ mod tests {
 
     #[test]
     fn test_html() {
-        let input = r#"<a href="test.com"><i class="fa-solid fa-rss"></i>Test</a><button disabled></button>"#;
+        let input = r#"<a href="test.com"><i class="fa-solid fa-rss"></i>Test</a>
+<button disabled></button>"#;
         let expected = vec![
             Html::Element {
                 tag: "a".into(),
@@ -174,6 +175,7 @@ mod tests {
                     },
                 ],
             },
+            Html::Text { text: "\n".into() },
             Html::Element {
                 tag: "button".into(),
                 attributes: to_attributes([("disabled", "")]),
@@ -183,7 +185,29 @@ mod tests {
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
         let tokens = parse_html(reader).unwrap();
-        assert_eq!(tokens, expected);
+        assert_eq!(expected, tokens);
+
+        let input = r#"<div>
+<a href="link.com">[other](other.com)</a>
+</div>"#;
+        let expected = vec![Html::Element {
+            tag: "div".into(),
+            attributes: HashMap::new(),
+            children: vec![
+                Html::Text { text: "\n".into() },
+                Html::Element {
+                    tag: "a".into(),
+                    attributes: to_attributes([("href", "link.com")]),
+                    children: vec![Html::Text {
+                        text: "[other](other.com)".into(),
+                    }],
+                },
+                Html::Text { text: "\n".into() },
+            ],
+        }];
+        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
+        let tokens = parse_html(reader).unwrap();
+        assert_eq!(expected, tokens);
     }
 
     #[test]
@@ -204,6 +228,6 @@ This should be text
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
         let tokens = parse_html(reader).unwrap();
-        assert_eq!(tokens, expected);
+        assert_eq!(expected, tokens);
     }
 }

@@ -41,9 +41,11 @@ pub fn parse_lmarkdown(input: impl Read) -> Result<Vec<Token>, ParseError> {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
+    use std::{collections::HashMap, io::Cursor};
 
     use toml::Table;
+
+    use crate::html::to_attributes;
 
     use super::*;
 
@@ -117,6 +119,48 @@ another comment
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
         let tokens = parse_lmarkdown(reader).unwrap();
-        assert_eq!(tokens, expected);
+        assert_eq!( expected,tokens);
+    }
+
+    #[test]
+    fn test_links() {
+        let input = r#"# A [test](test.com)
+<div>
+<a href="link.com">[other](other.com)</a>
+</div>"#;
+        let mut attributes_table = Table::new();
+        let mut default_table = Table::new();
+        default_table.insert("title".into(), "asdf".into());
+        attributes_table.insert("default".into(), toml::Value::Table(default_table));
+        let expected = vec![
+            Token::Heading {
+                depth: 1,
+                tokens: vec![
+                    Token::Text { text: "A ".into() },
+                    Token::Link {
+                        text: "test".into(),
+                        href: "test.com".into(),
+                    },
+                ],
+            },
+            Token::Html {
+                tag: "div".into(),
+                attributes: HashMap::new(),
+                tokens: vec![Token::Html {
+                    tag: "a".into(),
+                    attributes: to_attributes([("href", "link.com")]),
+                    tokens: vec![Token::Paragraph {
+                        tokens: vec![Token::Link {
+                            text: "other".into(),
+                            href: "other.com".into(),
+                        }],
+                    }],
+                }],
+            },
+        ];
+
+        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
+        let tokens = parse_lmarkdown(reader).unwrap();
+        assert_eq!( expected,tokens);
     }
 }
