@@ -41,7 +41,7 @@ pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, Pa
                 if "<!--" == reader.peek_string(4)? {
                     if let Some(text) = reader.peek_until_match_inclusive("-->")? {
                         reader.consume(4)?; // skip start
-                        let text = reader.consume_string(text.len() - 3)?;
+                        let text = reader.consume_string(text.len() - 4 - 3)?;
                         reader.consume(3)?; // skip end
                         return Ok(Some(Html::Comment { text }));
                     }

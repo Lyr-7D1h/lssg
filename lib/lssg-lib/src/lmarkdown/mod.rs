@@ -26,6 +26,8 @@ pub fn parse_lmarkdown(input: impl Read) -> Result<Vec<Token>, ParseError> {
 mod tests {
     use std::io::Cursor;
 
+    use toml::Table;
+
     use super::*;
 
     #[test]
@@ -39,8 +41,9 @@ This should be text
         let expected = vec![
             Token::Heading {
                 depth: 1,
-                text: "Rust > c++".into(),
-                tokens: vec![],
+                tokens: vec![Token::Text {
+                    text: "Rust > c++".into(),
+                }],
             },
             Token::Paragraph {
                 tokens: vec![Token::Text {
@@ -50,6 +53,48 @@ This should be text
 This should be text"
                         .into(),
                 }],
+            },
+        ];
+
+        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
+        let tokens = parse_lmarkdown(reader).unwrap();
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_comments() {
+        let input = r#"<!--[default]
+title="asdf"
+-->
+<!-- another comment -->
+paragraph <!-- inline comment -->
+<!--
+another comment
+-->
+"#;
+        let mut attributes_table = Table::new();
+        let mut default_table = Table::new();
+        default_table.insert("title".into(), "asdf".into());
+        attributes_table.insert("default".into(), toml::Value::Table(default_table));
+        let expected = vec![
+            Token::Attributes {
+                toml: toml::Value::Table(attributes_table),
+            },
+            Token::Comment {
+                raw: " another comment ".into(),
+            },
+            Token::Paragraph {
+                tokens: vec![
+                    Token::Text {
+                        text: "paragraph ".into(),
+                    },
+                    Token::Comment {
+                        raw: " inline comment ".into(),
+                    },
+                ],
+            },
+            Token::Comment {
+                raw: "\nanother comment\n".into(),
             },
         ];
 

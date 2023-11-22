@@ -253,11 +253,7 @@ impl RendererModule for DefaultModule {
             Token::Break { raw: _ } => {
                 tree.add_element("br", parent_id);
             }
-            Token::Heading {
-                depth,
-                text: _,
-                tokens,
-            } => {
+            Token::Heading { depth, tokens } => {
                 let parent = tree.add(DomNode::element(format!("h{depth}")), parent_id);
                 render_queue.push_tokens_front(tokens, parent)
             }
@@ -277,9 +273,9 @@ impl RendererModule for DefaultModule {
                 let parent = tree.add_element("code", parent_id);
                 tree.add_text(code, parent);
             }
-            Token::Space { raw: _ } => {
-                tree.add_text("", parent_id);
-            }
+            // Token::Space { raw: _ } => {
+            //     tree.add_text("", parent_id);
+            // }
             Token::Link { text, href } => {
                 if text.len() == 0 {
                     return true;

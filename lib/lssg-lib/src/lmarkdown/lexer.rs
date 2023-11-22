@@ -1,6 +1,6 @@
 use std::{collections::HashMap, io::Read};
 
-use log::warn;
+use log::{debug, warn};
 
 use crate::{
     char_reader::CharReader,
@@ -8,20 +8,24 @@ use crate::{
     parse_error::ParseError,
 };
 
-/// Remove any tailing new line
+/// Remove any tailing new line or starting and ending spaces
 fn sanitize_text(text: String) -> String {
-    let mut chars: Vec<char> = text.chars().collect();
-    if let Some(c) = chars.last() {
-        if c == &'\n' {
-            chars.pop();
-        }
+    let mut result = String::new();
+    for line in text.lines() {
+        result += line.trim_start_matches(' ').trim_end_matches(' ');
+        result.push('\n');
     }
-    chars.into_iter().collect()
+
+    if let Some('\n') = text.chars().last() {
+        result.pop();
+    }
+
+    return result;
 }
 
 fn html_to_token(html: Html) -> Result<Token, ParseError> {
     match html {
-        Html::Comment { text } => Ok(Token::Comment { text }),
+        Html::Comment { text } => Ok(Token::Comment { raw: text }),
         Html::Text { text } => {
             let mut reader = CharReader::new(text.as_bytes());
             return read_token(&mut reader);
@@ -45,42 +49,35 @@ fn html_to_token(html: Html) -> Result<Token, ParseError> {
 }
 
 fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
-    let mut tokens = vec![];
-    let chars: Vec<char> = text.chars().collect();
-    let mut pos = 0;
-    let mut text = String::new();
-    while pos < chars.len() {
-        let c = chars[pos];
+    let mut reader = CharReader::<&[u8]>::from_string(text);
 
+    let mut tokens = vec![];
+    while let Some(c) = reader.peek_char(0)? {
         if c == '[' {
-            let (text_start, mut text_end, mut href_start, mut href_end) = (pos + 1, 0, 0, 0);
-            for i in pos..chars.len() {
-                match chars[i] {
-                    '\n' => break,
-                    ']' => text_end = i,
-                    '(' => href_start = i + 1,
-                    ')' => {
-                        href_end = i;
-                        break;
+            if let Some(raw_text) = reader.peek_until_from(1, |c| c == ']')? {
+                let text_start = raw_text.len() + 1;
+                if let Some('(') = reader.peek_char(text_start)? {
+                    if let Some(raw_href) = reader.peek_until_from(text_start + 1, |c| c == ')')? {
+                        reader.consume(1)?;
+                        let text = reader.consume_string(raw_text.len() - 1)?;
+                        reader.consume(2)?;
+                        let href = reader.consume_string(raw_text.len() - 1)?;
+                        reader.consume(1)?;
+                        tokens.push(Token::Link { text, href });
+                        continue;
                     }
-                    _ => {}
                 }
-            }
-            if text_start <= text_end && text_end <= href_start && href_start < href_end {
-                if text.len() > 0 {
-                    tokens.push(Token::Text { text: text.clone() });
-                    text.clear();
-                }
-                tokens.push(Token::Link {
-                    text: chars[text_start..text_end].iter().collect(),
-                    href: chars[href_start..href_end].iter().collect(),
-                });
-                pos = href_end + 1;
-                continue;
             }
         }
 
         if c == '<' {
+            if let Some(text) = reader.peek_until_match_inclusive("-->")? {
+                reader.consume(4)?; // skip start
+                let text = reader.consume_string(text.len() - 4 - 3)?;
+                reader.consume(3)?; // skip end
+                tokens.push(Token::Comment { raw: text });
+                continue;
+            }
             // TODO support inline html and comments
             // let (start_tag, mut start_tag_end) = (pos, 0);
             // for i in pos..chars.len() {
@@ -125,19 +122,19 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
             // }
         }
 
-        text.push(chars[pos]);
-        pos += 1;
-    }
-    if text.len() > 0 {
-        tokens.push(Token::Text { text: text.clone() });
-        text.clear();
+        let c = reader.consume_char().unwrap().expect("has to be a char");
+        if let Some(Token::Text { text }) = tokens.last_mut() {
+            text.push(c)
+        } else {
+            tokens.push(Token::Text { text: c.into() })
+        }
     }
 
     return Ok(tokens);
 }
 
 // https://spec.commonmark.org/dingus/
-// https://github.com/markedjs/marked/blob/master/src/Lexer.js
+// https://github.com/markedjs/marked/blob/master/src/Lexer.ts
 // https://github.com/songquanpeng/md2html/blob/main/lexer/lexer.go
 // https://marked.js.org/demo/
 /// A function to get the next markdown token using recrusive decent.
@@ -145,11 +142,21 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
 pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Token, ParseError> {
     match reader.peek_char(0)? {
         None => return Ok(Token::EOF),
-        Some(c) => {
+        Some(mut c) => {
+            // if you start a new block with a newline skip it
+            if c == '\n' {
+                debug!("possibly prev tokens left a newline");
+                reader.consume_until_inclusive(|c| c == '\n' || c == '\r')?;
+                c = match reader.peek_char(0)? {
+                    Some(c) => c,
+                    None => return Ok(Token::EOF),
+                }
+            }
+
             // if starts with comment in toml format it is an attribute
             if reader.has_read() == false {
                 if c == '<' {
-                    if reader.peek_string(3)? == "!--" {
+                    if reader.peek_string(4)? == "<!--" {
                         if let Some(comment) = reader.peek_until_match_inclusive("-->")? {
                             match toml::from_str(&comment[4..comment.len() - 3]) {
                                 Ok(toml) => {
@@ -184,11 +191,7 @@ pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Token, ParseErro
                             .collect(),
                     );
                     let tokens = read_inline_tokens(&text)?;
-                    return Ok(Token::Heading {
-                        depth,
-                        text,
-                        tokens,
-                    });
+                    return Ok(Token::Heading { depth, tokens });
                 }
             }
 
@@ -197,9 +200,9 @@ pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Token, ParseErro
                 if "<!--" == reader.peek_string(4)? {
                     if let Some(text) = reader.peek_until_match_inclusive("-->")? {
                         reader.consume(4)?; // skip start
-                        let text = reader.consume_string(text.len() - 3)?;
+                        let text = reader.consume_string(text.len() - 4 - 3)?;
                         reader.consume(3)?; // skip end
-                        return Ok(Token::Comment { text });
+                        return Ok(Token::Comment { raw: text });
                     }
                 }
 
@@ -218,19 +221,18 @@ pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Token, ParseErro
                         reader.peek_until_match_inclusive(&format!("</{tag}>"))?
                     {
                         raw_html.push_str(&content);
-                        let html = html::parse_html(content.as_bytes())?.into_iter().next().expect("Has to contain a single html element");
+                        let html = html::parse_html(content.as_bytes())?
+                            .into_iter()
+                            .next()
+                            .expect("Has to contain a single html element");
 
                         return html_to_token(html);
                     }
                 }
             }
 
-            if c == '\n' {
-                let raw = reader.consume_until_inclusive(|c| c != '\n' && c != '\r')?;
-                return Ok(Token::Space { raw });
-            }
-
-            let text = sanitize_text(reader.consume_until_inclusive(|c| c == '\n' || c == '\r')?);
+            // https://spec.commonmark.org/0.30/#paragraphs
+            let text = sanitize_text(reader.consume_until_match_inclusive("\n")?);
             let tokens = read_inline_tokens(&text)?;
             return Ok(Token::Paragraph { tokens });
         }
@@ -246,7 +248,6 @@ pub enum Token {
     Heading {
         /// 0-6
         depth: u8,
-        text: String,
         tokens: Vec<Token>,
     },
     Html {
@@ -268,9 +269,9 @@ pub enum Token {
         language: String,
         code: String,
     },
-    Space {
-        raw: String,
-    },
+    // Space {
+    //     raw: String,
+    // },
     Link {
         text: String,
         href: String,
@@ -279,7 +280,7 @@ pub enum Token {
         text: String,
     },
     Comment {
-        text: String,
+        raw: String,
     },
     Break {
         raw: String,
