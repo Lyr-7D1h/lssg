@@ -95,10 +95,13 @@ impl Renderer {
             warn!("{token:?} not renderered");
         }
 
-        println!("{tree}");
+        // sanitize html
+        tree.validate();
+
+        // println!("{tree}");
         // println!("{tree:?}");
         // println!("{:?}", tree.get_mut(9));
-        println!("{page:?}");
+        // println!("{page:#?}");
         return Ok(tree.to_html_string());
     }
 }

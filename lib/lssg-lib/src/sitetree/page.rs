@@ -16,7 +16,7 @@ impl Page {
     }
 
     /// Discover any resources and links inside of the page will return vec with (text, href)
-    pub fn links(&self) -> Vec<(&String, &String)> {
+    pub fn links(&self) -> Vec<(&Vec<Token>, &String)> {
         let mut hrefs = vec![];
         let mut queue = vec![&self.tokens];
         while let Some(tokens) = queue.pop() {

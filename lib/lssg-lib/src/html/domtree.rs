@@ -1,4 +1,9 @@
-use std::{collections::HashMap, fmt, str::FromStr};
+use std::{
+    collections::HashMap,
+    fmt,
+    ops::{Index, IndexMut},
+    str::FromStr,
+};
 
 use crate::{
     lssg_error::LssgError,
@@ -20,49 +25,7 @@ pub enum DomNodeKind {
 pub struct DomNode {
     pub kind: DomNodeKind,
     children: Vec<usize>,
-}
-
-impl DomNode {
-    pub fn text(text: impl Into<String>) -> DomNode {
-        DomNode {
-            kind: DomNodeKind::Text { text: text.into() },
-            children: vec![],
-        }
-    }
-    pub fn element(tag: impl Into<String>) -> DomNode {
-        DomNode {
-            kind: DomNodeKind::Element {
-                tag: tag.into(),
-                attributes: HashMap::new(),
-            },
-            children: vec![],
-        }
-    }
-    pub fn element_with_attributes(
-        tag: impl Into<String>,
-        attributes: HashMap<String, String>,
-    ) -> DomNode {
-        DomNode {
-            kind: DomNodeKind::Element {
-                tag: tag.into(),
-                attributes,
-            },
-            children: vec![],
-        }
-    }
-    pub fn element_with_children(
-        tag: impl Into<String>,
-        attributes: HashMap<String, String>,
-        _children: Vec<usize>,
-    ) -> DomNode {
-        DomNode {
-            kind: DomNodeKind::Element {
-                tag: tag.into(),
-                attributes,
-            },
-            children: vec![],
-        }
-    }
+    parent: Option<usize>,
 }
 
 impl Node for DomNode {
@@ -71,6 +34,9 @@ impl Node for DomNode {
     }
 }
 
+/// Tree representation of html (DOM).
+///
+/// **Will panic if invalid or removed id's are used.**
 #[derive(Debug, Clone)]
 pub struct DomTree {
     root: usize,
@@ -84,11 +50,8 @@ impl Tree for DomTree {
         self.root
     }
 
-    fn get(&self, id: usize) -> Option<&DomNode> {
-        match self.nodes.get(id) {
-            Some(n) => n.as_ref(),
-            None => None,
-        }
+    fn get(&self, id: usize) -> &DomNode {
+        &self[id]
     }
 }
 
@@ -96,10 +59,14 @@ impl DomTree {
     pub fn new() -> DomTree {
         let mut tree = DomTree {
             root: 0,
-            nodes: vec![Some(DomNode::element_with_attributes(
-                "html",
-                HashMap::new(),
-            ))],
+            nodes: vec![Some(DomNode {
+                kind: DomNodeKind::Element {
+                    tag: "html".to_string(),
+                    attributes: HashMap::new(),
+                },
+                children: vec![],
+                parent: None,
+            })],
         };
         tree.add_element("head", tree.root);
         tree.add_element("body", tree.root);
@@ -107,11 +74,8 @@ impl DomTree {
         return tree;
     }
 
-    pub fn get_mut(&mut self, id: usize) -> Option<&mut DomNode> {
-        match self.nodes.get_mut(id) {
-            Some(n) => n.as_mut(),
-            None => None,
-        }
+    pub fn get_mut(&mut self, id: usize) -> &mut DomNode {
+        self.nodes.get_mut(id).unwrap().as_mut().unwrap()
     }
 
     /// Get all elements with a certain html tag
@@ -119,11 +83,9 @@ impl DomTree {
         let tag_name = tag_name.into();
         return DFS::new(self)
             .filter(|id| {
-                if let Some(node) = &self.nodes[*id] {
-                    if let DomNodeKind::Element { tag, .. } = node.kind {
-                        if tag == tag_name {
-                            return true;
-                        }
+                if let DomNodeKind::Element { tag, .. } = &self[*id].kind {
+                    if tag == &tag_name {
+                        return true;
                     }
                 }
                 false
@@ -132,46 +94,72 @@ impl DomTree {
     }
 
     /// Add a node to the tree return the id (index) of the node
-    pub fn add(&mut self, node: DomNode, parent_id: usize) -> usize {
-        if let Some(parent) = self.nodes[parent_id] {
-            self.nodes.push(Some(node));
-            let id = self.nodes.len() - 1;
-            self.nodes[parent_id].children.push(id);
-            Some(id)
-        }
-        None
+    pub fn add(&mut self, kind: DomNodeKind, parent_id: usize) -> usize {
+        self.nodes.push(Some(DomNode {
+            kind,
+            children: vec![],
+            parent: Some(parent_id),
+        }));
+        let id = self.nodes.len() - 1;
+        self[parent_id].children.push(id);
+        id
     }
 
     /// Add a node to the tree return the id (index) of the node
     pub fn add_element(&mut self, tag: impl Into<String>, parent_id: usize) -> usize {
-        self.add(DomNode::element(tag), parent_id)
+        self.add(
+            DomNodeKind::Element {
+                tag: tag.into(),
+                attributes: HashMap::new(),
+            },
+            parent_id,
+        )
     }
+
     pub fn add_element_with_attributes(
         &mut self,
         tag: impl Into<String>,
         attributes: HashMap<String, String>,
         parent_id: usize,
     ) -> usize {
-        self.add(DomNode::element_with_attributes(tag, attributes), parent_id)
+        self.add(
+            DomNodeKind::Element {
+                tag: tag.into(),
+                attributes,
+            },
+            parent_id,
+        )
     }
 
     /// Add a node to the tree return the id (index) of the node
     pub fn add_text(&mut self, text: impl Into<String>, parent_id: usize) -> usize {
-        self.add(DomNode::text(text), parent_id)
+        self.add(DomNodeKind::Text { text: text.into() }, parent_id)
     }
 
     pub fn remove(&mut self, id: usize) {
-        todo!();
+        let p = self[id].parent.expect("can't remove root");
+        let parent = &mut self[p];
+        // remove node from parent
+        if let Some(pos) = parent.children.iter().position(|c| *c == id) {
+            parent.children.remove(pos);
+        }
+        // add children to node parent
+        let children = self[id].children.clone();
+        for c in children.into_iter() {
+            (&mut self[p]).children.push(c);
+            self[c].parent = Some(p);
+        }
+        self.nodes[id] = None;
     }
 
     /// Remove empty tags or invalid html in a way that makes sense
     pub fn validate(&mut self) {
         fn validate_recurs(tree: &mut DomTree, id: usize) {
-            for child in tree.nodes[id].children.clone().into_iter() {
+            for child in tree[id].children.clone().into_iter() {
                 validate_recurs(tree, child);
             }
 
-            let node = &tree.nodes[id];
+            let node = &tree[id];
 
             match &node.kind {
                 DomNodeKind::Text { text } => {
@@ -179,7 +167,7 @@ impl DomTree {
                         tree.remove(id);
                     }
                 }
-                DomNodeKind::Element { tag, attributes } => match tag.as_str() {
+                DomNodeKind::Element { tag, .. } => match tag.as_str() {
                     "p" => {
                         if node.children().len() == 0 {
                             tree.remove(id);
@@ -189,10 +177,11 @@ impl DomTree {
                 },
             }
         }
+        validate_recurs(self, self.root());
     }
 
     fn to_html_content_recurs(&self, index: usize) -> String {
-        let node = &self.nodes[index];
+        let node = &self[index];
         match &node.kind {
             DomNodeKind::Text { text } => return text.clone(),
             DomNodeKind::Element { tag, attributes } => {
@@ -248,7 +237,7 @@ impl fmt::Display for DomTree {
         let mut prev_col = 0;
         let mut queue = vec![(self.root(), 0)];
         while let Some((n, col)) = queue.pop() {
-            let node = &self.nodes[n];
+            let node = &self[n];
             for c in &node.children {
                 queue.push((c.clone(), col + 1))
             }
@@ -334,4 +323,35 @@ pub fn to_attributes<I: IntoIterator<Item = (impl Into<String>, impl Into<String
     arr: I,
 ) -> HashMap<String, String> {
     arr.into_iter().map(|(k, v)| (k.into(), v.into())).collect()
+}
+
+impl Index<usize> for DomTree {
+    type Output = DomNode;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.nodes.get(index).unwrap().as_ref().unwrap()
+    }
+}
+impl IndexMut<usize> for DomTree {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        self.nodes.get_mut(index).unwrap().as_mut().unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_remove() {
+        let mut tree = DomTree::new();
+        let body = tree.get_elements_by_tag_name("body")[0];
+        let p = tree.add_element("p", body);
+        let text = tree.add_text("This is a paragraph", p);
+
+        tree.remove(p);
+        assert!(tree.nodes.get(p).unwrap().is_none());
+        assert_eq!(tree[body].children, vec![text]);
+        assert_eq!(tree[text].parent.unwrap(), body);
+    }
 }

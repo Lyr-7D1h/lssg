@@ -6,10 +6,7 @@ use std::{
 
 use log::{debug, warn};
 
-use crate::{
-    tree::Tree,
-    LssgError,
-};
+use crate::{tree::Tree, LssgError};
 
 use super::{
     page::Page,
@@ -275,18 +272,18 @@ impl SiteTree {
             },
         })?;
 
-        let links: Vec<(String, String)> = match &self.nodes[id].kind {
+        let links: Vec<(bool, String)> = match &self.nodes[id].kind {
             SiteNodeKind::Page { page, .. } => page
                 .links()
                 .into_iter()
-                .map(|(text, href)| (text.clone(), href.clone()))
+                .map(|(text, href)| (text.len() == 0, href.clone()))
                 .collect(),
             _ => panic!("has to be page"),
         };
 
-        for (text, href) in links {
+        for (is_empty, href) in links {
             // if link has no text add whatever is in it
-            if text.len() == 0 {
+            if is_empty{
                 let input = input.new(&href)?;
                 let child_id = self.add(input, id)?;
                 self.rel_graph
@@ -408,8 +405,8 @@ impl Tree for SiteTree {
         self.root
     }
 
-    fn nodes(&self) -> &Vec<Self::Node> {
-        &self.nodes
+    fn get(&self, id: usize) -> &Self::Node {
+        &self[id]
     }
 }
 
