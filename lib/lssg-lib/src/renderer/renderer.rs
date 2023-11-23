@@ -61,6 +61,7 @@ impl Renderer {
             self.modules.remove(i);
         }
     }
+
     /// Transform site id into a html page
     pub fn render(&mut self, site_tree: &SiteTree, site_id: usize) -> Result<String, LssgError> {
         // get the site node
@@ -83,17 +84,10 @@ impl Renderer {
             module.render_page(&mut tree, &context);
         }
 
-        // create body
         let body = tree.get_elements_by_tag_name("body")[0];
-        let mut queue = RenderQueue::from_tokens(context.page.tokens().clone(), body);
-        'l: while let Some((token, parent_id)) = queue.pop_front() {
-            for module in &mut self.modules {
-                if module.render_body(&mut tree, &context, &mut queue, parent_id, &token) {
-                    continue 'l;
-                }
-            }
-            warn!("{token:?} not renderered");
-        }
+        let tokens = context.page.tokens();
+        let mut queue = RenderQueue::new(&mut tree, &mut self.modules, &context);
+        queue.render(tokens, body);
 
         // sanitize html
         tree.validate();

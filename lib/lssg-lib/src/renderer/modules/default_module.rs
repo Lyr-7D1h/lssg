@@ -249,11 +249,11 @@ impl RendererModule for DefaultModule {
             }
             Token::Heading { depth, tokens } => {
                 let parent = tree.add_element(format!("h{depth}"), parent_id);
-                render_queue.push_tokens_front(tokens, parent)
+                render_queue.render(tokens, parent_id);
             }
             Token::Paragraph { tokens } => {
                 let parent = tree.add_element("p", parent_id);
-                render_queue.push_tokens_front(tokens, parent)
+                render_queue.render(tokens, parent_id);
             }
             Token::Bold { text } => {
                 let parent = tree.add_element("b", parent_id);
@@ -274,15 +274,17 @@ impl RendererModule for DefaultModule {
                 if text.len() == 0 {
                     return true;
                 }
+                // external link
                 if href.starts_with("http") || href.starts_with("mailto:") {
                     let a = tree.add_element_with_attributes(
                         "a",
                         to_attributes([("href", href)]),
                         parent_id,
                     );
-                    render_queue.push_tokens_front(text, parent_id);
+
+                    render_queue.render(text, a);
+
                     // TODO use html! macro
-                    // external link symbol
                     tree.add_text(r##"<svg width="1em" height="1em" viewBox="0 0 24 24" style="cursor:pointer"><g stroke-width="2.1" stroke="#666" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 13.5 17 19.5 5 19.5 5 7.5 11 7.5"></polyline><path d="M14,4.5 L20,4.5 L20,10.5 M20,4.5 L11,13.5"></path></g></svg>"##, parent_id);
                     return true;
                 }
@@ -302,7 +304,7 @@ impl RendererModule for DefaultModule {
                             to_attributes([("href", rel_path)]),
                             parent_id,
                         );
-                        render_queue.push_tokens_front(text, parent_id);
+                        render_queue.render(text, parent_id);
                         return true;
                     }
                     warn!("Could not find node where {href:?} points to");
@@ -312,7 +314,7 @@ impl RendererModule for DefaultModule {
                     to_attributes([("href", href)]),
                     parent_id,
                 );
-                render_queue.push_tokens_front(text, parent_id);
+                render_queue.render(text, parent_id);
             }
             Token::Text { text } => {
                 tree.add_text(text, parent_id);
@@ -339,7 +341,7 @@ impl RendererModule for DefaultModule {
                                     to_attributes([("class", "card")]),
                                     parent_id,
                                 );
-                render_queue.push_tokens_front(text, parent_id);
+                                render_queue.render(tokens, parent_id);
                             }
                             _ => {}
                         }
@@ -348,7 +350,7 @@ impl RendererModule for DefaultModule {
                 _ => {
                     let parent =
                         tree.add_element_with_attributes(tag, attributes.clone(), parent_id);
-                    render_queue.push_tokens_front(tokens, parent)
+                    render_queue.render(tokens, parent_id);
                 }
             },
             Token::Attributes { .. } | Token::Comment { .. } => {}
