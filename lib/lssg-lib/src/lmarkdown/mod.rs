@@ -126,6 +126,7 @@ another comment
     fn test_links() {
         let input = r#"# A [test](test.com)
 <div>
+[<b>bold</b>](bold.com)
 <a href="link.com">[other](other.com)</a>
 </div>"#;
         let mut attributes_table = Table::new();
@@ -138,7 +139,9 @@ another comment
                 tokens: vec![
                     Token::Text { text: "A ".into() },
                     Token::Link {
-                        text: "test".into(),
+                        text: vec![Token::Text {
+                            text: "test".into(),
+                        }],
                         href: "test.com".into(),
                     },
                 ],
@@ -146,16 +149,29 @@ another comment
             Token::Html {
                 tag: "div".into(),
                 attributes: HashMap::new(),
-                tokens: vec![Token::Html {
-                    tag: "a".into(),
-                    attributes: to_attributes([("href", "link.com")]),
-                    tokens: vec![Token::Paragraph {
+                tokens: vec![
+                    Token::Link {
+                        text: vec![Token::Html {
+                            tag: "b".into(),
+                            attributes: HashMap::new(),
+                            tokens: vec![Token::Text {
+                                text: "bold".into(),
+                            }],
+                        }],
+                        href: "bold.com".into(),
+                    },
+                    Token::Text { text: "\n".into() },
+                    Token::Html {
+                        tag: "a".into(),
+                        attributes: to_attributes([("href", "link.com")]),
                         tokens: vec![Token::Link {
-                            text: "other".into(),
+                            text: vec![Token::Text {
+                                text: "other".into(),
+                            }],
                             href: "other.com".into(),
                         }],
-                    }],
-                }],
+                    },
+                ],
             },
         ];
 

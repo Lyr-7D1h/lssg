@@ -4,5 +4,4 @@ mod lexer;
 
 pub use domtree::*;
 pub use html_proc::*;
-pub use lexer::Html;
 pub use lexer::*;

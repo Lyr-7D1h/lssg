@@ -1,56 +1,24 @@
 use std::{collections::HashMap, io::Read};
 
-use log::{debug, warn};
+use log::warn;
 
 use crate::{
     char_reader::CharReader,
-    html::{self, Html},
+    html::{self, parse_html_block},
     parse_error::ParseError,
 };
-
-use super::parse_lmarkdown;
 
 /// Remove any tailing new line or starting and ending spaces
 fn sanitize_text(text: String) -> String {
     let mut lines = vec![];
     for line in text.lines() {
-        lines.push(line.trim_start_matches(' ').trim_end_matches(' '));
-    }
-
-    let mut text = lines.join("\n");
-    if let Some('\n') = text.chars().last() {
-        text.pop();
-    }
-
-    return text;
-}
-
-fn html_to_token(html: Html) -> Result<Vec<Token>, ParseError> {
-    match html {
-        Html::Comment { text } => Ok(vec![Token::Comment { raw: text }]),
-        Html::Text { text } => {
-            let tokens = parse_lmarkdown(text.as_bytes())?;
-            return Ok(tokens);
-        }
-        Html::Element {
-            tag,
-            attributes,
-            children,
-        } => {
-            let tokens = children
-                .into_iter()
-                .map(|c| html_to_token(c))
-                .collect::<Result<Vec<Vec<Token>>, ParseError>>()?
-                .into_iter()
-                .flatten()
-                .collect();
-            return Ok(vec![Token::Html {
-                tag,
-                attributes,
-                tokens,
-            }]);
+        let trimmed = line.trim();
+        if trimmed.len() > 0 {
+            lines.push(trimmed);
         }
     }
+
+    return lines.join("\n");
 }
 
 fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
@@ -58,6 +26,28 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
 
     let mut tokens = vec![];
     while let Some(c) = reader.peek_char(0)? {
+        if c == '<' {
+            // inline comment
+            if let Some(text) = reader.peek_until_match_inclusive("-->")? {
+                reader.consume(4)?; // skip start
+                let text = reader.consume_string(text.len() - 4 - 3)?;
+                reader.consume(3)?; // skip end
+                tokens.push(Token::Comment { raw: text });
+                continue;
+            }
+
+            if let Some((tag, attributes, content)) = html::parse_html_block(&mut reader)? {
+                let content = sanitize_text(content);
+                tokens.push(Token::Html {
+                    tag,
+                    attributes,
+                    tokens: read_inline_tokens(&content)?,
+                });
+                continue;
+            }
+        }
+
+        // https://spec.commonmark.org/0.30/#links
         if c == '[' {
             if let Some(raw_text) = reader.peek_until_from(1, |c| c == ']')? {
                 let href_start = 1 + raw_text.len();
@@ -68,6 +58,7 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
                         reader.consume(2)?;
                         let href = reader.consume_string(raw_href.len() - 1)?;
                         reader.consume(1)?;
+                        let text = read_inline_tokens(&text)?;
                         tokens.push(Token::Link { text, href });
                         continue;
                     }
@@ -75,57 +66,7 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
             }
         }
 
-        if c == '<' {
-            if let Some(text) = reader.peek_until_match_inclusive("-->")? {
-                reader.consume(4)?; // skip start
-                let text = reader.consume_string(text.len() - 4 - 3)?;
-                reader.consume(3)?; // skip end
-                tokens.push(Token::Comment { raw: text });
-                continue;
-            }
-            // TODO support inline html and comments
-            // let (start_tag, mut start_tag_end) = (pos, 0);
-            // for i in pos..chars.len() {
-            //     match chars[i] {
-            //         '\n' => break,
-            //         '>' => start_tag_end = i,
-            //         _ => {}
-            //     }
-            // }
-            // let mut tag_kind = String::new();
-            // for i in start_tag + 1..start_tag_end {
-            //     match chars[i] {
-            //         ' ' => break,
-            //         c => tag_kind.push(c),
-            //     };
-            // }
-
-            // let (mut end_tag_start, mut end_tag_end) = (0, 0);
-            // if !tag_kind.is_empty() {
-            //     for i in start_tag_end..chars.len() {
-            //         if chars[i] == '<' {
-            //             if let Some(c) = chars.get(i + 1) {
-            //                 if c == &'/' {
-            //                     let exit_tag = chars[i..i + tag_kind.len()]
-            //                         .into_iter()
-            //                         .collect::<String>();
-            //                     if exit_tag == tag_kind {
-            //                         end_tag_start = i;
-            //                         end_tag_end = i + tag_kind.len();
-            //                         break;
-            //                     }
-            //                 }
-            //             }
-            //         }
-            //     }
-            // }
-
-            // if start_tag < start_tag_end && end_tag_start < end_tag_end {
-            //     let tag: String = chars[start_tag + 1..start_tag_end].into_iter().collect();
-            //     // pos = end_tag_end;
-            //     println!("Kind {tag_kind}");
-            // }
-        }
+        if c == '*' {}
 
         let c = reader.consume_char().unwrap().expect("has to be a char");
         if let Some(Token::Text { text }) = tokens.last_mut() {
@@ -138,10 +79,11 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
     return Ok(tokens);
 }
 
-// https://spec.commonmark.org/dingus/
+// official spec: https://spec.commonmark.org/0.30/
 // https://github.com/markedjs/marked/blob/master/src/Lexer.ts
 // https://github.com/songquanpeng/md2html/blob/main/lexer/lexer.go
-// https://marked.js.org/demo/
+// demo: https://marked.js.org/demo/
+// demo: https://spec.commonmark.org/dingus/
 /// A function to get the next markdown token using recrusive decent.
 /// Will first parse a block token (token for a whole line and then parse for any inline tokens when needed.
 pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Token, ParseError> {
@@ -171,6 +113,14 @@ pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Token, ParseErro
                             }
                         }
                     }
+                }
+                if let Some((tag, attributes, content)) = parse_html_block(reader)? {
+                    let tokens = read_inline_tokens(&content)?;
+                    return Ok(Token::Html {
+                        tag,
+                        attributes,
+                        tokens,
+                    });
                 }
             }
 
@@ -210,30 +160,14 @@ pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Token, ParseErro
                     }
                 }
 
-                if let Some(start_tag) = reader.peek_until(|c| c == '>')? {
-                    let mut tag = String::new();
-                    for c in start_tag[1..start_tag.len() - 1].chars() {
-                        match c {
-                            ' ' => break,
-                            '\n' => break,
-                            _ => tag.push(c),
-                        }
-                    }
-
-                    if let Some(content) =
-                        reader.peek_until_match_inclusive(&format!("</{tag}>"))?
-                    {
-                        let content = reader.consume_string(content.len())?;
-                        let html = html::parse_html(content.as_bytes())?
-                            .into_iter()
-                            .next()
-                            .expect("Has to contain a single html element");
-
-                        return Ok(html_to_token(html)?
-                            .into_iter()
-                            .next()
-                            .expect("only contains one html parent"));
-                    }
+                if let Some((tag, attributes, content)) = html::parse_html_block(reader)? {
+                    let content = sanitize_text(content);
+                    let tokens = read_inline_tokens(&content)?;
+                    return Ok(Token::Html {
+                        tag,
+                        attributes,
+                        tokens,
+                    });
                 }
             }
 
@@ -279,7 +213,7 @@ pub enum Token {
     //     raw: String,
     // },
     Link {
-        text: String,
+        text: Vec<Token>,
         href: String,
     },
     Text {
