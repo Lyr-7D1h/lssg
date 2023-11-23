@@ -7,7 +7,7 @@ pub trait Node {
 pub trait Tree {
     type Node: Node;
     fn root(&self) -> usize;
-    fn nodes(&self) -> &Vec<Self::Node>;
+    fn get(&self, id: usize) -> Option<&Self::Node>;
 }
 
 pub struct DFS<'n, T: Tree> {
@@ -28,9 +28,11 @@ impl<'n, T: Tree> Iterator for DFS<'n, T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(id) = self.stack.pop() {
-            let nodes = self.tree.nodes();
-            for child in nodes[id].children() {
+            if let Some(node) = self.tree.get(id) {
+            for child in node.children() {
                 self.stack.push(*child)
+            }
+                
             }
             return Some(id);
         }

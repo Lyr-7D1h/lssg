@@ -119,7 +119,7 @@ another comment
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
         let tokens = parse_lmarkdown(reader).unwrap();
-        assert_eq!( expected,tokens);
+        assert_eq!(expected, tokens);
     }
 
     #[test]
@@ -161,6 +161,6 @@ another comment
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
         let tokens = parse_lmarkdown(reader).unwrap();
-        assert_eq!( expected,tokens);
+        assert_eq!(expected, tokens);
     }
 }
