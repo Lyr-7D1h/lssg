@@ -95,6 +95,25 @@ impl DomTree {
             .collect();
     }
 
+    /// Add parsed html to tree
+    pub fn add_html(&mut self, parent_id: usize, html: Html) -> Option<usize> {
+        match html {
+            Html::Comment { .. } => None,
+            Html::Text { text } => Some(self.add_text(parent_id, text)),
+            Html::Element {
+                tag,
+                attributes,
+                children,
+            } => {
+                let element = self.add_element_with_attributes(parent_id, tag, attributes);
+                for child in children {
+                    self.add_html(element, child);
+                }
+                Some(element)
+            }
+        }
+    }
+
     /// Add a node to the tree return the id (index) of the node
     pub fn add(&mut self, parent_id: usize, kind: DomNodeKind) -> usize {
         self.nodes.push(Some(DomNode {
