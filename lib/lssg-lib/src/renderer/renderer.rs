@@ -1,3 +1,6 @@
+use std::cell::{RefCell, UnsafeCell};
+use std::rc::Rc;
+
 use log::{error, info, warn};
 
 use crate::{
@@ -6,8 +9,8 @@ use crate::{
     LssgError,
 };
 
-use super::modules::{RendererModule, RendererModuleContext};
-use super::RenderQueue;
+use super::{modules::RendererModule, DefaultModule};
+use super::{RenderContext, TokenRenderer};
 
 /// HtmlRenderer is responsible for the process of converting the site tree into the final HTML output.
 /// It does this by managing a queue of tokens to be rendered and delegating the rendering process to different modules.
@@ -27,8 +30,9 @@ impl Renderer {
     /// Will run init on all modules, will remove modules if it fails
     pub fn init(&mut self, site_tree: &mut SiteTree) {
         info!("running init");
-        let failed: Vec<usize> = (&mut self.modules)
-            .into_iter()
+        let failed: Vec<usize> = self
+            .modules
+            .iter_mut()
             .enumerate()
             .filter_map(|(i, module)| match module.init(site_tree) {
                 Ok(_) => None,
@@ -46,8 +50,9 @@ impl Renderer {
     /// Will run after_init on all modules, will remove modules if it fails
     pub fn after_init(&mut self, site_tree: &SiteTree) {
         info!("running after_init");
-        let failed: Vec<usize> = (&mut self.modules)
-            .into_iter()
+        let failed: Vec<usize> = self
+            .modules
+            .iter_mut()
             .enumerate()
             .filter_map(|(i, module)| match module.after_init(site_tree) {
                 Ok(_) => None,
@@ -73,21 +78,15 @@ impl Renderer {
 
         let mut tree = DomTree::new();
 
-        let context = RendererModuleContext {
-            site_tree,
-            site_id,
-            page,
-        };
+        let context = RenderContext::new(site_tree, site_id, page);
 
         // initialize modules
         for module in &mut self.modules {
             module.render_page(&mut tree, &context);
         }
 
-        let body = tree.get_elements_by_tag_name("body")[0];
-        let tokens = context.page.tokens();
-        let mut queue = RenderQueue::new(&mut tree, &mut self.modules, &context);
-        queue.render(tokens, body);
+        let tr = TokenRenderer::new(tree, &mut self.modules, context);
+        let mut tree = tr.populate();
 
         // sanitize html
         tree.validate();

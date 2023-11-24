@@ -13,33 +13,31 @@ pub use blog_module::*;
 mod default_module;
 pub use default_module::*;
 
-use super::RenderQueue;
+use super::{RenderContext, TokenRenderer};
 
 pub trait RendererModule {
     /// Return a static id
     fn id(&self) -> &'static str;
 
     /// This gets run once just after site_tree has been created
-    fn init(&mut self, _site_tree: &mut SiteTree) -> Result<(), LssgError> {
+    fn init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
         Ok(())
     }
 
     /// Gets run after all changes to site tree has been made
-    fn after_init(&mut self, _site_tree: &SiteTree) -> Result<(), LssgError> {
+    fn after_init(&mut self, site_tree: &SiteTree) -> Result<(), LssgError> {
         Ok(())
     }
 
     /// Modify DomTree on init
-    fn render_page<'n>(&mut self, _tree: &mut DomTree, _context: &RendererModuleContext<'n>) {}
+    fn render_page<'n>(&mut self, tree: &mut DomTree, context: &RenderContext<'n>) {}
 
     /// Render a token before default token renderer returns true if it parsed this token otherwise false
     fn render_body<'n>(
         &mut self,
-        _dom_tree: &mut DomTree,
-        _context: &RendererModuleContext<'n>,
-        _render_queue: &mut RenderQueue,
-        _parent_dom_id: usize,
-        _token: &Token,
+        tr: &mut TokenRenderer<'n>,
+        parent_dom_id: usize,
+        token: &Token,
     ) -> bool {
         false
     }
@@ -74,10 +72,4 @@ pub trait RendererModule {
         }
         o
     }
-}
-
-pub struct RendererModuleContext<'n> {
-    pub site_tree: &'n SiteTree,
-    pub site_id: usize,
-    pub page: &'n Page,
 }

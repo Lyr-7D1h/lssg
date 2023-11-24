@@ -10,6 +10,8 @@ use crate::{
     tree::{Node, Tree, DFS},
 };
 
+use super::Html;
+
 #[derive(Debug, Clone)]
 pub enum DomNodeKind {
     Text {
@@ -68,8 +70,8 @@ impl DomTree {
                 parent: None,
             })],
         };
-        tree.add_element("head", tree.root);
-        tree.add_element("body", tree.root);
+        tree.add_element(tree.root, "head");
+        tree.add_element(tree.root, "body");
 
         return tree;
     }
@@ -94,7 +96,7 @@ impl DomTree {
     }
 
     /// Add a node to the tree return the id (index) of the node
-    pub fn add(&mut self, kind: DomNodeKind, parent_id: usize) -> usize {
+    pub fn add(&mut self, parent_id: usize, kind: DomNodeKind) -> usize {
         self.nodes.push(Some(DomNode {
             kind,
             children: vec![],
@@ -106,34 +108,34 @@ impl DomTree {
     }
 
     /// Add a node to the tree return the id (index) of the node
-    pub fn add_element(&mut self, tag: impl Into<String>, parent_id: usize) -> usize {
+    pub fn add_element(&mut self, parent_id: usize, tag: impl Into<String>) -> usize {
         self.add(
+            parent_id,
             DomNodeKind::Element {
                 tag: tag.into(),
                 attributes: HashMap::new(),
             },
-            parent_id,
         )
     }
 
     pub fn add_element_with_attributes(
         &mut self,
+        parent_id: usize,
         tag: impl Into<String>,
         attributes: HashMap<String, String>,
-        parent_id: usize,
     ) -> usize {
         self.add(
+            parent_id,
             DomNodeKind::Element {
                 tag: tag.into(),
                 attributes,
             },
-            parent_id,
         )
     }
 
     /// Add a node to the tree return the id (index) of the node
-    pub fn add_text(&mut self, text: impl Into<String>, parent_id: usize) -> usize {
-        self.add(DomNodeKind::Text { text: text.into() }, parent_id)
+    pub fn add_text(&mut self, parent_id: usize, text: impl Into<String>) -> usize {
+        self.add(parent_id, DomNodeKind::Text { text: text.into() })
     }
 
     pub fn remove(&mut self, id: usize) {
@@ -346,8 +348,8 @@ mod tests {
     fn test_remove() {
         let mut tree = DomTree::new();
         let body = tree.get_elements_by_tag_name("body")[0];
-        let p = tree.add_element("p", body);
-        let text = tree.add_text("This is a paragraph", p);
+        let p = tree.add_element(body, "p");
+        let text = tree.add_text(p, "This is a paragraph");
 
         tree.remove(p);
         assert!(tree.nodes.get(p).unwrap().is_none());

@@ -1,11 +1,11 @@
 use crate::{
     html::{to_attributes, DomTree},
     lmarkdown::Token,
-    renderer::RendererModuleContext,
+    renderer::RenderContext,
     sitetree::SiteNodeKind,
 };
 
-use super::{RenderQueue, RendererModule};
+use super::{RendererModule, TokenRenderer};
 
 pub struct BlogModule {
     post_enabled_site_ids: Vec<usize>,
@@ -29,12 +29,9 @@ impl RendererModule for BlogModule {
         return "blog";
     }
 
-    fn render_page(&mut self, tree: &mut DomTree, context: &super::RendererModuleContext) {
-        let RendererModuleContext {
-            site_tree,
-            site_id,
-            // metadata,
-            ..
+    fn render_page(&mut self, tree: &mut DomTree, context: &super::RenderContext) {
+        let RenderContext {
+            site_tree, site_id, ..
         } = context;
         let site_id = *site_id;
         // reset state
@@ -62,40 +59,37 @@ impl RendererModule for BlogModule {
         // add breacrumbs
         {
             let nav = tree.add_element_with_attributes(
+                body,
                 "nav",
                 to_attributes([("class", "breadcrumbs")]),
-                body,
             );
 
-            tree.add_text("/", nav);
+            tree.add_text(nav, "/");
 
             let parents = site_tree.parents(site_id);
             let parents_length = parents.len();
             for (i, p) in parents.into_iter().rev().enumerate() {
                 let a = tree.add_element_with_attributes(
+                    nav,
                     "a",
                     to_attributes([("href", site_tree.rel_path(site_id, p))]),
-                    nav,
                 );
                 if i != parents_length - 1 {
-                    tree.add_text("/", nav);
+                    tree.add_text(nav, "/");
                 }
-                tree.add_text(site_tree[p].name.clone(), a);
+                tree.add_text(a, site_tree[p].name.clone());
             }
-            tree.add_text(format!("/{}", site_tree[site_id].name), nav);
+            tree.add_text(nav, format!("/{}", site_tree[site_id].name));
         }
     }
 
     fn render_body<'n>(
         &mut self,
-        _tree: &mut DomTree,
-        context: &RendererModuleContext<'n>,
-        _render_queue: &mut RenderQueue,
+        tr: &mut TokenRenderer,
         _parent_dom_id: usize,
         token: &Token,
     ) -> bool {
-        let site_id = context.site_id;
-        let site_tree = context.site_tree;
+        let site_id = tr.site_id();
         match token {
             Token::Heading { depth, .. }
                 if *depth != 1
@@ -103,7 +97,7 @@ impl RendererModule for BlogModule {
                     && !self.has_inserted_date
                     && self.post_enabled_site_ids.contains(&site_id) =>
             {
-                if let SiteNodeKind::Page { .. } = &site_tree[site_id].kind {
+                if let SiteNodeKind::Page { .. } = &tr.site_tree()[site_id].kind {
                     // TODO get date
                     // match input.metadata() {
                     //     Ok(m) => match m.modified() {
