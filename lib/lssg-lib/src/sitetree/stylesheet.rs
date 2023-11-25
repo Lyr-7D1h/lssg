@@ -1,5 +1,3 @@
-
-
 use regex::Regex;
 
 use crate::{sitetree::Input, LssgError};
@@ -42,14 +40,14 @@ impl Stylesheet {
         Ok(Stylesheet { content })
     }
 
-    pub fn resources(&self) -> Result<Vec<String>, LssgError> {
+    pub fn resources(&self) -> Vec<String> {
         let mut resources = vec![];
         // TODO add `@import` support
-        let re = Regex::new(r#"url\("?(\.[^)"]*)"?\)"#)?;
+        let re = Regex::new(r#"url\("?(\.[^)"]*)"?\)"#).unwrap();
         for r in re.captures_iter(&self.content).into_iter() {
             resources.push(r[1].to_string());
         }
-        return Ok(resources);
+        return resources;
     }
 
     /// Append stylesheet and discover local referenced resources

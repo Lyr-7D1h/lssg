@@ -2,7 +2,7 @@ use log::error;
 use serde_extensions::Overwrite;
 
 use crate::{
-    html::DomTree,
+    html::{DomId, DomTree},
     lmarkdown::Token,
     sitetree::{Page, SiteTree},
     LssgError,
@@ -15,7 +15,7 @@ pub use default_module::*;
 
 use super::{RenderContext, TokenRenderer};
 
-    #[allow(unused)]
+#[allow(unused)]
 pub trait RendererModule {
     /// Return a static id
     fn id(&self) -> &'static str;
@@ -39,7 +39,7 @@ pub trait RendererModule {
         &mut self,
         dom: &mut DomTree,
         context: &RenderContext<'n>,
-        parent_dom_id: usize,
+        parent: DomId,
         token: &Token,
         tr: &mut TokenRenderer,
     ) -> bool {

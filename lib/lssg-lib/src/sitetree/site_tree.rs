@@ -315,7 +315,7 @@ impl SiteTree {
 
         let stylesheet = Stylesheet::from_input(&input)?;
         let resources: Vec<String> = stylesheet
-            .resources()?
+            .resources()
             .into_iter()
             .map(|p| p.to_string())
             .collect();

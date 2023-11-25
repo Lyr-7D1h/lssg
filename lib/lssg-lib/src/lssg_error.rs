@@ -1,12 +1,11 @@
 use core::fmt;
-use std::{io};
+use std::io;
 
 use crate::parse_error::ParseError;
 
 #[derive(Debug)]
 pub enum LssgErrorKind {
     ParseError,
-    Regex,
     /// Render error
     Render,
     /// Error with the sitetree
@@ -54,11 +53,6 @@ impl From<ParseError> for LssgError {
 impl From<io::Error> for LssgError {
     fn from(error: io::Error) -> Self {
         Self::new(&error.to_string(), LssgErrorKind::Io)
-    }
-}
-impl From<regex::Error> for LssgError {
-    fn from(error: regex::Error) -> Self {
-        Self::new(&error.to_string(), LssgErrorKind::Regex)
     }
 }
 

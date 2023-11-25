@@ -79,7 +79,12 @@ impl Renderer {
 
         let mut dom = DomTree::new();
 
-        let context = RenderContext {site_tree, site_id, page, input };
+        let context = RenderContext {
+            site_tree,
+            site_id,
+            page,
+            input,
+        };
 
         // initialize modules
         for module in &mut self.modules {

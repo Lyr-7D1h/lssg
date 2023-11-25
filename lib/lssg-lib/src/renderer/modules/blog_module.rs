@@ -1,13 +1,15 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, str::FromStr};
 
 use chrono::{DateTime, Utc};
+use log::{error, warn};
+use serde_extensions::Overwrite;
 
 use crate::{
-    html::{to_attributes, DomTree},
+    html::{to_attributes, DomId, DomTree},
     lmarkdown::Token,
     lssg_error::LssgError,
     renderer::RenderContext,
-    sitetree::SiteNodeKind,
+    sitetree::{Input, SiteNodeKind},
     tree::DFS,
 };
 
@@ -42,7 +44,6 @@ impl RendererModule for BlogModule {
             match &site_tree[id].kind {
                 SiteNodeKind::Page { page, .. } => {
                     if let Some(attributes) = page.attributes() {
-                        println!("{attributes:?}");
                         if let Some(_) = attributes.get("blog") {
                             self.enabled_site_ids.insert(id);
                             continue;
@@ -107,7 +108,7 @@ impl RendererModule for BlogModule {
         &mut self,
         dom: &mut DomTree,
         context: &RenderContext<'n>,
-        parent_dom_id: usize,
+        parent_id: DomId,
         token: &Token,
         tr: &mut TokenRenderer,
     ) -> bool {
@@ -117,23 +118,23 @@ impl RendererModule for BlogModule {
         }
 
         match token {
-            Token::Heading { depth, .. } if *depth == 1 && !self.has_inserted_date => {
-                // match get_date(context) {
-                //     Ok(date) => {
-                //         let date: DateTime<Utc> = date.into();
-                //         let date = date.format("Updated on %B %d, %Y").to_string();
-                //
-                //         let div = dom.add_element_with_attributes(
-                //             parent_dom_id,
-                //             "div",
-                //             to_attributes([("class", "post-updated-on")]),
-                //         );
-                //         dom.add_text(div, date);
-                //
-                //         self.has_inserted_date = true;
-                //     }
-                //     Err(e) => error!("failed to read date from post: {e}"),
-                // }
+            Token::Heading { depth, tokens } if *depth == 1 && !self.has_inserted_date => {
+                match get_date(self, context) {
+                    Ok(date) => {
+                        self.has_inserted_date = true;
+                        // render heading
+                        tr.render(dom, context, parent_id, &vec![token.clone()]);
+                        let div = dom.add_element_with_attributes(
+                            parent_id,
+                            "div",
+                            to_attributes([("class", "post-updated-on")]),
+                        );
+                        dom.add_text(div, date);
+
+                        return true;
+                    }
+                    Err(e) => error!("failed to read date from post: {e}"),
+                }
             }
             _ => {}
         }
@@ -141,11 +142,41 @@ impl RendererModule for BlogModule {
     }
 }
 
+#[derive(Overwrite)]
+pub struct PostOptions {
+    modified_on: Option<String>,
+}
+impl Default for PostOptions {
+    fn default() -> Self {
+        Self { modified_on: None }
+    }
+}
+
 /// get the date from input and options
-fn get_date(context: &RenderContext) -> Result<DateTime<Utc>, LssgError> {
-    todo!()
-    // match input {
-    //     Input::Local { path } => {}
-    //     Input::External { url } => todo!(),
-    // }
+fn get_date(module: &mut BlogModule, context: &RenderContext) -> Result<String, LssgError> {
+    let po: PostOptions = module.options(context.page());
+
+    if let Some(date) = po.modified_on {
+        match DateTime::<Utc>::from_str(&date) {
+            Ok(date) => {
+                let date = date.format("Updated on %B %d, %Y").to_string();
+                return Ok(date);
+            }
+            Err(e) => warn!("could not parse modified_on to date: {e}"),
+        }
+    }
+
+    context.page().attributes();
+    match context.input {
+        Input::Local { path } => {
+            let date: DateTime<Utc> = path.metadata()?.modified()?.into();
+            let date = date.format("Updated on %B %d, %Y").to_string();
+            Ok(date)
+        }
+        Input::External { url } => {
+            return Err(LssgError::render(
+                "getting modified date from url is not supported",
+            ))
+        }
+    }
 }
