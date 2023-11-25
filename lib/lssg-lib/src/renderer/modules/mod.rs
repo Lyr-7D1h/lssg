@@ -15,6 +15,7 @@ pub use default_module::*;
 
 use super::{RenderContext, TokenRenderer};
 
+    #[allow(unused)]
 pub trait RendererModule {
     /// Return a static id
     fn id(&self) -> &'static str;
@@ -30,14 +31,17 @@ pub trait RendererModule {
     }
 
     /// Modify DomTree on init
-    fn render_page<'n>(&mut self, tree: &mut DomTree, context: &RenderContext<'n>) {}
+    // fn render_page<'n>(&mut self, tr: &mut TokenRenderer<'n>) {}
+    fn render_page<'n>(&mut self, dom: &mut DomTree, context: &RenderContext<'n>) {}
 
     /// Render a token before default token renderer returns true if it parsed this token otherwise false
     fn render_body<'n>(
         &mut self,
-        tr: &mut TokenRenderer<'n>,
+        dom: &mut DomTree,
+        context: &RenderContext<'n>,
         parent_dom_id: usize,
         token: &Token,
+        tr: &mut TokenRenderer,
     ) -> bool {
         false
     }
@@ -46,7 +50,7 @@ pub trait RendererModule {
     where
         Self: Sized,
     {
-        if let Some(Token::Attributes { toml }) = page.tokens().first() {
+        if let Some(Token::Attributes { table: toml }) = page.tokens().first() {
             if let Some(v) = toml.get(self.id()) {
                 match default.overwrite(v.clone()) {
                     Ok(d) => d,
@@ -62,7 +66,7 @@ pub trait RendererModule {
         Self: Sized,
     {
         let mut o = D::default();
-        if let Some(Token::Attributes { toml }) = page.tokens().first() {
+        if let Some(Token::Attributes { table: toml }) = page.tokens().first() {
             if let Some(v) = toml.get(self.id()) {
                 match o.overwrite(v.clone()) {
                     Ok(d) => d,

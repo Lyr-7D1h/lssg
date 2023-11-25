@@ -1,18 +1,16 @@
-use crate::sitetree::{Page, SiteTree};
+use crate::sitetree::{Input, Page, SiteTree};
 
+#[derive(Clone)]
 pub struct RenderContext<'n> {
+    pub input: &'n Input,
     pub site_tree: &'n SiteTree,
     pub site_id: usize,
     pub page: &'n Page,
 }
 
 impl<'n> RenderContext<'n> {
-    pub fn new(site_tree: &'n SiteTree, site_id: usize, page: &'n Page) -> Self {
-        RenderContext {
-            site_tree,
-            site_id,
-            page,
-        }
+    pub fn input(&self) -> &Input {
+        self.input
     }
 
     pub fn site_tree(&self) -> &SiteTree {

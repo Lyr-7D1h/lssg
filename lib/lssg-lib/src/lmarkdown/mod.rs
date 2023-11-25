@@ -97,7 +97,7 @@ another comment
         attributes_table.insert("default".into(), toml::Value::Table(default_table));
         let expected = vec![
             Token::Attributes {
-                toml: toml::Value::Table(attributes_table),
+                table: toml::Value::Table(attributes_table),
             },
             Token::Comment {
                 raw: " another comment ".into(),

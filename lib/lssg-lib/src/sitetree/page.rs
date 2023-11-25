@@ -35,6 +35,14 @@ impl Page {
         return hrefs;
     }
 
+    pub fn attributes(&self) -> Option<&toml::Table> {
+        if let Some(Token::Attributes { table }) = self.tokens().first() {
+            Some(table)
+        } else {
+            None
+        }
+    }
+
     pub fn tokens(&self) -> &Vec<Token> {
         &self.tokens
     }

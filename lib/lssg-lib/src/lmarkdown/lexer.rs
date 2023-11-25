@@ -1,4 +1,7 @@
-use std::{collections::HashMap, io::Read};
+use std::{
+    collections::{BTreeMap, HashMap},
+    io::Read,
+};
 
 use log::warn;
 
@@ -105,10 +108,11 @@ pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Token, ParseErro
                     if reader.peek_string(4)? == "<!--" {
                         if let Some(comment) = reader.peek_until_match_inclusive("-->")? {
                             match toml::from_str(&comment[4..comment.len() - 3]) {
-                                Ok(toml) => {
+                                Ok(toml::Value::Table(table)) => {
                                     reader.consume_until_inclusive(|c| c == '>')?;
-                                    return Ok(Token::Attributes { toml });
+                                    return Ok(Token::Attributes { table });
                                 }
+                                Ok(_) => warn!("Attributes is not a table"),
                                 Err(e) => warn!("Not parsing possible Attributes: {e}"),
                             }
                         }
@@ -183,7 +187,7 @@ pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Token, ParseErro
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Attributes {
-        toml: toml::Value,
+        table: toml::map::Map<String, toml::Value>,
     },
     Heading {
         /// 0-6

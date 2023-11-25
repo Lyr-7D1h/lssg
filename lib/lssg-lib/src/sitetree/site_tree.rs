@@ -283,7 +283,7 @@ impl SiteTree {
 
         for (is_empty, href) in links {
             // if link has no text add whatever is in it
-            if is_empty{
+            if is_empty {
                 let input = input.new(&href)?;
                 let child_id = self.add(input, id)?;
                 self.rel_graph

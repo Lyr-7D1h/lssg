@@ -3,6 +3,7 @@ use std::rc::Rc;
 
 use log::{error, info, warn};
 
+use crate::sitetree::Input;
 use crate::{
     html::DomTree,
     sitetree::{SiteNodeKind, SiteTree},
@@ -71,30 +72,30 @@ impl Renderer {
     pub fn render(&mut self, site_tree: &SiteTree, site_id: usize) -> Result<String, LssgError> {
         // get the site node
         let site_node = site_tree.get(site_id)?;
-        let (page, ..) = match &site_node.kind {
+        let (page, input) = match &site_node.kind {
             SiteNodeKind::Page { page, input } => (page, input),
             _ => return Err(LssgError::render("Invalid node type given")),
         };
 
-        let mut tree = DomTree::new();
+        let mut dom = DomTree::new();
 
-        let context = RenderContext::new(site_tree, site_id, page);
+        let context = RenderContext {site_tree, site_id, page, input };
 
         // initialize modules
         for module in &mut self.modules {
-            module.render_page(&mut tree, &context);
+            module.render_page(&mut dom, &context);
         }
 
-        let tr = TokenRenderer::new(tree, &mut self.modules, context);
-        let mut tree = tr.populate();
+        let tr = TokenRenderer::new(&mut self.modules);
+        tr.start_render(&mut dom, &context);
 
         // sanitize html
-        tree.validate();
+        dom.validate();
 
         // println!("{tree}");
         // println!("{tree:?}");
         // println!("{:?}", tree.get_mut(9));
         // println!("{page:#?}");
-        return Ok(tree.to_html_string());
+        return Ok(dom.to_html_string());
     }
 }
