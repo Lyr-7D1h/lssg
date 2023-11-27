@@ -1,3 +1,4 @@
+# WIP
 # Lyr's Static Site Generator
 
 The idea is to generate static html, css, js files based on custom markdown format.
@@ -35,6 +36,29 @@ lssg https://raw.githubusercontent.com/Lyr-7D1h/lssg/wip/examples/lyrx/home.md .
 
 > [!NOTE]
 > Any links from the input markdown file to other markdown files have to be contained within the parent folder of your input markdown file
+
+## Usage
+
+Install binary
+
+```bash
+git clone git@github.com:Lyr-7D1h/lssg.git
+cd lssg
+cargo install --path .
+```
+
+Generate static files
+
+```bash
+lssg {PATH_TO_INDEX_MARKDOWN_FILE} {PATH_TO_OUTPUT_FOLDER}
+```
+
+This is how you would generate lyrx from its content
+
+```bash
+cd examples/lyrx
+lssg ./content/home.md ./build/ 
+```
 
 ## LMarkdown (Lyr's Markdown)
 
