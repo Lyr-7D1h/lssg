@@ -25,7 +25,7 @@ impl Page {
                     Token::Heading { tokens, .. } => queue.push(tokens),
                     Token::Paragraph { tokens, .. } => queue.push(tokens),
                     Token::Html { tokens, .. } => queue.push(tokens),
-                    Token::Link { href, text } => {
+                    Token::Link { href, tokens: text } => {
                         hrefs.push((text, href));
                     }
                     _ => {}
@@ -41,6 +41,14 @@ impl Page {
         } else {
             None
         }
+    }
+
+    // only support relative links to markdown files for now
+    // because this will allow absolute links to markdown files links to for
+    // example https://github.com/Lyr-7D1h/airap/blob/master/README.md
+    // will render a readme even though this might not be appropiate
+    pub fn is_href_to_page(href: &str) -> bool {
+        href.ends_with(".md") && Input::is_relative(&href)
     }
 
     pub fn tokens(&self) -> &Vec<Token> {

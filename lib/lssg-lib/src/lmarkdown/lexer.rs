@@ -62,7 +62,7 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
                         let href = reader.consume_string(raw_href.len() - 1)?;
                         reader.consume(1)?;
                         let text = read_inline_tokens(&text)?;
-                        tokens.push(Token::Link { text, href });
+                        tokens.push(Token::Link { tokens: text, href });
                         continue;
                     }
                 }
@@ -217,7 +217,8 @@ pub enum Token {
     //     raw: String,
     // },
     Link {
-        text: Vec<Token>,
+        /// The text portion of a link that contains Tokens
+        tokens: Vec<Token>,
         href: String,
     },
     Text {

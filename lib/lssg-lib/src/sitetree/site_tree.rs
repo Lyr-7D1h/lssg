@@ -297,18 +297,12 @@ impl SiteTree {
                 continue;
             }
 
-            // only support relative links to markdown files for now
-            // because this will allow absolute links to markdown files links to for
-            // example https://github.com/Lyr-7D1h/airap/blob/master/README.md
-            // will render a readme even though this might not be appropiate
-            if href.ends_with(".md") {
-                if Input::is_relative(&href) {
-                    let input = input.new(&href)?;
-                    let child_id = self.add_page_from_input(input, id)?;
-                    self.rel_graph
-                        .add(id, child_id, Relation::Discovered { raw_path: href });
-                    continue;
-                }
+            if Page::is_href_to_page(&href) {
+                let input = input.new(&href)?;
+                let child_id = self.add_page_from_input(input, id)?;
+                self.rel_graph
+                    .add(id, child_id, Relation::Discovered { raw_path: href });
+                continue;
             }
         }
 
@@ -323,7 +317,7 @@ impl SiteTree {
     ) -> Result<SiteId, LssgError> {
         parent = self.create_folders(&input, parent)?;
 
-        let stylesheet = Stylesheet::from_input(&input)?;
+        let stylesheet = Stylesheet::try_from(&input)?;
         let resources: Vec<String> = stylesheet
             .resources()
             .into_iter()

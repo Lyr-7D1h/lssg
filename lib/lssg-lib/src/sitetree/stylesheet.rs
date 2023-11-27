@@ -1,5 +1,5 @@
-use std::fs::write;
 use std::path::Path;
+use std::{fs::write, io::Read};
 
 use log::info;
 use regex::Regex;
@@ -13,10 +13,8 @@ pub struct Stylesheet {
 }
 
 impl Stylesheet {
-    /// create new empty stylesheet
-    pub fn from_input(input: &Input) -> Result<Stylesheet, LssgError> {
+    pub fn from_readable(mut readable: impl Read) -> Result<Stylesheet, LssgError> {
         let mut content = String::new();
-        let mut readable = input.readable()?;
         readable.read_to_string(&mut content)?;
         Ok(Stylesheet { content })
     }
@@ -45,5 +43,13 @@ impl Stylesheet {
         info!("Writing stylesheet {path:?}",);
         write(path, &mut self.content)?;
         Ok(())
+    }
+}
+
+impl TryFrom<&Input> for Stylesheet {
+    type Error = LssgError;
+
+    fn try_from(value: &Input) -> Result<Self, Self::Error> {
+        Self::from_readable(value.readable()?)
     }
 }

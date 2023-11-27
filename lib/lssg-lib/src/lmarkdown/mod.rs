@@ -139,7 +139,7 @@ another comment
                 tokens: vec![
                     Token::Text { text: "A ".into() },
                     Token::Link {
-                        text: vec![Token::Text {
+                        tokens: vec![Token::Text {
                             text: "test".into(),
                         }],
                         href: "test.com".into(),
@@ -151,7 +151,7 @@ another comment
                 attributes: HashMap::new(),
                 tokens: vec![
                     Token::Link {
-                        text: vec![Token::Html {
+                        tokens: vec![Token::Html {
                             tag: "b".into(),
                             attributes: HashMap::new(),
                             tokens: vec![Token::Text {
@@ -165,7 +165,7 @@ another comment
                         tag: "a".into(),
                         attributes: to_attributes([("href", "link.com")]),
                         tokens: vec![Token::Link {
-                            text: vec![Token::Text {
+                            tokens: vec![Token::Text {
                                 text: "other".into(),
                             }],
                             href: "other.com".into(),

@@ -7,4 +7,3 @@ pub struct RenderContext<'n> {
     pub page: &'n Page,
     pub input: Option<&'n Input>,
 }
-

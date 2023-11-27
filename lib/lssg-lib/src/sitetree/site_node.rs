@@ -53,6 +53,7 @@ impl Input {
             },
         }
     }
+
     /// check if path is a relative path
     pub fn is_relative(path: &str) -> bool {
         if path.starts_with("/") || path.starts_with("http") {
@@ -142,18 +143,6 @@ impl SiteNodeKind {
             false
         }
     }
-    // pub fn from_input(input: Input) -> Result<SiteNodeKind, LssgError> {
-    //     let filename = input.filename();
-    //     if filename.ends_with(".md") {
-    //         let page = Page::from_input(&input)?;
-    //         return Ok(SiteNodeKind::Page { page, input });
-    //     }
-    //     if filename.ends_with(".css") {
-    //         let stylesheet = Stylesheet::from_input(&input)?;
-    //         return Ok(SiteNodeKind::Stylesheet { stylesheet, input });
-    //     }
-    //     Ok(SiteNodeKind::Resource { input })
-    // }
 }
 impl ToString for SiteNodeKind {
     fn to_string(&self) -> String {
@@ -178,5 +167,15 @@ pub struct SiteNode {
 impl Node for SiteNode {
     fn children(&self) -> &Vec<usize> {
         &self.children
+    }
+}
+impl SiteNode {
+    pub fn stylesheet(name: impl Into<String>, parent: usize, stylesheet: Stylesheet) -> SiteNode {
+        SiteNode {
+            name: name.into(),
+            parent: Some(parent),
+            children: vec![],
+            kind: SiteNodeKind::Stylesheet(stylesheet),
+        }
     }
 }
