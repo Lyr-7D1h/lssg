@@ -11,7 +11,7 @@ use crate::{
     lmarkdown::Token,
     lssg_error::LssgError,
     sitetree::{Page, Relation, SiteNode, SiteNodeKind, SiteTree, Stylesheet},
-    tree::DFS,
+    tree::{Node, DFS},
 };
 
 use crate::renderer::{RenderContext, RendererModule, TokenRenderer};
@@ -198,7 +198,7 @@ impl RendererModule for DefaultModule {
                             to_attributes([
                                 ("rel", "icon"),
                                 ("type", "image/x-icon"),
-                                ("href", &site_tree.rel_path(site_id, link.to)),
+                                ("href", &site_tree.path(link.to)),
                             ]),
                         );
                     }
@@ -208,7 +208,7 @@ impl RendererModule for DefaultModule {
                             "link",
                             to_attributes([
                                 ("rel", "stylesheet"),
-                                ("href", &site_tree.rel_path(site_id, link.to)),
+                                ("href", &site_tree.path(link.to)),
                             ]),
                         );
                     }
@@ -283,8 +283,7 @@ impl RendererModule for DefaultModule {
 
                     tr.render(dom, context, a, text);
 
-                    // TODO use html! macro
-                    dom.add_text(parent_id,r##"<svg width="1em" height="1em" viewBox="0 0 24 24" style="cursor:pointer"><g stroke-width="2.1" stroke="#666" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 13.5 17 19.5 5 19.5 5 7.5 11 7.5"></polyline><path d="M14,4.5 L20,4.5 L20,10.5 M20,4.5 L11,13.5"></path></g></svg>"##);
+                    dom.add_html(parent_id, html!(r##"<svg width="1em" height="1em" viewBox="0 0 24 24" style="cursor:pointer"><g stroke-width="2.1" stroke="#666" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 13.5 17 19.5 5 19.5 5 7.5 11 7.5"></polyline><path d="M14,4.5 L20,4.5 L20,10.5 M20,4.5 L11,13.5"></path></g></svg>"##));
                     return true;
                 }
 
@@ -330,9 +329,9 @@ impl RendererModule for DefaultModule {
                 tokens,
             } => match tag.as_str() {
                 "links" if attributes.contains_key("boxes") => {
-                    let mut attributes = HashMap::new();
-                    attributes.insert("class".into(), "links".into());
-                    let parent_id = dom.add_element_with_attributes(parent_id, "nav", attributes);
+                    let parent_id = dom
+                        .add_html(parent_id, html!(r#"<nav class="links"></nav>"#))
+                        .unwrap();
                     for t in tokens {
                         match t {
                             Token::Link { tokens, href } => {
@@ -363,16 +362,13 @@ impl RendererModule for DefaultModule {
                                     href.into()
                                 };
 
-                                let a = dom.add_element_with_attributes(
-                                    parent_id,
-                                    "a",
-                                    to_attributes([("href", href)]),
-                                );
-                                let div = dom.add_element_with_attributes(
-                                    a,
-                                    "div",
-                                    to_attributes([("class", "box")]),
-                                );
+                                let a = dom
+                                    .add_html(
+                                        parent_id,
+                                        html!(r#"<a href="{href}"><div class="box"></div></a>"#),
+                                    )
+                                    .unwrap();
+                                let div = dom[a].children()[0];
                                 tr.render(dom, context, div, tokens);
                             }
                             _ => {}
@@ -390,7 +386,17 @@ impl RendererModule for DefaultModule {
     }
 
     fn after_render<'n>(&mut self, dom: &mut crate::html::DomTree, _: &RenderContext<'n>) {
-        dom.add_html(dom.body(), WATERMARK.clone());
+        let body = dom.body();
+        // move all dom elements to under #content
+        let children = dom[body].children().clone();
+        let content =
+            dom.add_element_with_attributes(body, "div", to_attributes([("id", "content")]));
+        for child in children.into_iter() {
+            dom.set_parent(child, content);
+        }
+
+        // add watermark
+        dom.add_html(body, WATERMARK.clone());
     }
 }
 

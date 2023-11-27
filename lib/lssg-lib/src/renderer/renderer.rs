@@ -104,8 +104,8 @@ impl Renderer {
         // sanitize html
         dom.validate();
 
-        // println!("{tree}");
-        // println!("{tree:?}");
+        // println!("{dom}");
+        // println!("{dom:?}");
         // println!("{:?}", tree.get_mut(9));
         // println!("{page:#?}");
         return Ok(dom.to_html_string());

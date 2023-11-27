@@ -163,6 +163,24 @@ impl DomTree {
         self.add(parent_id, DomNodeKind::Text { text: text.into() })
     }
 
+    /// set a new parent for a node
+    pub fn set_parent(&mut self, id: DomId, new_parent: DomId) {
+        match self[id].parent {
+            Some(parent) => {
+                let parent_node = &mut self[parent];
+                // remove from old parent
+                if let Some(pos) = parent_node.children.iter().position(|c| *c == id) {
+                    parent_node.children.remove(pos);
+                }
+                // add to new parent
+                self[new_parent].children.push(id);
+                self[id].parent = Some(new_parent)
+            }
+            None => panic!("Can't set parent for root node"),
+        }
+    }
+
+    /// Remove a node and connect its children to its parent
     pub fn remove(&mut self, id: DomId) {
         let p = self[id].parent.expect("can't remove root");
         let parent = &mut self[p];
@@ -344,6 +362,16 @@ impl fmt::Display for DomTree {
         Ok(())
     }
 }
+
+// FIXME proc attributes
+// #[macro_export]
+// macro_rules! attributes {
+//     (($x:tt)=($v:tt);*) => {{
+//         let mut attributes = HashMap::new();
+//         attributes.insert($x, $v);
+//         attributes
+//     }};
+// }
 
 /// Utility function to convert iteratables into attributes hashmap
 pub fn to_attributes<I: IntoIterator<Item = (impl Into<String>, impl Into<String>)>>(

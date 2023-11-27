@@ -2,17 +2,42 @@
   text-align: center;
   font-family: monospace;
 }
+
 body,
 html {
+  height: 100%;
   margin: 0;
   padding: 0;
 }
+
 p {
   margin: 0 35vw;
-  min-height: 100%;
   padding: 25px 0 25px 0;
   text-align: left;
   font-size: 1.2em;
+}
+@media only screen and (max-width: 768px) {
+  p {
+    margin: 0;
+  }
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  padding: 25px 0 15px 0;
+  margin: auto 20vw;
+}
+h1 a {
+  text-decoration: none;
+  color: darkblue;
+}
+
+#content {
+  margin: 0;
   position: relative;
   /* Firefox */
   min-height: -moz-calc(100% - 30px);
@@ -21,12 +46,7 @@ p {
   /* Opera */
   min-height: -o-calc(100% - 30px);
   /* Standard */
-  min-height: calc(100% - 30px);
-}
-@media only screen and (max-width: 768px) {
-  p {
-    margin: 0;
-  }
+  min-height: calc(100vh - 30px);
 }
 #watermark {
   height: 30px;
@@ -34,13 +54,11 @@ p {
   clear: both;
   width: 100%;
   position: relative;
+  bottom: 0;
 }
 
-h1 a {
-  text-decoration: none;
-  color: darkblue;
-}
 
+/* links */
 nav.links {
   width: 100%;
   float: left;
@@ -73,15 +91,6 @@ nav.links a {
   box-shadow: 8px 8px 8px 8px rgba(0, 0, 0, 0.2);
 }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  padding: 25px 0 15px 0;
-  margin: auto 20vw;
-}
 
 
 /* TODO: Move to blog */

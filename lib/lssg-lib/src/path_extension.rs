@@ -30,7 +30,7 @@ impl PathExtension for Path {
     fn filestem_from_path(&self) -> Result<String, LssgError> {
         Ok(self
             .file_stem()
-            .ok_or(LssgError::io(&format!("{self:?} does not have a filename")))?
+            .ok_or(LssgError::io(&format!("{self:?} does not have a filestem")))?
             .to_str()
             .ok_or(LssgError::io(&format!("{self:?} is non unicode")))?
             .to_owned())

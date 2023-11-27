@@ -269,7 +269,7 @@ impl SiteTree {
         // create early because of the need of an parent id
         let page = Page::from_input(&input)?;
         let id = self.add(SiteNode {
-            name: input.filestem()?,
+            name: input.filestem().unwrap_or("root".to_string()),
             parent,
             children: vec![],
             kind: SiteNodeKind::Page(page),
