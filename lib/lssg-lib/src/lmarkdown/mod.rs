@@ -1,4 +1,4 @@
-use std::{fs::File, io::Read, path::Path};
+use std::io::Read;
 
 use crate::{char_reader::CharReader, parse_error::ParseError};
 
@@ -17,26 +17,7 @@ pub fn parse_lmarkdown(input: impl Read) -> Result<Vec<Token>, ParseError> {
         }
     }
 
-    // add paragraphs and texts together
-    let mut reduced_tokens = vec![];
-    for mut token in tokens.into_iter() {
-        if let Some(Token::Paragraph { tokens: a }) = reduced_tokens.last_mut() {
-            if let Token::Paragraph { tokens: b } = &mut token {
-                if let Some(Token::Text { text: text_a }) = a.first_mut() {
-                    if let Some(Token::Text { text: text_b }) = b.first_mut() {
-                        text_a.push('\n');
-                        *text_a += text_b;
-                        b.drain(0..1);
-                    }
-                }
-                a.append(b);
-                continue;
-            }
-        }
-        reduced_tokens.push(token)
-    }
-
-    Ok(reduced_tokens)
+    Ok(tokens)
 }
 
 #[cfg(test)]
