@@ -3,7 +3,9 @@ mod relational_graph;
 mod site_node;
 mod site_tree;
 mod stylesheet;
+mod resource;
 
+pub use resource::Resource;
 pub use page::Page;
 pub use relational_graph::{Link, Relation};
 pub use site_node::*;

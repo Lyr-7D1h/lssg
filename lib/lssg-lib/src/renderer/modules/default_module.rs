@@ -56,7 +56,7 @@ fn create_options_map(
 ) -> Result<HashMap<usize, PropegatedOptions>, LssgError> {
     let mut options_map: HashMap<usize, PropegatedOptions> = HashMap::new();
     for id in DFS::new(site_tree) {
-        if let SiteNodeKind::Page { page, .. } = &site_tree[id].kind {
+        if let SiteNodeKind::Page(page) = &site_tree[id].kind {
             if let Some(parent) = site_tree.page_parent(id) {
                 if let Some(parent_options) = options_map.get(&parent) {
                     let parent_options = parent_options.clone();
@@ -104,33 +104,25 @@ impl RendererModule for DefaultModule {
         // propegate relations to stylesheets and favicon from parent to child
         for id in pages {
             // skip page if disabled
-            if let SiteNodeKind::Page { page, .. } = &site_tree[id].kind {
+            if let SiteNodeKind::Page(page) = &site_tree[id].kind {
                 let opts: SinglePageOptions = self.options(page);
                 if opts.disable_parent_resources {
                     continue;
                 }
             }
+
             // get the set of links to favicon and stylesheets
             let mut set: HashSet<usize> = site_tree
                 .links_from(id)
                 .into_iter()
                 .filter_map(|link| match link.relation {
                     Relation::External | Relation::Discovered { .. } => {
-                        match &site_tree[link.to].kind {
+                        let node = &site_tree[link.to];
+                        match node.kind {
                             SiteNodeKind::Stylesheet { .. } => Some(link.to),
-                            SiteNodeKind::Resource { input } => match input.filename() {
-                                Ok(filename) => {
-                                    if filename == "favicon.ico" {
-                                        Some(link.to)
-                                    } else {
-                                        None
-                                    }
-                                }
-                                Err(e) => {
-                                    error!("Invalid filename {e}");
-                                    None
-                                }
-                            },
+                            SiteNodeKind::Resource { .. } if node.name == "favicon.ico" => {
+                                Some(link.to)
+                            }
                             _ => None,
                         }
                     }
@@ -161,8 +153,8 @@ impl RendererModule for DefaultModule {
     }
 
     fn render_page<'n>(&mut self, dom: &mut crate::html::DomTree, context: &RenderContext<'n>) {
-        let site_id = context.site_id();
-        let site_tree = context.site_tree();
+        let site_id = context.site_id;
+        let site_tree = context.site_tree;
 
         let options = self
             .options_map
@@ -283,8 +275,8 @@ impl RendererModule for DefaultModule {
 
                 if href.ends_with(".md") {
                     let to_id = context
-                        .site_tree()
-                        .links_from(context.site_id())
+                        .site_tree
+                        .links_from(context.site_id)
                         .into_iter()
                         .find_map(|l| {
                             if let Relation::Discovered { raw_path: path } = &l.relation {
@@ -295,7 +287,7 @@ impl RendererModule for DefaultModule {
                             None
                         });
                     if let Some(to_id) = to_id {
-                        let rel_path = context.site_tree().path(to_id);
+                        let rel_path = context.site_tree.path(to_id);
                         let parent_id = dom.add_element_with_attributes(
                             parent_id,
                             "a",

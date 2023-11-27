@@ -1,3 +1,7 @@
+use std::fs::write;
+use std::path::Path;
+
+use log::info;
 use regex::Regex;
 
 use crate::{sitetree::Input, LssgError};
@@ -7,29 +11,6 @@ use crate::{sitetree::Input, LssgError};
 pub struct Stylesheet {
     content: String,
 }
-
-// fn get_resources_from_content(
-//     content: &String,
-//     input: &Input,
-// ) -> Result<HashMap<Input, HashSet<String>>, LssgError> {
-//     let mut resources: HashMap<Input, HashSet<String>> = HashMap::new();
-//
-//     // TODO add `@import` support
-//     let re = Regex::new(r#"url\("?(\.[^)"]*)"?\)"#)?;
-//     for r in re.captures_iter(&content).into_iter() {
-//         let input = Input::from_string(&r[1], Some(input))?;
-//
-//         let raw = r[0].to_owned();
-//         if let Some(set) = resources.get_mut(&input) {
-//             set.insert(raw);
-//         } else {
-//             let mut set = HashSet::new();
-//             set.insert(raw);
-//             resources.insert(input, set);
-//         }
-//     }
-//     Ok(resources)
-// }
 
 impl Stylesheet {
     /// create new empty stylesheet
@@ -60,7 +41,9 @@ impl Stylesheet {
         self.content = self.content.replace(raw_path, updated_path);
     }
 
-    pub fn to_string(self) -> String {
-        self.content
+    pub fn write(&mut self, path: &Path) -> Result<(), LssgError> {
+        info!("Writing stylesheet {path:?}",);
+        write(path, &mut self.content)?;
+        Ok(())
     }
 }

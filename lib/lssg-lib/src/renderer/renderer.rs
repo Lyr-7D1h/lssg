@@ -72,18 +72,18 @@ impl Renderer {
     pub fn render(&mut self, site_tree: &SiteTree, site_id: usize) -> Result<String, LssgError> {
         // get the site node
         let site_node = site_tree.get(site_id)?;
-        let (page, input) = match &site_node.kind {
-            SiteNodeKind::Page { page, input } => (page, input),
+        let page = match &site_node.kind {
+            SiteNodeKind::Page(page) => page,
             _ => return Err(LssgError::render("Invalid node type given")),
         };
 
         let mut dom = DomTree::new();
 
         let context = RenderContext {
+            input: site_tree.get_input(site_id),
             site_tree,
             site_id,
             page,
-            input,
         };
 
         // initialize modules

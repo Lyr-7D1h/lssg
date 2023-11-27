@@ -1,8 +1,8 @@
+pub mod char_reader;
 pub mod lmarkdown;
+pub mod parse_error;
 pub mod renderer;
 pub mod sitetree;
-pub mod parse_error;
-pub mod char_reader;
 
 pub mod html;
 pub mod lssg_error;
@@ -71,17 +71,17 @@ impl Lssg {
 
         let mut queue: Vec<usize> = vec![site_tree.root()];
         while let Some(site_id) = queue.pop() {
-            let node = site_tree.get(site_id)?;
-            queue.append(&mut node.children.clone());
+            queue.append(&mut site_tree[site_id].children.clone());
             let rel_path = site_tree.rel_path(site_tree.root(), site_id);
             let path = self
                 .output_directory
                 .join(rel_path)
                 .canonicalize_nonexistent_path();
-            match &node.kind {
-                SiteNodeKind::Stylesheet { stylesheet, .. } => {
+            match &mut site_tree[site_id].kind {
+                SiteNodeKind::Stylesheet(stylesheet) => {
                     let mut stylesheet = stylesheet.clone();
 
+                    // update resources to stylesheet sitenode path
                     for link in site_tree.links_from(site_id) {
                         if let Relation::Discovered { raw_path } = &link.relation {
                             let updated_resource = site_tree.path(link.to);
@@ -89,14 +89,10 @@ impl Lssg {
                         }
                     }
 
-                    info!("Writing stylesheet {path:?}",);
-                    write(path, stylesheet.to_string())?;
+                    stylesheet.write(&path)?;
                 }
-                SiteNodeKind::Resource { input } => {
-                    info!("Writing resource {path:?}",);
-                    let mut file = File::create(path)?;
-                    let mut readable = input.readable()?;
-                    io::copy(&mut readable, &mut file)?;
+                SiteNodeKind::Resource(resource) => {
+                    resource.write(&path)?;
                 }
                 SiteNodeKind::Folder => {
                     info!("Creating folder {path:?}",);

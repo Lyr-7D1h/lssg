@@ -8,8 +8,8 @@ use crate::{path_extension::PathExtension, tree::Node, LssgError};
 use pathdiff::diff_paths;
 use reqwest::Url;
 
-use super::page::Page;
 use super::stylesheet::Stylesheet;
+use super::{page::Page, Resource};
 
 /// Wrapper around absolute path to either an internal or external (http://) file
 #[derive(Debug, Clone, Hash, Eq, PartialEq)] // TODO check if Hash is valid
@@ -123,17 +123,9 @@ impl Input {
 
 #[derive(Debug)]
 pub enum SiteNodeKind {
-    Stylesheet {
-        stylesheet: Stylesheet,
-        input: Input,
-    },
-    Page {
-        page: Page,
-        input: Input,
-    },
-    Resource {
-        input: Input,
-    },
+    Stylesheet(Stylesheet),
+    Page(Page),
+    Resource(Resource),
     Folder,
 }
 impl SiteNodeKind {
@@ -174,6 +166,7 @@ impl ToString for SiteNodeKind {
         .into()
     }
 }
+
 #[derive(Debug)]
 pub struct SiteNode {
     /// Unique name within children of node

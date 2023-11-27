@@ -46,7 +46,7 @@ impl<'a> TokenRenderer {
     /// consume self and return a parsed domtree
     pub fn start_render(mut self, dom: &mut DomTree, context: &RenderContext) {
         let body = dom.get_elements_by_tag_name("body")[0];
-        let tokens = context.page().tokens();
+        let tokens = context.page.tokens();
         self.render(dom, context, body, tokens);
     }
 }

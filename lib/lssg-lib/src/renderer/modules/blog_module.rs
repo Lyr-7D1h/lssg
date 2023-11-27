@@ -44,7 +44,7 @@ impl RendererModule for BlogModule {
         // if parent contains blog key than all children also belong to blog
         for id in DFS::new(site_tree) {
             match &site_tree[id].kind {
-                SiteNodeKind::Page { page, .. } => {
+                SiteNodeKind::Page(page) => {
                     if let Some(attributes) = page.attributes() {
                         if let Some(_) = attributes.get("blog") {
                             self.root_site_ids.insert(id);
@@ -68,8 +68,8 @@ impl RendererModule for BlogModule {
     }
 
     fn render_page<'n>(&mut self, dom: &mut DomTree, context: &RenderContext<'n>) {
-        let site_tree = context.site_tree();
-        let site_id = context.site_id();
+        let site_tree = context.site_tree;
+        let site_id = context.site_id;
 
         if !self.post_site_ids.contains(&site_id) && !self.root_site_ids.contains(&site_id) {
             return;
@@ -116,7 +116,7 @@ impl RendererModule for BlogModule {
         token: &Token,
         tr: &mut TokenRenderer,
     ) -> bool {
-        let site_id = context.site_id();
+        let site_id = context.site_id;
         if !self.post_site_ids.contains(&site_id) {
             return false;
         }
@@ -158,7 +158,7 @@ impl Default for PostOptions {
 
 /// get the date from input and options
 fn get_date(module: &mut BlogModule, context: &RenderContext) -> Result<String, LssgError> {
-    let po: PostOptions = module.options(context.page());
+    let po: PostOptions = module.options(context.page);
 
     if let Some(date) = po.modified_on {
         match DateTime::<Utc>::from_str(&date) {
@@ -170,17 +170,17 @@ fn get_date(module: &mut BlogModule, context: &RenderContext) -> Result<String, 
         }
     }
 
-    context.page().attributes();
     match context.input {
-        Input::Local { path } => {
+        Some(Input::Local { path }) => {
             let date: DateTime<Utc> = path.metadata()?.modified()?.into();
             let date = date.format("Updated on %B %d, %Y").to_string();
             Ok(date)
         }
-        Input::External { url } => {
+        Some(Input::External { url }) => {
             return Err(LssgError::render(
                 "getting modified date from url is not supported",
             ))
         }
+        None => return Err(LssgError::render("page does not have an Input")),
     }
 }

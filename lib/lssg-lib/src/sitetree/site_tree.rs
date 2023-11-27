@@ -13,10 +13,10 @@ use super::{
     relational_graph::RelationalGraph,
     relational_graph::{Link, Relation},
     stylesheet::Stylesheet,
-    Input, SiteNode, SiteNodeKind,
+    Input, Resource, SiteNode, SiteNodeKind,
 };
 
-fn absolute_path(nodes: &Vec<SiteNode>, to: usize) -> String {
+fn absolute_path(nodes: &Vec<SiteNode>, to: SiteId) -> String {
     let mut names = vec![nodes[to].name.clone()];
     let mut parent = nodes[to].parent;
     while let Some(p) = parent {
@@ -29,7 +29,7 @@ fn absolute_path(nodes: &Vec<SiteNode>, to: usize) -> String {
 }
 
 /// Get the relative path between two nodes
-fn rel_path(nodes: &Vec<SiteNode>, from: usize, to: usize) -> String {
+fn rel_path(nodes: &Vec<SiteNode>, from: SiteId, to: SiteId) -> String {
     let mut visited = HashMap::new();
     let mut to_path = vec![nodes[to].name.clone()];
 
@@ -76,16 +76,18 @@ fn rel_path(nodes: &Vec<SiteNode>, from: usize, to: usize) -> String {
     }
 }
 
+pub type SiteId = usize;
+
 /// Code representation of all nodes within the site (hiarchy and how nodes are related)
 #[derive(Debug)]
 pub struct SiteTree {
     nodes: Vec<SiteNode>,
-    root: usize,
+    root: SiteId,
     // used for detecting if inputs are outside of the root input file
     root_input: Input,
 
     /// cannonical paths to node ids
-    input_to_id: HashMap<Input, usize>,
+    input_to_id: HashMap<Input, SiteId>,
     rel_graph: RelationalGraph,
 }
 
@@ -103,8 +105,8 @@ impl SiteTree {
         Ok(tree)
     }
 
-    /// Check if node `id` has `parent_id` as parent node
-    pub fn is_parent(&self, id: usize, parent_id: usize) -> bool {
+    /// Check if node `id` has `parent_id` as (grand)parent node
+    pub fn is_parent(&self, id: SiteId, parent_id: SiteId) -> bool {
         let mut parent = self.nodes[id].parent;
         while let Some(p) = parent {
             if p == parent_id {
@@ -115,26 +117,33 @@ impl SiteTree {
         return false;
     }
 
+    /// try and get the input of a node if input exists
+    pub fn get_input(&self, id: SiteId) -> Option<&Input> {
+        self.input_to_id
+            .iter()
+            .find_map(|(input, i)| if *i == id { Some(input) } else { None })
+    }
+
     // get a node by name by checking the children of `id`
-    pub fn get_by_name(&self, name: &str, id: usize) -> Option<&usize> {
+    pub fn get_by_name(&self, name: &str, id: SiteId) -> Option<&SiteId> {
         self.nodes[id]
             .children
             .iter()
             .find(|n| &self.nodes[**n].name == name)
     }
 
-    pub fn root(&self) -> usize {
+    pub fn root(&self) -> SiteId {
         self.root
     }
 
-    pub fn get(&self, id: usize) -> Result<&SiteNode, LssgError> {
+    pub fn get(&self, id: SiteId) -> Result<&SiteNode, LssgError> {
         self.nodes.get(id).ok_or(LssgError::sitetree(&format!(
             "Could not find {id} in SiteTree"
         )))
     }
 
     /// get next parent of page
-    pub fn page_parent(&self, id: usize) -> Option<usize> {
+    pub fn page_parent(&self, id: SiteId) -> Option<SiteId> {
         let mut parent = self.nodes[id].parent;
         let mut parents = vec![];
         while let Some(p) = parent {
@@ -148,7 +157,7 @@ impl SiteTree {
     }
 
     /// Get all parents from a node
-    pub fn parents(&self, id: usize) -> Vec<usize> {
+    pub fn parents(&self, id: SiteId) -> Vec<SiteId> {
         let mut parent = self.nodes[id].parent;
         let mut parents = vec![];
         while let Some(p) = parent {
@@ -159,53 +168,39 @@ impl SiteTree {
     }
 
     /// Get the absolute path of a node
-    pub fn path(&self, id: usize) -> String {
+    pub fn path(&self, id: SiteId) -> String {
         absolute_path(&self.nodes, id)
     }
 
     /// Get the relative path between two nodes
-    pub fn rel_path(&self, from: usize, to: usize) -> String {
+    pub fn rel_path(&self, from: SiteId, to: SiteId) -> String {
         rel_path(&self.nodes, from, to)
     }
 
-    pub fn ids(&self) -> Vec<usize> {
+    pub fn ids(&self) -> Vec<SiteId> {
         (0..self.nodes.len() - 1).collect()
     }
 
-    pub fn add_link(&mut self, from: usize, to: usize) {
+    pub fn add_link(&mut self, from: SiteId, to: SiteId) {
         self.rel_graph.add(from, to, Relation::External);
     }
 
     /// Get all the relations from a single node to other nodes
-    pub fn links_from(&self, from: usize) -> Vec<&Link> {
+    pub fn links_from(&self, from: SiteId) -> Vec<&Link> {
         self.rel_graph.links_from(from)
     }
 
     /// Utility function to add a node, create a id and add to parent children
-    fn add_node(&mut self, mut node: SiteNode) -> Result<usize, LssgError> {
+    pub fn add(&mut self, node: SiteNode) -> Result<SiteId, LssgError> {
         // check for name collisions
         if let Some(parent) = node.parent {
             if let Some(id) = self.get_by_name(&node.name, parent) {
                 warn!("{} already exists at {id}", node.name);
+                return Ok(*id);
             }
         }
 
         let id = self.nodes.len();
-
-        // register input to files to ids
-        match &mut node.kind {
-            SiteNodeKind::Stylesheet { input, .. }
-            | SiteNodeKind::Page { input, .. }
-            | SiteNodeKind::Resource { input } => {
-                if let Some(id) = self.input_to_id.get(&input) {
-                    warn!("{input:?} already added under {id}");
-                    return Ok(*id);
-                }
-                self.input_to_id.insert(input.clone(), id);
-            }
-            _ => {}
-        };
-
         if let Some(parent) = node.parent {
             self.nodes[parent].children.push(id);
             self.rel_graph.add(parent, id, Relation::Family);
@@ -215,33 +210,44 @@ impl SiteTree {
         Ok(id)
     }
 
-    /// add from Input, will figure out what node to add from input
-    pub fn add(&mut self, input: Input, mut parent_id: usize) -> Result<usize, LssgError> {
-        // return id if already exists
+    /// add from Input, will figure out what node to add from input and will register input not to
+    /// be used for other nodes
+    pub fn add_from_input(
+        &mut self,
+        input: Input,
+        mut parent_id: SiteId,
+    ) -> Result<SiteId, LssgError> {
+        // return id if file already exists
         if let Some(id) = self.input_to_id.get(&input) {
-            // warn!("{} already exists using existing node instead", name);
+            warn!(
+                "{} already exists using existing node instead",
+                input.filename()?
+            );
             return Ok(*id);
         }
 
-        if SiteNodeKind::input_is_stylesheet(&input) {
-            return self.add_stylesheet(input, parent_id);
-        }
-        if SiteNodeKind::input_is_page(&input) {
-            return self.add_page(input, parent_id);
-        }
+        let id = if SiteNodeKind::input_is_stylesheet(&input) {
+            self.add_stylesheet_from_input(input.clone(), parent_id)?
+        } else if SiteNodeKind::input_is_page(&input) {
+            self.add_page_from_input(input.clone(), parent_id)?
+        } else {
+            parent_id = self.create_folders(&input, parent_id)?;
+            let id = self.add(SiteNode {
+                name: input.filename()?,
+                parent: Some(parent_id),
+                children: vec![],
+                kind: SiteNodeKind::Resource(Resource::from_input(&input)?),
+            })?;
+            self.input_to_id.insert(input.clone(), id);
+            id
+        };
 
-        parent_id = self.create_folders(&input, parent_id)?;
-        return self.add_node(SiteNode {
-            name: input.filename()?,
-            parent: Some(parent_id),
-            children: vec![],
-            kind: SiteNodeKind::Resource { input },
-        });
+        Ok(id)
     }
 
     /// Add a page node to tree and discover any other new pages
     /// will error if input is not a markdown file
-    pub fn add_page(&mut self, input: Input, parent: usize) -> Result<usize, LssgError> {
+    fn add_page_from_input(&mut self, input: Input, parent: SiteId) -> Result<SiteId, LssgError> {
         self.add_page_with_root(input, Some(parent))
     }
 
@@ -249,8 +255,8 @@ impl SiteTree {
     fn add_page_with_root(
         &mut self,
         input: Input,
-        mut parent: Option<usize>,
-    ) -> Result<usize, LssgError> {
+        mut parent: Option<SiteId>,
+    ) -> Result<SiteId, LssgError> {
         if let Some(id) = self.input_to_id.get(&input) {
             // TODO if this page exists should the location of the page be updated?
             return Ok(*id);
@@ -262,18 +268,18 @@ impl SiteTree {
 
         // create early because of the need of an parent id
         let page = Page::from_input(&input)?;
-        let id = self.add_node(SiteNode {
+        let id = self.add(SiteNode {
             name: input.filestem()?,
             parent,
             children: vec![],
-            kind: SiteNodeKind::Page {
-                page,
-                input: input.clone(),
-            },
+            kind: SiteNodeKind::Page(page),
         })?;
 
+        // register input
+        self.input_to_id.insert(input.clone(), id);
+
         let links: Vec<(bool, String)> = match &self.nodes[id].kind {
-            SiteNodeKind::Page { page, .. } => page
+            SiteNodeKind::Page(page) => page
                 .links()
                 .into_iter()
                 .map(|(text, href)| (text.len() == 0, href.clone()))
@@ -285,7 +291,7 @@ impl SiteTree {
             // if link has no text add whatever is in it
             if is_empty {
                 let input = input.new(&href)?;
-                let child_id = self.add(input, id)?;
+                let child_id = self.add_from_input(input, id)?;
                 self.rel_graph
                     .add(id, child_id, Relation::Discovered { raw_path: href });
                 continue;
@@ -298,7 +304,7 @@ impl SiteTree {
             if href.ends_with(".md") {
                 if Input::is_relative(&href) {
                     let input = input.new(&href)?;
-                    let child_id = self.add_page(input, id)?;
+                    let child_id = self.add_page_from_input(input, id)?;
                     self.rel_graph
                         .add(id, child_id, Relation::Discovered { raw_path: href });
                     continue;
@@ -310,7 +316,11 @@ impl SiteTree {
     }
 
     /// Add a stylesheet and all resources needed by the stylesheet
-    pub fn add_stylesheet(&mut self, input: Input, mut parent: usize) -> Result<usize, LssgError> {
+    pub fn add_stylesheet_from_input(
+        &mut self,
+        input: Input,
+        mut parent: SiteId,
+    ) -> Result<SiteId, LssgError> {
         parent = self.create_folders(&input, parent)?;
 
         let stylesheet = Stylesheet::from_input(&input)?;
@@ -321,38 +331,39 @@ impl SiteTree {
             .collect();
 
         let parent = self.create_folders(&input, parent)?;
-        let stylesheet_id = self.add_node(SiteNode {
+        let stylesheet_id = self.add(SiteNode {
             name: input.filename()?,
             parent: Some(parent),
             children: vec![],
-            kind: SiteNodeKind::Stylesheet {
-                stylesheet,
-                input: input.clone(),
-            },
+            kind: SiteNodeKind::Stylesheet(stylesheet),
         })?;
 
         for resource in resources {
             let input = input.new(&resource)?;
             let parent = self.create_folders(&input, parent)?;
-            let resource_id = self.add_node(SiteNode {
+            let resource_id = self.add(SiteNode {
                 name: input.filename()?,
                 parent: Some(parent),
                 children: vec![],
-                kind: SiteNodeKind::Resource { input },
+                kind: SiteNodeKind::Resource(Resource::from_input(&input)?),
             })?;
             self.rel_graph.add(
                 stylesheet_id,
                 resource_id,
                 Relation::Discovered { raw_path: resource },
             );
+            self.input_to_id.insert(input, resource_id);
         }
+
+        // register input
+        self.input_to_id.insert(input, stylesheet_id);
 
         Ok(stylesheet_id)
     }
 
     /// If local input and not outside of `root_input` it will create some extra folders for
     /// structuring SiteTree
-    fn create_folders(&mut self, input: &Input, mut parent: usize) -> Result<usize, LssgError> {
+    fn create_folders(&mut self, input: &Input, mut parent: SiteId) -> Result<SiteId, LssgError> {
         if let Some(rel_path) = self.root_input.make_relative(input) {
             // don't allow backtrack from root
             if rel_path.starts_with("..") {
@@ -375,7 +386,7 @@ impl SiteTree {
                     parent = *id;
                 } else {
                     debug!("creating folder {name:?} under {parent:?}");
-                    parent = self.add_node(SiteNode {
+                    parent = self.add(SiteNode {
                         name: name.to_string(),
                         parent: Some(parent),
                         children: vec![],
@@ -387,7 +398,7 @@ impl SiteTree {
         return Ok(parent);
     }
 
-    pub fn remove(&mut self, id: usize) {
+    pub fn remove(&mut self, id: SiteId) {
         self.rel_graph.remove_all(id);
         todo!("remove from tree");
     }
@@ -401,11 +412,11 @@ impl SiteTree {
 impl Tree for SiteTree {
     type Node = SiteNode;
 
-    fn root(&self) -> usize {
+    fn root(&self) -> SiteId {
         self.root
     }
 
-    fn get(&self, id: usize) -> &Self::Node {
+    fn get(&self, id: SiteId) -> &Self::Node {
         &self[id]
     }
 }
@@ -487,15 +498,15 @@ impl fmt::Display for SiteTree {
     }
 }
 
-impl Index<usize> for SiteTree {
+impl Index<SiteId> for SiteTree {
     type Output = SiteNode;
 
-    fn index(&self, index: usize) -> &Self::Output {
+    fn index(&self, index: SiteId) -> &Self::Output {
         &self.nodes[index]
     }
 }
-impl IndexMut<usize> for SiteTree {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+impl IndexMut<SiteId> for SiteTree {
+    fn index_mut(&mut self, index: SiteId) -> &mut Self::Output {
         &mut self.nodes[index]
     }
 }
