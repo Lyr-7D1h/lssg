@@ -109,7 +109,7 @@ impl RendererModule for DefaultModule {
             .collect();
 
         let default_stylesheet = site_tree.add(SiteNode::stylesheet(
-            "default",
+            "default.css",
             site_tree.root(),
             Stylesheet::from_readable(DEFAULT_STYLESHEET)?,
         ))?;

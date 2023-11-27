@@ -3,12 +3,6 @@ name: Lyrx Github Pages Deployment
 on:
   push:
     branches: [ "master" ]
-    paths:
-        - examples/lyrx/**
-  pull_request:
-    branches: [ "master" ]
-    paths:
-        - examples/lyrx/**
 
 env:
   CARGO_TERM_COLOR: always
