@@ -16,7 +16,8 @@ use crate::{
 use super::{RendererModule, TokenRenderer};
 
 pub struct BlogModule {
-    enabled_site_ids: HashSet<usize>,
+    post_site_ids: HashSet<usize>,
+    root_site_ids: HashSet<usize>,
     /// Local variable to keep track if date has been inserted
     has_inserted_date: bool,
 }
@@ -24,7 +25,8 @@ pub struct BlogModule {
 impl BlogModule {
     pub fn new() -> Self {
         Self {
-            enabled_site_ids: HashSet::new(),
+            post_site_ids: HashSet::new(),
+            root_site_ids: HashSet::new(),
             has_inserted_date: false,
         }
     }
@@ -45,14 +47,16 @@ impl RendererModule for BlogModule {
                 SiteNodeKind::Page { page, .. } => {
                     if let Some(attributes) = page.attributes() {
                         if let Some(_) = attributes.get("blog") {
-                            self.enabled_site_ids.insert(id);
+                            self.root_site_ids.insert(id);
                             continue;
                         }
                     }
 
                     if let Some(parent) = site_tree.page_parent(id) {
-                        if self.enabled_site_ids.contains(&parent) {
-                            self.enabled_site_ids.insert(id);
+                        if self.post_site_ids.contains(&parent)
+                            || self.root_site_ids.contains(&parent)
+                        {
+                            self.post_site_ids.insert(id);
                         }
                     }
                 }
@@ -67,7 +71,7 @@ impl RendererModule for BlogModule {
         let site_tree = context.site_tree();
         let site_id = context.site_id();
 
-        if !self.enabled_site_ids.contains(&site_id) {
+        if !self.post_site_ids.contains(&site_id) && !self.root_site_ids.contains(&site_id) {
             return;
         }
 
@@ -113,12 +117,12 @@ impl RendererModule for BlogModule {
         tr: &mut TokenRenderer,
     ) -> bool {
         let site_id = context.site_id();
-        if !self.enabled_site_ids.contains(&site_id) {
+        if !self.post_site_ids.contains(&site_id) {
             return false;
         }
 
         match token {
-            Token::Heading { depth, tokens } if *depth == 1 && !self.has_inserted_date => {
+            Token::Heading { depth, .. } if *depth == 1 && !self.has_inserted_date => {
                 match get_date(self, context) {
                     Ok(date) => {
                         self.has_inserted_date = true;
