@@ -37,29 +37,6 @@ lssg https://raw.githubusercontent.com/Lyr-7D1h/lssg/wip/examples/lyrx/home.md .
 > [!NOTE]
 > Any links from the input markdown file to other markdown files have to be contained within the parent folder of your input markdown file
 
-## Usage
-
-Install binary
-
-```bash
-git clone git@github.com:Lyr-7D1h/lssg.git
-cd lssg
-cargo install --path .
-```
-
-Generate static files
-
-```bash
-lssg {PATH_TO_INDEX_MARKDOWN_FILE} {PATH_TO_OUTPUT_FOLDER}
-```
-
-This is how you would generate lyrx from its content
-
-```bash
-cd examples/lyrx
-lssg ./content/home.md ./build/ 
-```
-
 ## LMarkdown (Lyr's Markdown)
 
 LMarkdown tries to follow [Commonmark](https://commonmark.org/) markdown specifications although deviating wherever it makes sense to make page renderning easier.
@@ -121,7 +98,7 @@ if page => use modular HtmlRenderer to turn lmarkdown tokens into html, and writ
         |
     BlogModule: Render Token if applicable
         |
-    DefaultModule: Fallback rendering fo Token, it should render every kind of Token
+    DefaultModule: Fallback rendering of Token, it should render every kind of Token
 ```
 
 ## Roadmap
