@@ -608,6 +608,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "chrono-english",
+ "lazy_static",
  "log",
  "pathdiff",
  "regex",

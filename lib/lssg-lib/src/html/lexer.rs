@@ -2,6 +2,18 @@ use std::{collections::HashMap, io::Read};
 
 use crate::{char_reader::CharReader, parse_error::ParseError};
 
+#[macro_export]
+macro_rules! html {
+    ($x:tt) => {
+        $crate::html::parse_html(format!($x).as_bytes())
+            .map(|html| match html.into_iter().next() {
+                Some(i) => i,
+                None => panic!("has to contain valid html"),
+            })
+            .expect("should contain valid html")
+    };
+}
+
 pub fn parse_html(input: impl Read) -> Result<Vec<Html>, ParseError> {
     let mut reader = CharReader::new(input);
 

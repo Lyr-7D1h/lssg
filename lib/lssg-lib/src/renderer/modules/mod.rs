@@ -30,8 +30,7 @@ pub trait RendererModule {
         Ok(())
     }
 
-    /// Modify DomTree on init
-    // fn render_page<'n>(&mut self, tr: &mut TokenRenderer<'n>) {}
+    /// Modify DomTree before rendering page
     fn render_page<'n>(&mut self, dom: &mut DomTree, context: &RenderContext<'n>) {}
 
     /// Render a token before default token renderer returns true if it parsed this token otherwise false
@@ -45,6 +44,9 @@ pub trait RendererModule {
     ) -> bool {
         false
     }
+
+    /// Gets called after body has been rendered, can be used for final changes to the dom
+    fn after_render<'n>(&mut self, dom: &mut DomTree, context: &RenderContext<'n>) {}
 
     fn options_with_default<D: Overwrite + Default>(&self, page: &Page, mut default: D) -> D
     where

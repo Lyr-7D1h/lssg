@@ -1,7 +1,7 @@
 use std::cell::{RefCell, UnsafeCell};
 use std::rc::Rc;
 
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 
 use crate::sitetree::Input;
 use crate::{
@@ -30,7 +30,7 @@ impl Renderer {
 
     /// Will run init on all modules, will remove modules if it fails
     pub fn init(&mut self, site_tree: &mut SiteTree) {
-        info!("running init");
+        debug!("running init");
         let failed: Vec<usize> = self
             .modules
             .iter_mut()
@@ -50,7 +50,7 @@ impl Renderer {
 
     /// Will run after_init on all modules, will remove modules if it fails
     pub fn after_init(&mut self, site_tree: &SiteTree) {
-        info!("running after_init");
+        debug!("running after_init");
         let failed: Vec<usize> = self
             .modules
             .iter_mut()
@@ -88,11 +88,18 @@ impl Renderer {
 
         // initialize modules
         for module in &mut self.modules {
+            debug!("running render_page on {}", module.id());
             module.render_page(&mut dom, &context);
         }
 
+        debug!("running render_body on modules");
         let tr = TokenRenderer::new(&mut self.modules);
         tr.start_render(&mut dom, &context);
+
+        for module in &mut self.modules {
+            debug!("running after_render on {}", module.id());
+            module.after_render(&mut dom, &context);
+        }
 
         // sanitize html
         dom.validate();

@@ -399,6 +399,7 @@ impl SiteTree {
 
     /// Concat resources and minify what can be minified
     pub fn minify(&mut self) {
+        // TODO
         todo!()
     }
 }

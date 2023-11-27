@@ -74,6 +74,14 @@ impl DomTree {
         return tree;
     }
 
+    pub fn head(&self) -> DomId {
+        return 1;
+    }
+
+    pub fn body(&self) -> DomId {
+        return 2;
+    }
+
     pub fn get_mut(&mut self, id: DomId) -> &mut DomNode {
         self.nodes.get_mut(id).unwrap().as_mut().unwrap()
     }

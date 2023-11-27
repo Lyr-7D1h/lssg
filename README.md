@@ -101,7 +101,8 @@ if page => use modular HtmlRenderer to turn lmarkdown tokens into html, and writ
 ```
 
 ## Roadmap
-- LMarkdown: convert html to markdown tokens when suitable (h6 html to Header enc)
+- Make text more readable like Medium (https://blog.medium.com/what-were-reading-are-you-busy-or-are-you-productive-5beca01c0f3b)
+- Add html! macro for converting html to rust on compile time
 - Make default options root of Attributes (don't require [default] block) 
 - Add recovery and logging instead of panicking
     - panic on broken link
