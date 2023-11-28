@@ -329,9 +329,13 @@ impl RendererModule for DefaultModule {
                 tokens,
             } => match tag.as_str() {
                 "centered" => {
-                    let centered = dom.add_element_with_attributes(parent_id, "div", to_attributes([("class", "centered")]));
+                    let centered = dom.add_element_with_attributes(
+                        parent_id,
+                        "div",
+                        to_attributes([("class", "centered")]),
+                    );
                     tr.render(dom, context, centered, tokens);
-                },
+                }
                 "links" if attributes.contains_key("boxes") => {
                     let parent_id = dom
                         .add_html(parent_id, html!(r#"<nav class="links"></nav>"#))

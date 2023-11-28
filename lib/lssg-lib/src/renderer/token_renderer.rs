@@ -36,7 +36,7 @@ impl<'a> TokenRenderer {
             let modules = unsafe { self.modules.as_mut().unwrap() };
             for module in modules.iter_mut() {
                 if let Some(p) = module.render_body(dom, context, parent_id, &token, self) {
-                    parent_id = p; 
+                    parent_id = p;
                     continue 'l;
                 }
             }

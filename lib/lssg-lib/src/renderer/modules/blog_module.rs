@@ -139,7 +139,10 @@ impl RendererModule for BlogModule {
                         );
                         // render heading
                         tr.render(dom, context, content, &vec![token.clone()]);
-                        dom.add_html(content, html!(r#"<div class="post-updated-on">{date}</div>"#));
+                        dom.add_html(
+                            content,
+                            html!(r#"<div class="post-updated-on">{date}</div>"#),
+                        );
 
                         return Some(content);
                     }
