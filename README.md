@@ -13,7 +13,7 @@ This uses a custom markdown parser which will not necessarly follow official spe
 cargo install lssg
 ```
 
-**Install from git*
+**Install from git**
 
 ```bash
 git clone git@github.com:Lyr-7D1h/lssg.git
