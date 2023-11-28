@@ -37,6 +37,10 @@ impl<R: Read> CharReader<R> {
         self.has_read
     }
 
+    pub fn set_has_read(&mut self, has_read: bool)  {
+        self.has_read = has_read
+    }
+
     /// Will try to fill the buffer until it is filled or eof is reached
     fn try_fill(&mut self, min: usize) -> Result<(), ParseError> {
         if min > self.buffer.len() {
@@ -110,10 +114,18 @@ impl<R: Read> CharReader<R> {
         &mut self,
         pattern: &str,
     ) -> Result<Option<String>, ParseError> {
+        return self.peek_until_match_inclusive_from(0, pattern);
+    }
+
+    pub fn peek_until_match_inclusive_from(
+        &mut self,
+        pos: usize,
+        pattern: &str,
+    ) -> Result<Option<String>, ParseError> {
         let chars: Vec<char> = pattern.chars().collect();
 
         let mut char_i = 0;
-        let mut i = 0;
+        let mut i = pos;
         loop {
             let c = match self.peek_char(i)? {
                 Some(c) => c,

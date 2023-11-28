@@ -245,6 +245,10 @@ impl RendererModule for DefaultModule {
     ) -> Option<DomId> {
         match token {
             Token::Attributes { .. } | Token::Comment { .. } | Token::EOF | Token::Space => {}
+            Token::BlockQuote { tokens } => {
+                let blockquote = dom.add_element(parent_id, "blockquote");
+                tr.render(dom, context, blockquote, tokens);
+            }
             Token::Break { raw: _ } => {
                 dom.add_element(parent_id, "br");
             }

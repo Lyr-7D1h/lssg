@@ -38,5 +38,6 @@ When you get stuck it can be because either you don't know where some solution c
 
 ## All Resources
 
-*Calculus*
+**Calculus**
+
 Infinite Powers by Steven Strogatz

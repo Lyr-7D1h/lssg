@@ -11,6 +11,8 @@ use crate::{
     parse_error::ParseError,
 };
 
+use super::parse_lmarkdown;
+
 /// Remove any tailing new line or starting and ending spaces
 fn sanitize_text(text: String) -> String {
     let mut lines = vec![];
@@ -70,12 +72,22 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
             }
         }
 
+        // emphasis: https://spec.commonmark.org/0.30/#emphasis-and-strong-emphasis
         if c == '*' {
+            if let Some('*') = reader.peek_char(1)? {
+                if let Some(text) = reader.peek_until_match_inclusive_from(2, "**")? {
+                    reader.consume(2)?;
+                    let text = reader.consume_string(text.len() - 4)?;
+                    reader.consume(2)?;
+                    tokens.push(Token::Bold { text });
+                    continue;
+                }
+            }
             if let Some(text) = reader.peek_until_from(1, |c| c == '*')? {
                 reader.consume(1)?;
                 let text = reader.consume_string(text.len() - 1)?;
                 reader.consume(1)?;
-                tokens.push(Token::Bold { text });
+                tokens.push(Token::Italic { text });
                 continue;
             }
         }
@@ -160,6 +172,10 @@ pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Token, ParseErro
                 }
             }
 
+            if let Some(blockquote) = blockquote(reader)? {
+                return Ok(blockquote);
+            }
+
             // https://spec.commonmark.org/0.30/#paragraphs
             let text = sanitize_text(reader.consume_until_match_inclusive("\n")?);
             let tokens = read_inline_tokens(&text)?;
@@ -212,6 +228,30 @@ pub fn heading(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, Pars
     }
 }
 
+// https://spec.commonmark.org/0.30/#block-quotes
+pub fn blockquote(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
+    let mut content = String::new();
+    'outer: loop {
+        for i in 0..3 {
+            match reader.peek_char(i)? {
+                Some('>') => {
+                    let line = reader.consume_until_inclusive(|c| c == '\n')?;
+                    content.push_str(&line[i + 1..line.len() - 1].trim_start());
+                }
+                Some(' ') => {}
+                Some(_) | None => break 'outer,
+            }
+        }
+    }
+
+    if content.len() == 0 {
+        return Ok(None);
+    }
+
+    let tokens = parse_lmarkdown(content.as_bytes())?;
+    return Ok(Some(Token::BlockQuote { tokens }));
+}
+
 /// https://github.com/markedjs/marked/blob/master/src/Tokenizer.js
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
@@ -237,6 +277,9 @@ pub enum Token {
     },
     Italic {
         text: String,
+    },
+    BlockQuote {
+        tokens: Vec<Token>,
     },
     Code {
         language: String,
