@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Lyr-7D1h <lyr-7d1h@pm.me>"]
 license = "MIT"
+description = "Extensions for serde serializable structs"
 
 [lib]
 proc-macro = true

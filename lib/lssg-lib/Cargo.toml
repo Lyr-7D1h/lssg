@@ -6,7 +6,7 @@ authors = ["Lyr-7D1h <lyr-7d1h@pm.me>"]
 license = "MIT"
 description = "Lyr's Static Site Generator Library"
 repository = "https://github.com/Lyr-7D1h/lssg"
-keywords = ["ssg", "static site generator"]
+keywords = ["ssg", "markdown", "parser"]
 categories = ["web-programming"]
 readme = "../../README.md"
 
@@ -21,7 +21,7 @@ chrono-english = "0.1.7"
 toml = "0.8.2"
 serde = { version = "1.0.188", features = ["derive"] }
 
-serde-extensions = { path = "../serde-extensions" }
+serde-extensions = { path="../serde-extensions", version = "0.1.1" }
 reqwest = { version="0.11.22", features = ["blocking"]}
 pathdiff = "0.2.1"
 lazy_static = "1.4.0"

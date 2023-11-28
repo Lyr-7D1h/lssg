@@ -5,15 +5,23 @@ The idea is to generate static html, css, js files based on custom markdown form
 
 This uses a custom markdown parser which will not necessarly follow official specifications. I'm making it to the point that it is usable for me, PR's are welcome! See `LMarkdown` down for more information.
 
-## Usage
+## Install
 
-Install binary
+**Install from cargo**
+
+```
+cargo install lssg
+```
+
+**Install from git*
 
 ```bash
 git clone git@github.com:Lyr-7D1h/lssg.git
 cd lssg
 cargo install --path .
 ```
+
+## Usage
 
 Generate static files
 
