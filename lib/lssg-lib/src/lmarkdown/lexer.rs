@@ -92,14 +92,11 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
 pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Token, ParseError> {
     match reader.peek_char(0)? {
         None => return Ok(Token::EOF),
-        Some(mut c) => {
+        Some(c) => {
             // if you start a new block with a newline skip it
             if c == '\n' {
                 reader.consume_until_inclusive(|c| c == '\n' || c == '\r')?;
-                c = match reader.peek_char(0)? {
-                    Some(c) => c,
-                    None => return Ok(Token::EOF),
-                }
+                return Ok(Token::Space);
             }
 
             // if starts with comment in toml format it is an attribute
@@ -230,6 +227,8 @@ pub enum Token {
     Break {
         raw: String,
     },
+    /// Indicating of a space between paragraphs
+    Space,
     EOF,
 }
 

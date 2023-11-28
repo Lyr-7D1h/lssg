@@ -244,7 +244,7 @@ impl RendererModule for DefaultModule {
         tr: &mut TokenRenderer,
     ) -> bool {
         match token {
-            Token::Attributes { .. } | Token::Comment { .. } | Token::EOF => {}
+            Token::Attributes { .. } | Token::Comment { .. } | Token::EOF | Token::Space=> {}
             Token::Break { raw: _ } => {
                 dom.add_element(parent_id, "br");
             }
