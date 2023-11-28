@@ -7,7 +7,7 @@ use serde_extensions::Overwrite;
 
 use crate::{
     html,
-    html::{to_attributes, DomNodeKind, Html},
+    html::{to_attributes, DomId, DomNodeKind, Html},
     lmarkdown::Token,
     lssg_error::LssgError,
     sitetree::{Page, Relation, SiteNode, SiteNodeKind, SiteTree, Stylesheet},
@@ -242,9 +242,9 @@ impl RendererModule for DefaultModule {
         parent_id: usize,
         token: &crate::lmarkdown::Token,
         tr: &mut TokenRenderer,
-    ) -> bool {
+    ) -> Option<DomId> {
         match token {
-            Token::Attributes { .. } | Token::Comment { .. } | Token::EOF | Token::Space=> {}
+            Token::Attributes { .. } | Token::Comment { .. } | Token::EOF | Token::Space => {}
             Token::Break { raw: _ } => {
                 dom.add_element(parent_id, "br");
             }
@@ -270,7 +270,7 @@ impl RendererModule for DefaultModule {
             }
             Token::Link { tokens: text, href } => {
                 if text.len() == 0 {
-                    return true;
+                    return Some(parent_id);
                 }
 
                 // external link
@@ -284,7 +284,7 @@ impl RendererModule for DefaultModule {
                     tr.render(dom, context, a, text);
 
                     dom.add_html(parent_id, html!(r##"<svg width="1em" height="1em" viewBox="0 0 24 24" style="cursor:pointer"><g stroke-width="2.1" stroke="#666" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 13.5 17 19.5 5 19.5 5 7.5 11 7.5"></polyline><path d="M14,4.5 L20,4.5 L20,10.5 M20,4.5 L11,13.5"></path></g></svg>"##));
-                    return true;
+                    return Some(parent_id);
                 }
 
                 if Page::is_href_to_page(href) {
@@ -308,7 +308,7 @@ impl RendererModule for DefaultModule {
                             to_attributes([("href", rel_path)]),
                         );
                         tr.render(dom, context, parent_id, text);
-                        return true;
+                        return Some(parent_id);
                     }
                     warn!("Could not find node where {href:?} points to");
                 }
@@ -328,6 +328,10 @@ impl RendererModule for DefaultModule {
                 attributes,
                 tokens,
             } => match tag.as_str() {
+                "centered" => {
+                    let centered = dom.add_element_with_attributes(parent_id, "div", to_attributes([("class", "centered")]));
+                    tr.render(dom, context, centered, tokens);
+                },
                 "links" if attributes.contains_key("boxes") => {
                     let parent_id = dom
                         .add_html(parent_id, html!(r#"<nav class="links"></nav>"#))
@@ -355,7 +359,7 @@ impl RendererModule for DefaultModule {
                                         Some(to_id) => context.site_tree.path(to_id),
                                         None => {
                                             warn!("Could not find node where {href:?} points to");
-                                            return true;
+                                            return Some(parent_id);
                                         }
                                     }
                                 } else {
@@ -382,7 +386,7 @@ impl RendererModule for DefaultModule {
                 }
             },
         };
-        true
+        return Some(parent_id);
     }
 
     fn after_render<'n>(&mut self, dom: &mut crate::html::DomTree, _: &RenderContext<'n>) {

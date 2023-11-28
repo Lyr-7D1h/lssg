@@ -29,6 +29,7 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
 
     let mut tokens = vec![];
     while let Some(c) = reader.peek_char(0)? {
+        // html
         if c == '<' {
             // inline comment
             if let Some(text) = reader.peek_until_match_inclusive("-->")? {
@@ -50,7 +51,7 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
             }
         }
 
-        // https://spec.commonmark.org/0.30/#links
+        // links: https://spec.commonmark.org/0.30/#links
         if c == '[' {
             if let Some(raw_text) = reader.peek_until_from(1, |c| c == ']')? {
                 let href_start = 1 + raw_text.len();
@@ -69,7 +70,15 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
             }
         }
 
-        if c == '*' {}
+        if c == '*' {
+            if let Some(text) = reader.peek_until_from(1, |c| c == '*')? {
+                reader.consume(1)?;
+                let text = reader.consume_string(text.len() - 1)?;
+                reader.consume(1)?;
+                tokens.push(Token::Bold { text });
+                continue;
+            }
+        }
 
         let c = reader.consume_char().unwrap().expect("has to be a char");
         if let Some(Token::Text { text }) = tokens.last_mut() {
@@ -125,29 +134,8 @@ pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Token, ParseErro
                 }
             }
 
-            // Heading (#*{depth} {text})
-            if c == '#' {
-                let chars: Vec<char> = reader.peek_string(7)?.chars().collect();
-                let mut ignore = false;
-                let mut depth: u8 = 0;
-                for c in chars {
-                    match c {
-                        ' ' => break,
-                        '#' => depth += 1,
-                        _ => ignore = true,
-                    }
-                }
-                if ignore == false {
-                    let text: String = sanitize_text(
-                        reader
-                            .consume_until_inclusive(|c| c == '\n')?
-                            .chars()
-                            .skip(depth as usize + 1)
-                            .collect(),
-                    );
-                    let tokens = read_inline_tokens(&text)?;
-                    return Ok(Token::Heading { depth, tokens });
-                }
+            if let Some(heading) = heading(reader)? {
+                return Ok(heading);
             }
 
             if c == '<' {
@@ -162,8 +150,8 @@ pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Token, ParseErro
                 }
 
                 if let Some((tag, attributes, content)) = html::parse_html_block(reader)? {
-                    let content = sanitize_text(content);
-                    let tokens = read_inline_tokens(&content)?;
+                    let mut reader = CharReader::<&[u8]>::from_string(&content);
+                    let tokens = read_inline_html_tokens(&mut reader)?;
                     return Ok(Token::Html {
                         tag,
                         attributes,
@@ -178,6 +166,50 @@ pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Token, ParseErro
             return Ok(Token::Paragraph { tokens });
         }
     };
+}
+
+/// Allow for certain block tokens inside html
+pub fn read_inline_html_tokens(
+    reader: &mut CharReader<impl Read>,
+) -> Result<Vec<Token>, ParseError> {
+    let mut tokens = vec![];
+
+    while let Some(_) = reader.peek_char(0)? {
+        if let Some(heading) = heading(reader)? {
+            tokens.push(heading)
+        }
+        let text = sanitize_text(reader.consume_until_match_inclusive("\n")?);
+        tokens.append(&mut read_inline_tokens(&text)?);
+    }
+
+    Ok(tokens)
+}
+
+/// Heading (#*{depth} {text})
+pub fn heading(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
+    if reader.peek_char(0)? == Some('#') {
+        let chars: Vec<char> = reader.peek_string(7)?.chars().collect();
+        let mut depth: u8 = 0;
+        for c in chars {
+            match c {
+                ' ' => break,
+                '#' => depth += 1,
+                _ => return Ok(None),
+            }
+        }
+        let text: String = sanitize_text(
+            reader
+                .consume_until_inclusive(|c| c == '\n')?
+                .chars()
+                .skip(depth as usize + 1)
+                .collect(),
+        );
+        let tokens = read_inline_tokens(&text)?;
+
+        Ok(Some(Token::Heading { depth, tokens }))
+    } else {
+        Ok(None)
+    }
 }
 
 /// https://github.com/markedjs/marked/blob/master/src/Tokenizer.js

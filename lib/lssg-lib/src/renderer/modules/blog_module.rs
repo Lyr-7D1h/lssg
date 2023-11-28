@@ -5,6 +5,7 @@ use log::{error, warn};
 use serde_extensions::Overwrite;
 
 use crate::{
+    html,
     html::{to_attributes, DomId, DomTree},
     lmarkdown::Token,
     lssg_error::LssgError,
@@ -115,10 +116,10 @@ impl RendererModule for BlogModule {
         parent_id: DomId,
         token: &Token,
         tr: &mut TokenRenderer,
-    ) -> bool {
+    ) -> Option<DomId> {
         let site_id = context.site_id;
         if !self.post_site_ids.contains(&site_id) {
-            return false;
+            return None;
         }
 
         match token {
@@ -126,23 +127,28 @@ impl RendererModule for BlogModule {
                 match get_date(self, context) {
                     Ok(date) => {
                         self.has_inserted_date = true;
-                        // render heading
-                        tr.render(dom, context, parent_id, &vec![token.clone()]);
-                        let div = dom.add_element_with_attributes(
+                        let post = dom.add_element_with_attributes(
                             parent_id,
                             "div",
-                            to_attributes([("class", "post-updated-on")]),
+                            to_attributes([("class", "post")]),
                         );
-                        dom.add_text(div, date);
+                        let content = dom.add_element_with_attributes(
+                            post,
+                            "div",
+                            to_attributes([("class", "content")]),
+                        );
+                        // render heading
+                        tr.render(dom, context, content, &vec![token.clone()]);
+                        dom.add_html(content, html!(r#"<div class="post-updated-on">{date}</div>"#));
 
-                        return true;
+                        return Some(content);
                     }
                     Err(e) => error!("failed to read date from post: {e}"),
                 }
             }
             _ => {}
         }
-        return false;
+        return None;
     }
 }
 

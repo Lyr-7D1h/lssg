@@ -33,7 +33,7 @@ pub trait RendererModule {
     /// Modify DomTree before rendering page
     fn render_page<'n>(&mut self, dom: &mut DomTree, context: &RenderContext<'n>) {}
 
-    /// Render a token before default token renderer returns true if it parsed this token otherwise false
+    /// Render a token before default token renderer returns parent id for following tokens if it parsed this token otherwise None
     fn render_body<'n>(
         &mut self,
         dom: &mut DomTree,
@@ -41,8 +41,8 @@ pub trait RendererModule {
         parent_id: DomId,
         token: &Token,
         tr: &mut TokenRenderer,
-    ) -> bool {
-        false
+    ) -> Option<DomId> {
+        None
     }
 
     /// Gets called after body has been rendered, can be used for final changes to the dom
