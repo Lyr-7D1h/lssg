@@ -244,7 +244,14 @@ impl RendererModule for DefaultModule {
         tr: &mut TokenRenderer,
     ) -> Option<DomId> {
         match token {
-            Token::Attributes { .. } | Token::Comment { .. }  => {}
+            Token::Attributes { .. } | Token::Comment { .. } => {}
+            Token::Image { tokens, src } => {
+                dom.add_element_with_attributes(
+                    parent_id,
+                    "img",
+                    to_attributes([("src", src), ("alt", &tokens_to_text(tokens))]),
+                );
+            }
             Token::BlockQuote { tokens } => {
                 let blockquote = dom.add_element(parent_id, "blockquote");
                 tr.render(dom, context, blockquote, tokens);
@@ -271,7 +278,10 @@ impl RendererModule for DefaultModule {
                 let parent_id = dom.add_element(parent_id, "i");
                 dom.add_text(parent_id, text);
             }
-            Token::Code { code, language: _ } => {
+            Token::Code {
+                text: code,
+                language: _,
+            } => {
                 let parent_id = dom.add_element(parent_id, "code");
                 dom.add_text(parent_id, code);
             }
@@ -417,4 +427,14 @@ impl RendererModule for DefaultModule {
 
 pub fn is_href_external(href: &str) -> bool {
     return href.starts_with("http") || href.starts_with("mailto:");
+}
+
+pub fn tokens_to_text(tokens: &Vec<Token>) -> String {
+    let mut result = String::new();
+    for t in tokens {
+        if let Some(text) = t.to_text() {
+            result.push_str(&text)
+        }
+    }
+    return result;
 }

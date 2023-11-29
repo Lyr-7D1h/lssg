@@ -164,6 +164,29 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
             }
         }
 
+        // https://spec.commonmark.org/0.30/#images
+        if c == '!' {
+            if let Some('[') = reader.peek_char(1)? {
+                if let Some(raw_text) = reader.peek_until_from(2, |c| c == ']')? {
+                    let href_start = 2 + raw_text.len();
+                    if let Some('(') = reader.peek_char(href_start)? {
+                        if let Some(raw_href) =
+                            reader.peek_until_from(href_start + 1, |c| c == ')')?
+                        {
+                            reader.consume(2)?;
+                            let text = reader.consume_string(raw_text.len() - 1)?;
+                            reader.consume(2)?;
+                            let src = reader.consume_string(raw_href.len() - 1)?;
+                            reader.consume(1)?;
+                            let alt = read_inline_tokens(&text)?;
+                            tokens.push(Token::Image { tokens: alt, src });
+                            continue;
+                        }
+                    }
+                }
+            }
+        }
+
         // links: https://spec.commonmark.org/0.30/#links
         if c == '[' {
             if let Some(raw_text) = reader.peek_until_from(1, |c| c == ']')? {
@@ -295,14 +318,14 @@ pub enum Token {
         table: toml::map::Map<String, toml::Value>,
     },
     Heading {
+        tokens: Vec<Token>,
         /// 0-6
         depth: u8,
-        tokens: Vec<Token>,
     },
     Html {
+        tokens: Vec<Token>,
         tag: String,
         attributes: HashMap<String, String>,
-        tokens: Vec<Token>,
     },
     /// Anything that is not an already declared inline element
     Paragraph {
@@ -319,7 +342,12 @@ pub enum Token {
     },
     Code {
         language: String,
-        code: String,
+        text: String,
+    },
+    Image {
+        /// alt, recommended to convert tokens to text
+        tokens: Vec<Token>,
+        src: String,
     },
     Link {
         /// The text portion of a link that contains Tokens
@@ -340,17 +368,35 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn is_text(&self) -> bool {
+    pub fn get_tokens(&self) -> Option<&Vec<Token>> {
         match self {
-            Token::Heading { .. }
-            | Token::Paragraph { .. }
-            | Token::Bold { .. }
-            | Token::Italic { .. }
-            | Token::Code { .. }
-            | Token::Link { .. }
-            | Token::Text { .. }
-            | Token::Html { .. } => true,
-            _ => false,
+            Token::Heading { tokens, .. }
+            | Token::Paragraph { tokens, .. }
+            | Token::Link { tokens, .. }
+            | Token::Image { tokens, .. }
+            | Token::Html { tokens, .. } => Some(tokens),
+            _ => None,
         }
+    }
+
+    pub fn to_text(&self) -> Option<String> {
+        if let Some(tokens) = self.get_tokens() {
+            let mut result = String::new();
+            for t in tokens {
+                if let Some(text) = t.to_text() {
+                    result.push_str(&text)
+                }
+            }
+            return Some(result);
+        }
+        Some(
+            match self {
+                Token::Bold { text, .. } => text,
+                Token::Text { text, .. } => text,
+                Token::SoftBreak { .. } => " ",
+                _ => return None,
+            }
+            .into(),
+        )
     }
 }
