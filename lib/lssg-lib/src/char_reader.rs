@@ -25,7 +25,7 @@ impl<R: Read> CharReader<R> {
         }
     }
 
-    pub fn from_string<'n>(input: &String) -> CharReader<&'n [u8]> {
+    pub fn from_string(input: &String) -> CharReader<&[u8]> {
         CharReader {
             reader: BufReader::new(&[]),
             buffer: input.chars().collect(),
@@ -37,7 +37,7 @@ impl<R: Read> CharReader<R> {
         self.has_read
     }
 
-    pub fn set_has_read(&mut self, has_read: bool)  {
+    pub fn set_has_read(&mut self, has_read: bool) {
         self.has_read = has_read
     }
 

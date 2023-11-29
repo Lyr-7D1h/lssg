@@ -5,37 +5,10 @@ use crate::{char_reader::CharReader, parse_error::ParseError};
 mod lexer;
 pub use lexer::*;
 
+
 pub fn parse_lmarkdown(input: impl Read) -> Result<Vec<Token>, ParseError> {
     let mut reader = CharReader::new(input);
-
-    let mut tokens = vec![];
-
-    loop {
-        match lexer::read_token(&mut reader)? {
-            Token::EOF => break,
-            t => tokens.push(t),
-        }
-    }
-    // add paragraphs and texts together
-    let mut reduced_tokens = vec![];
-    for mut token in tokens.into_iter() {
-        if let Some(Token::Paragraph { tokens: a }) = reduced_tokens.last_mut() {
-            if let Token::Paragraph { tokens: b } = &mut token {
-                if let Some(Token::Text { text: text_a }) = a.first_mut() {
-                    if let Some(Token::Text { text: text_b }) = b.first_mut() {
-                        text_a.push('\n');
-                        *text_a += text_b;
-                        b.drain(0..1);
-                    }
-                }
-                a.append(b);
-                continue;
-            }
-        }
-        reduced_tokens.push(token)
-    }
-
-    Ok(reduced_tokens)
+    return read_tokens(&mut reader);
 }
 
 #[cfg(test)]
@@ -64,19 +37,29 @@ This should be text
                 }],
             },
             Token::Paragraph {
-                tokens: vec![Token::Text {
-                    text: "Lots of people say Rust > c++. even though it might be
-< then c++. Who knows?
-<nonclosing>
-This should be text"
-                        .into(),
-                }],
+                tokens: vec![
+                    Token::Text {
+                        text: "Lots of people say Rust > c++. even though it might be".into(),
+                    },
+                    Token::SoftBreak,
+                    Token::Text {
+                        text: "< then c++. Who knows?".into(),
+                    },
+                    Token::SoftBreak,
+                    Token::Text {
+                        text: "<nonclosing>".into(),
+                    },
+                    Token::SoftBreak,
+                    Token::Text {
+                        text: "This should be text".into(),
+                    },
+                ],
             },
         ];
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
         let tokens = parse_lmarkdown(reader).unwrap();
-        assert_eq!(tokens, expected);
+        assert_eq!(expected, tokens);
     }
 
     #[test]
@@ -159,7 +142,6 @@ another comment
                         }],
                         href: "bold.com".into(),
                     },
-                    Token::Text { text: "\n".into() },
                     Token::Html {
                         tag: "a".into(),
                         attributes: to_attributes([("href", "link.com")]),

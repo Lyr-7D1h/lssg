@@ -1,7 +1,4 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    io::Read,
-};
+use std::{collections::HashMap, io::Read};
 
 use log::warn;
 
@@ -10,8 +7,6 @@ use crate::{
     html::{self, parse_html_block},
     parse_error::ParseError,
 };
-
-use super::parse_lmarkdown;
 
 /// Remove any tailing new line or starting and ending spaces
 fn sanitize_text(text: String) -> String {
@@ -24,6 +19,122 @@ fn sanitize_text(text: String) -> String {
     }
 
     return lines.join("\n");
+}
+
+// official spec: https://spec.commonmark.org/0.30/
+// https://github.com/markedjs/marked/blob/master/src/Lexer.ts
+// https://github.com/songquanpeng/md2html/blob/main/lexer/lexer.go
+// demo: https://marked.js.org/demo/
+// demo: https://spec.commonmark.org/dingus/
+/// A function to get the next markdown token using recrusive decent.
+/// Will first parse a block token (token for a whole line and then parse for any inline tokens when needed.
+pub fn read_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token>, ParseError> {
+    let mut tokens = vec![];
+    loop {
+        match reader.peek_char(0)? {
+            None => return Ok(tokens),
+            Some(mut c) => {
+                // if you start a new block with a newline skip it
+                if c == '\n' {
+                    reader.consume(0)?;
+                    reader.consume_until_exclusive(|c| c != '\n' && c != '\r')?;
+                    match reader.peek_char(0)? {
+                        None => return Ok(tokens),
+                        Some(new_c) => c = new_c,
+                    }
+                }
+                if let Some(token) = read_block_token(c, reader, &mut tokens)? {
+                    tokens.push(token)
+                }
+            }
+        };
+    }
+}
+
+fn read_block_token(
+    c: char,
+    reader: &mut CharReader<impl Read>,
+    tokens: &mut Vec<Token>,
+) -> Result<Option<Token>, ParseError> {
+    // if starts with comment in toml format it is an attribute
+    if reader.has_read() == false {
+        if c == '<' {
+            if reader.peek_string(4)? == "<!--" {
+                if let Some(comment) = reader.peek_until_match_inclusive("-->")? {
+                    match toml::from_str(&comment[4..comment.len() - 3]) {
+                        Ok(toml::Value::Table(table)) => {
+                            reader.consume_until_inclusive(|c| c == '>')?;
+                            return Ok(Some(Token::Attributes { table }));
+                        }
+                        Ok(_) => warn!("Attributes is not a table"),
+                        Err(e) => warn!("Not parsing possible Attributes: {e}"),
+                    }
+                }
+            }
+        }
+        if let Some((tag, attributes, content)) = parse_html_block(reader)? {
+            let tokens = read_inline_tokens(&content)?;
+            return Ok(Some(Token::Html {
+                tag,
+                attributes,
+                tokens,
+            }));
+        }
+    }
+
+    if let Some(heading) = heading(reader)? {
+        return Ok(Some(heading));
+    }
+
+    if c == '<' {
+        // comment
+        if "<!--" == reader.peek_string(4)? {
+            if let Some(text) = reader.peek_until_match_inclusive("-->")? {
+                reader.consume(4)?; // skip start
+                let text = reader.consume_string(text.len() - 4 - 3)?;
+                reader.consume(3)?; // skip end
+                return Ok(Some(Token::Comment { raw: text }));
+            }
+        }
+
+        if let Some((tag, attributes, content)) = html::parse_html_block(reader)? {
+            let mut reader = CharReader::<&[u8]>::from_string(&content);
+            let tokens = read_inline_html_tokens(&mut reader)?;
+            return Ok(Some(Token::Html {
+                tag,
+                attributes,
+                tokens,
+            }));
+        }
+    }
+
+    if let Some(blockquote) = blockquote(reader)? {
+        return Ok(Some(blockquote));
+    }
+
+    // https://spec.commonmark.org/0.30/#paragraphs
+    let text = sanitize_text(reader.consume_until_inclusive(|c| c == '\n')?);
+    let mut inline_tokens = read_inline_tokens(&text)?;
+    if let Some(Token::Paragraph {
+        tokens: last_tokens,
+    }) = tokens.last_mut()
+    {
+        // // add texts together
+        // if let Some(Token::Text { text: text_a }) = last_tokens.last_mut() {
+        //     if let Some(Token::Text { text: text_b }) = inline_tokens.first_mut() {
+        //         text_a.push('\n');
+        //         *text_a += text_b;
+        //         text_b.drain(0..1);
+        //     }
+        // }
+        last_tokens.push(Token::SoftBreak);
+        last_tokens.append(&mut inline_tokens);
+        return Ok(None);
+    } else {
+        return Ok(Some(Token::Paragraph {
+            tokens: inline_tokens,
+        }));
+    }
 }
 
 fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
@@ -103,87 +214,6 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
     return Ok(tokens);
 }
 
-// official spec: https://spec.commonmark.org/0.30/
-// https://github.com/markedjs/marked/blob/master/src/Lexer.ts
-// https://github.com/songquanpeng/md2html/blob/main/lexer/lexer.go
-// demo: https://marked.js.org/demo/
-// demo: https://spec.commonmark.org/dingus/
-/// A function to get the next markdown token using recrusive decent.
-/// Will first parse a block token (token for a whole line and then parse for any inline tokens when needed.
-pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Token, ParseError> {
-    match reader.peek_char(0)? {
-        None => return Ok(Token::EOF),
-        Some(c) => {
-            // if you start a new block with a newline skip it
-            if c == '\n' {
-                reader.consume_until_inclusive(|c| c == '\n' || c == '\r')?;
-                return Ok(Token::Space);
-            }
-
-            // if starts with comment in toml format it is an attribute
-            if reader.has_read() == false {
-                if c == '<' {
-                    if reader.peek_string(4)? == "<!--" {
-                        if let Some(comment) = reader.peek_until_match_inclusive("-->")? {
-                            match toml::from_str(&comment[4..comment.len() - 3]) {
-                                Ok(toml::Value::Table(table)) => {
-                                    reader.consume_until_inclusive(|c| c == '>')?;
-                                    return Ok(Token::Attributes { table });
-                                }
-                                Ok(_) => warn!("Attributes is not a table"),
-                                Err(e) => warn!("Not parsing possible Attributes: {e}"),
-                            }
-                        }
-                    }
-                }
-                if let Some((tag, attributes, content)) = parse_html_block(reader)? {
-                    let tokens = read_inline_tokens(&content)?;
-                    return Ok(Token::Html {
-                        tag,
-                        attributes,
-                        tokens,
-                    });
-                }
-            }
-
-            if let Some(heading) = heading(reader)? {
-                return Ok(heading);
-            }
-
-            if c == '<' {
-                // comment
-                if "<!--" == reader.peek_string(4)? {
-                    if let Some(text) = reader.peek_until_match_inclusive("-->")? {
-                        reader.consume(4)?; // skip start
-                        let text = reader.consume_string(text.len() - 4 - 3)?;
-                        reader.consume(3)?; // skip end
-                        return Ok(Token::Comment { raw: text });
-                    }
-                }
-
-                if let Some((tag, attributes, content)) = html::parse_html_block(reader)? {
-                    let mut reader = CharReader::<&[u8]>::from_string(&content);
-                    let tokens = read_inline_html_tokens(&mut reader)?;
-                    return Ok(Token::Html {
-                        tag,
-                        attributes,
-                        tokens,
-                    });
-                }
-            }
-
-            if let Some(blockquote) = blockquote(reader)? {
-                return Ok(blockquote);
-            }
-
-            // https://spec.commonmark.org/0.30/#paragraphs
-            let text = sanitize_text(reader.consume_until_match_inclusive("\n")?);
-            let tokens = read_inline_tokens(&text)?;
-            return Ok(Token::Paragraph { tokens });
-        }
-    };
-}
-
 /// Allow for certain block tokens inside html
 pub fn read_inline_html_tokens(
     reader: &mut CharReader<impl Read>,
@@ -230,13 +260,15 @@ pub fn heading(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, Pars
 
 // https://spec.commonmark.org/0.30/#block-quotes
 pub fn blockquote(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
-    let mut content = String::new();
+    let mut lines = vec![];
     'outer: loop {
         for i in 0..3 {
             match reader.peek_char(i)? {
                 Some('>') => {
                     let line = reader.consume_until_inclusive(|c| c == '\n')?;
-                    content.push_str(&line[i + 1..line.len() - 1].trim_start());
+                    let text = line[i + 1..line.len() - 1].trim_start().to_string();
+                    lines.push(text);
+                    continue 'outer;
                 }
                 Some(' ') => {}
                 Some(_) | None => break 'outer,
@@ -244,11 +276,15 @@ pub fn blockquote(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, P
         }
     }
 
-    if content.len() == 0 {
+    if lines.len() == 0 {
         return Ok(None);
     }
 
-    let tokens = parse_lmarkdown(content.as_bytes())?;
+    let content = lines.join("\n");
+
+    let mut reader: CharReader<&[u8]> = CharReader::<&[u8]>::from_string(&content);
+    reader.set_has_read(true); // prevents attributes
+    let tokens = read_tokens(&mut reader)?;
     return Ok(Some(Token::BlockQuote { tokens }));
 }
 
@@ -285,9 +321,6 @@ pub enum Token {
         language: String,
         code: String,
     },
-    // Space {
-    //     raw: String,
-    // },
     Link {
         /// The text portion of a link that contains Tokens
         tokens: Vec<Token>,
@@ -299,12 +332,11 @@ pub enum Token {
     Comment {
         raw: String,
     },
-    Break {
+    HardBreak {
         raw: String,
     },
     /// Indicating of a space between paragraphs
-    Space,
-    EOF,
+    SoftBreak,
 }
 
 impl Token {

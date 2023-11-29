@@ -16,7 +16,6 @@ h3,
 h4,
 h5,
 h6 {
-  margin: 0 35vw;
   padding: 25px 0 15px 0;
   text-align: left;
 }
@@ -31,30 +30,58 @@ h2 {
   font-size: 24px;
 }
 p {
-  margin: 0 35vw;
   padding: 25px 0 25px 0;
   text-align: left;
   font-size: 20px;
 }
-@media only screen and (max-width: 768px) {
-  h1 {
-    font-size: 32px;
-  }
+blockquote {
+  color: #656d76;
+  border-left: 0.25em solid #d0d7de;
+}
+blockquote p {
+  margin: 10px;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+blockquote {
+  margin: 0 35vw;
+}
+@media only screen and (max-width: 1100px) {
   h1,
   h2,
   h3,
   h4,
   h5,
-  h6 {
-    margin: 10px;
+  h6,
+  p,
+  blockquote {
+    margin: 0 25vw;
   }
+}
+@media only screen and (max-width: 768px) {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
   p {
     margin: 10px;
+  }
+  h1 {
+    font-size: 32px;
+  }
+  p {
     font-size: 18px;
   }
 }
 
-
+/* watermark */
 #content {
   margin: 0;
   position: relative;
@@ -77,6 +104,7 @@ p {
   bottom: 0;
 }
 
+/* <centered> */
 .centered {
   text-align: center;
 }
@@ -89,7 +117,6 @@ p {
 .centered > p {
   text-align: center;
 }
-
 
 /* links */
 nav.links {
@@ -124,7 +151,6 @@ nav.links a {
   box-shadow: 8px 8px 8px 8px rgba(0, 0, 0, 0.2);
 }
 
-
 .post {
   display: flex;
   justify-content: center;
@@ -133,13 +159,14 @@ nav.links a {
   max-width: 680px;
 }
 .post-updated-on,
-.content > h1,
-.content > h2,
-.content > h3,
-.content > h4,
-.content > h5,
-.content > h6,
-.content > p {
+.content h1,
+.content h2,
+.content h3,
+.content h4,
+.content h5,
+.content h6,
+.content p,
+.content blockquote {
   margin: 0;
   text-align: left;
 }
@@ -149,13 +176,13 @@ nav.links a {
 }
 @media only screen and (max-width: 768px) {
   .post-updated-on,
-  .content > h1,
-  .content > h2,
-  .content > h3,
-  .content > h4,
-  .content > h5,
-  .content > h6,
-  .content > p {
+  .content h1,
+  .content h2,
+  .content h3,
+  .content h4,
+  .content h5,
+  .content h6,
+  .content p {
     margin: 10px;
   }
   .post > .content {

@@ -244,13 +244,16 @@ impl RendererModule for DefaultModule {
         tr: &mut TokenRenderer,
     ) -> Option<DomId> {
         match token {
-            Token::Attributes { .. } | Token::Comment { .. } | Token::EOF | Token::Space => {}
+            Token::Attributes { .. } | Token::Comment { .. }  => {}
             Token::BlockQuote { tokens } => {
                 let blockquote = dom.add_element(parent_id, "blockquote");
                 tr.render(dom, context, blockquote, tokens);
             }
-            Token::Break { raw: _ } => {
+            Token::HardBreak { .. } => {
                 dom.add_element(parent_id, "br");
+            }
+            Token::SoftBreak { .. } => {
+                dom.add_text(parent_id, " ");
             }
             Token::Heading { depth, tokens } => {
                 let parent_id = dom.add_element(parent_id, format!("h{depth}"));
