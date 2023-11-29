@@ -167,7 +167,7 @@ nav.links a {
 .content h6,
 .content p,
 .content blockquote {
-  margin: 0;
+  margin: 10px;
   text-align: left;
 }
 .breadcrumbs {
