@@ -4,7 +4,7 @@ use log::warn;
 
 use crate::{
     char_reader::CharReader,
-    html::{self, parse_html_block},
+    html::{self, element},
     parse_error::ParseError,
 };
 
@@ -81,7 +81,7 @@ fn read_block_token(
                 }
             }
         }
-        if let Some((tag, attributes, content)) = parse_html_block(reader)? {
+        if let Some((tag, attributes, content)) = element(reader)? {
             let tokens = read_inline_tokens(&content)?;
             return Ok(Some(Token::Html {
                 tag,
@@ -97,16 +97,11 @@ fn read_block_token(
 
     if c == '<' {
         // comment
-        if "<!--" == reader.peek_string(4)? {
-            if let Some(text) = reader.peek_until_match_inclusive("-->")? {
-                reader.consume(4)?; // skip start
-                let text = reader.consume_string(text.len() - 4 - 3)?;
-                reader.consume(3)?; // skip end
-                return Ok(Some(Token::Comment { raw: text }));
-            }
+        if let Some(html::Html::Comment { text: raw }) = html::comment(reader)? {
+            return Ok(Some(Token::Comment { raw }));
         }
 
-        if let Some((tag, attributes, content)) = html::parse_html_block(reader)? {
+        if let Some((tag, attributes, content)) = html::element(reader)? {
             let mut reader = CharReader::<&[u8]>::from_string(&content);
             let tokens = read_inline_html_tokens(&mut reader)?;
             return Ok(Some(Token::Html {
@@ -116,6 +111,14 @@ fn read_block_token(
             }));
         }
     }
+
+    // TODO https://spec.commonmark.org/0.30/#setext-heading
+
+    if let Some(tbreak) = thematic_break(reader)? {
+        return Ok(Some(tbreak));
+    }
+
+    // TODO list
 
     if let Some(blockquote) = blockquote(reader)? {
         return Ok(Some(blockquote));
@@ -147,16 +150,13 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
     while let Some(c) = reader.peek_char(0)? {
         // html
         if c == '<' {
-            // inline comment
-            if let Some(text) = reader.peek_until_match_inclusive("-->")? {
-                reader.consume(4)?; // skip start
-                let text = reader.consume_string(text.len() - 4 - 3)?;
-                reader.consume(3)?; // skip end
-                tokens.push(Token::Comment { raw: text });
+            // comment
+            if let Some(html::Html::Comment { text: raw }) = html::comment(&mut reader)? {
+                tokens.push(Token::Comment { raw });
                 continue;
             }
 
-            if let Some((tag, attributes, content)) = html::parse_html_block(&mut reader)? {
+            if let Some((tag, attributes, content)) = html::element(&mut reader)? {
                 let content = sanitize_text(content);
                 tokens.push(Token::Html {
                     tag,
@@ -170,11 +170,11 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
         // https://spec.commonmark.org/0.30/#images
         if c == '!' {
             if let Some('[') = reader.peek_char(1)? {
-                if let Some(raw_text) = reader.peek_until_from(2, |c| c == ']')? {
+                if let Some(raw_text) = reader.peek_until_inclusive_from(2, |c| c == ']')? {
                     let href_start = 2 + raw_text.len();
                     if let Some('(') = reader.peek_char(href_start)? {
                         if let Some(raw_href) =
-                            reader.peek_until_from(href_start + 1, |c| c == ')')?
+                            reader.peek_until_inclusive_from(href_start + 1, |c| c == ')')?
                         {
                             reader.consume(2)?;
                             let text = reader.consume_string(raw_text.len() - 1)?;
@@ -192,10 +192,12 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
 
         // links: https://spec.commonmark.org/0.30/#links
         if c == '[' {
-            if let Some(raw_text) = reader.peek_until_from(1, |c| c == ']')? {
+            if let Some(raw_text) = reader.peek_until_inclusive_from(1, |c| c == ']')? {
                 let href_start = 1 + raw_text.len();
                 if let Some('(') = reader.peek_char(href_start)? {
-                    if let Some(raw_href) = reader.peek_until_from(href_start + 1, |c| c == ')')? {
+                    if let Some(raw_href) =
+                        reader.peek_until_inclusive_from(href_start + 1, |c| c == ')')?
+                    {
                         reader.consume(1)?;
                         let text = reader.consume_string(raw_text.len() - 1)?;
                         reader.consume(2)?;
@@ -213,14 +215,15 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
         if c == '*' {
             if let Some('*') = reader.peek_char(1)? {
                 if let Some(text) = reader.peek_until_match_inclusive_from(2, "**")? {
+                    println!("{text}");
                     reader.consume(2)?;
-                    let text = reader.consume_string(text.len() - 4)?;
+                    let text = reader.consume_string(text.len() - 2)?;
                     reader.consume(2)?;
                     tokens.push(Token::Bold { text });
                     continue;
                 }
             }
-            if let Some(text) = reader.peek_until_from(1, |c| c == '*')? {
+            if let Some(text) = reader.peek_until_inclusive_from(1, |c| c == '*')? {
                 reader.consume(1)?;
                 let text = reader.consume_string(text.len() - 1)?;
                 reader.consume(1)?;
@@ -255,6 +258,33 @@ pub fn read_inline_html_tokens(
     }
 
     Ok(tokens)
+}
+
+pub fn thematic_break(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
+    if let Some(pos) = detect_char_with_ident(|c| c == '*' || c == '-' || c == '_', reader)? {
+        let line = reader.peek_line_from(pos)?;
+        let line = &line.replace(" ", "")[0..3];
+        if line == "***" || line == "---" || line == "___" {
+            let a = reader.consume_string(pos + line.len())?;
+            return Ok(Some(Token::ThematicBreak));
+        }
+    }
+    return Ok(None);
+}
+
+/// ignore up to 4 space idententations returns at which position the match begins
+pub fn detect_char_with_ident(
+    op: fn(c: char) -> bool,
+    reader: &mut CharReader<impl Read>,
+) -> Result<Option<usize>, ParseError> {
+    for i in 0..4 {
+        match reader.peek_char(i)? {
+            Some(c) if op(c) => return Ok(Some(i)),
+            Some(' ') => {}
+            Some(_) | None => return Ok(None),
+        }
+    }
+    return Ok(None);
 }
 
 /// Heading (#*{depth} {text})
@@ -363,6 +393,8 @@ pub enum Token {
     Comment {
         raw: String,
     },
+    // https://spec.commonmark.org/0.30/#thematic-breaks
+    ThematicBreak,
     HardBreak,
     /// Indicating of a space between paragraphs
     SoftBreak,

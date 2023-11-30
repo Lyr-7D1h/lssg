@@ -5,7 +5,6 @@ use crate::{char_reader::CharReader, parse_error::ParseError};
 mod lexer;
 pub use lexer::*;
 
-
 pub fn parse_lmarkdown(input: impl Read) -> Result<Vec<Token>, ParseError> {
     let mut reader = CharReader::new(input);
     return read_tokens(&mut reader);
@@ -108,6 +107,7 @@ another comment
     fn test_links() {
         let input = r#"# A [test](test.com)
 <div>
+[](empty.com)
 [<b>bold</b>](bold.com)
 <a href="link.com">[other](other.com)</a>
 </div>"#;
@@ -132,6 +132,10 @@ another comment
                 tag: "div".into(),
                 attributes: HashMap::new(),
                 tokens: vec![
+                    Token::Link {
+                        tokens: vec![],
+                        href: "empty.com".into(),
+                    },
                     Token::Link {
                         tokens: vec![Token::Html {
                             tag: "b".into(),

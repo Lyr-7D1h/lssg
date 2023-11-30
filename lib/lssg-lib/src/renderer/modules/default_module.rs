@@ -245,6 +245,9 @@ impl RendererModule for DefaultModule {
     ) -> Option<DomId> {
         match token {
             Token::Attributes { .. } | Token::Comment { .. } => {}
+            Token::ThematicBreak => {
+                dom.add_element(parent_id, "hr");
+            }
             Token::Image { tokens, src } => {
                 dom.add_element_with_attributes(
                     parent_id,
