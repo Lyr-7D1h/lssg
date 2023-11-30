@@ -37,13 +37,21 @@ pub fn read_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token>, Par
                 // if you start a new block with a newline skip it
                 if c == '\n' {
                     reader.consume(0)?;
-                    reader.consume_until_exclusive(|c| c != '\n' && c != '\r')?;
+                    // if more than one newline than could be a blankline
+                    let blank_line = reader
+                        .consume_until_exclusive(|c| c != '\n' && c != '\r')?
+                        .len()
+                        > 0;
                     match reader.peek_char(0)? {
                         None => return Ok(tokens),
                         Some(new_c) => c = new_c,
                     }
+                    if let Some(token) = read_block_token(c, blank_line, reader, &mut tokens)? {
+                        tokens.push(token)
+                    }
+                    continue;
                 }
-                if let Some(token) = read_block_token(c, reader, &mut tokens)? {
+                if let Some(token) = read_block_token(c, false, reader, &mut tokens)? {
                     tokens.push(token)
                 }
             }
@@ -53,6 +61,7 @@ pub fn read_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token>, Par
 
 fn read_block_token(
     c: char,
+    blank_line: bool,
     reader: &mut CharReader<impl Read>,
     tokens: &mut Vec<Token>,
 ) -> Result<Option<Token>, ParseError> {
@@ -115,26 +124,20 @@ fn read_block_token(
     // https://spec.commonmark.org/0.30/#paragraphs
     let text = sanitize_text(reader.consume_until_inclusive(|c| c == '\n')?);
     let mut inline_tokens = read_inline_tokens(&text)?;
+    // add to prev p if there isn't a blank line in between
     if let Some(Token::Paragraph {
         tokens: last_tokens,
     }) = tokens.last_mut()
     {
-        // // add texts together
-        // if let Some(Token::Text { text: text_a }) = last_tokens.last_mut() {
-        //     if let Some(Token::Text { text: text_b }) = inline_tokens.first_mut() {
-        //         text_a.push('\n');
-        //         *text_a += text_b;
-        //         text_b.drain(0..1);
-        //     }
-        // }
-        last_tokens.push(Token::SoftBreak);
-        last_tokens.append(&mut inline_tokens);
-        return Ok(None);
-    } else {
-        return Ok(Some(Token::Paragraph {
-            tokens: inline_tokens,
-        }));
+        if !blank_line {
+            last_tokens.push(Token::SoftBreak);
+            last_tokens.append(&mut inline_tokens);
+            return Ok(None);
+        }
     }
+    return Ok(Some(Token::Paragraph {
+        tokens: inline_tokens,
+    }));
 }
 
 fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
@@ -360,9 +363,7 @@ pub enum Token {
     Comment {
         raw: String,
     },
-    HardBreak {
-        raw: String,
-    },
+    HardBreak,
     /// Indicating of a space between paragraphs
     SoftBreak,
 }
