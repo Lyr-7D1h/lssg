@@ -227,7 +227,7 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
                 reader.consume(1)?;
                 let text = reader.consume_string(text.len() - 1)?;
                 reader.consume(1)?;
-                tokens.push(Token::Italic { text });
+                tokens.push(Token::Emphasis { text });
                 continue;
             }
         }
@@ -263,10 +263,12 @@ pub fn read_inline_html_tokens(
 pub fn thematic_break(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
     if let Some(pos) = detect_char_with_ident(|c| c == '*' || c == '-' || c == '_', reader)? {
         let line = reader.peek_line_from(pos)?;
-        let line = &line.replace(" ", "")[0..3];
-        if line == "***" || line == "---" || line == "___" {
-            let a = reader.consume_string(pos + line.len())?;
-            return Ok(Some(Token::ThematicBreak));
+        println!("{line:?}");
+        if let Some(pattern) = line.replace(" ", "").get(0..3) {
+            if pattern == "***" || pattern == "---" || pattern == "___" {
+                reader.consume_string(pos + line.len())?;
+                return Ok(Some(Token::ThematicBreak));
+            }
         }
     }
     return Ok(None);
@@ -316,32 +318,36 @@ pub fn heading(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, Pars
 
 // https://spec.commonmark.org/0.30/#block-quotes
 pub fn blockquote(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
-    let mut lines = vec![];
-    'outer: loop {
-        for i in 0..3 {
-            match reader.peek_char(i)? {
-                Some('>') => {
-                    let line = reader.consume_until_inclusive(|c| c == '\n')?;
-                    let text = line[i + 1..line.len() - 1].trim_start().to_string();
-                    lines.push(text);
-                    continue 'outer;
+    if let Some('>') = reader.peek_char(0)? {
+        let mut lines = vec![];
+        'outer: loop {
+            for i in 0..3 {
+                match reader.peek_char(i)? {
+                    Some('>') => {
+                        let line = reader.consume_until_inclusive(|c| c == '\n')?;
+                        let text = line[i + 1..line.len() - 1].trim_start().to_string();
+                        lines.push(text);
+                        continue 'outer;
+                    }
+                    Some(' ') => {}
+                    Some(_) | None => break 'outer,
                 }
-                Some(' ') => {}
-                Some(_) | None => break 'outer,
             }
         }
+
+        if lines.len() == 0 {
+            return Ok(None);
+        }
+
+        let content = lines.join("\n");
+
+        let mut reader: CharReader<&[u8]> = CharReader::<&[u8]>::from_string(&content);
+        reader.set_has_read(true); // prevents attributes
+        let tokens = read_tokens(&mut reader)?;
+        return Ok(Some(Token::BlockQuote { tokens }));
     }
 
-    if lines.len() == 0 {
-        return Ok(None);
-    }
-
-    let content = lines.join("\n");
-
-    let mut reader: CharReader<&[u8]> = CharReader::<&[u8]>::from_string(&content);
-    reader.set_has_read(true); // prevents attributes
-    let tokens = read_tokens(&mut reader)?;
-    return Ok(Some(Token::BlockQuote { tokens }));
+    return Ok(None);
 }
 
 /// https://github.com/markedjs/marked/blob/master/src/Tokenizer.js
@@ -367,7 +373,7 @@ pub enum Token {
     Bold {
         text: String,
     },
-    Italic {
+    Emphasis {
         text: String,
     },
     BlockQuote {

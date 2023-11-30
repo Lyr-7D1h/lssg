@@ -277,8 +277,8 @@ impl RendererModule for DefaultModule {
                 let parent_id = dom.add_element(parent_id, "b");
                 dom.add_text(parent_id, text);
             }
-            Token::Italic { text } => {
-                let parent_id = dom.add_element(parent_id, "i");
+            Token::Emphasis { text } => {
+                let parent_id = dom.add_element(parent_id, "em");
                 dom.add_text(parent_id, text);
             }
             Token::Code {
