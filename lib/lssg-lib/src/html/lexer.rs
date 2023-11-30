@@ -44,14 +44,14 @@ pub fn parse_html(input: impl Read) -> Result<Vec<Html>, ParseError> {
 /// parse html from start to end and return (tag, attributes, innerHtml)
 ///
 /// seperated to make logic more reusable
-pub fn parse_html_block(
+pub fn html_block(
     reader: &mut CharReader<impl Read>,
 ) -> Result<Option<(String, HashMap<String, String>, String)>, ParseError> {
     if let Some('<') = reader.peek_char(0)? {
-        if let Some(start_tag) = reader.peek_until(|c| c == '>')? {
-            // get start_tag
+        if let Some(start_tag) = reader.peek_until_exclusive_from(1, |c| c == '>')? {
+            // get html tag
             let mut tag = String::new();
-            for c in start_tag[1..start_tag.len() - 1].chars() {
+            for c in start_tag[1..start_tag.len()].chars() {
                 match c {
                     ' ' => break,
                     '\n' => break,
@@ -118,6 +118,19 @@ pub fn parse_html_block(
     return Ok(None);
 }
 
+pub fn html_comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, ParseError> {
+    if "<!--" == reader.peek_string(4)? {
+        if let Some(text) = reader.peek_until_match_exclusive_from(3, "-->")? {
+            reader.consume(4)?; // skip start
+            let text = reader.consume_string(text.len())?;
+            reader.consume(3)?; // skip end
+            return Ok(Some(Html::Comment { text }));
+        }
+    }
+
+    return Ok(None);
+}
+
 /// A "simple" streaming html parser function. This is a fairly simplified way of parsing html
 /// ignoring a lot of edge cases and validation normally seen when parsing html.
 ///
@@ -127,16 +140,11 @@ pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, Pa
         None => return Ok(None),
         Some(c) => {
             if c == '<' {
-                if "<!--" == reader.peek_string(4)? {
-                    if let Some(text) = reader.peek_until_match_inclusive("-->")? {
-                        reader.consume(4)?; // skip start
-                        let text = reader.consume_string(text.len() - 4 - 3)?;
-                        reader.consume(3)?; // skip end
-                        return Ok(Some(Html::Comment { text }));
-                    }
+                if let Some(comment) = html_comment(reader)? {
+                    return Ok(Some(comment));
                 }
 
-                if let Some((tag, attributes, content)) = parse_html_block(reader)? {
+                if let Some((tag, attributes, content)) = html_block(reader)? {
                     let mut children = vec![];
                     let mut reader = CharReader::new(content.as_bytes());
                     while let Some(html) = read_token(&mut reader)? {
