@@ -164,4 +164,35 @@ another comment
         let tokens = parse_lmarkdown(reader).unwrap();
         assert_eq!(expected, tokens);
     }
+
+    #[test]
+    fn test_setext_heading() {
+        let input = r#"Foo *bar*
+  ===
+
+Foo *bar*
+---------"#;
+        let expected = vec![
+            Token::Heading {
+                tokens: vec![
+                    Token::Text {
+                        text: "Foo ".into(),
+                    },
+                    Token::Emphasis { text: "bar".into() },
+                ],
+                depth: 1,
+            },
+            Token::Heading {
+                tokens: vec![
+                    Token::Text { text: "Foo ".into() },
+                    Token::Emphasis { text: "bar".into() },
+                ],
+                depth: 2,
+            },
+        ];
+
+        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
+        let tokens = parse_lmarkdown(reader).unwrap();
+        assert_eq!(expected, tokens);
+    }
 }
