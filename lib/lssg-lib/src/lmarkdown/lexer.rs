@@ -113,6 +113,9 @@ fn read_block_token(
     }
 
     // TODO https://spec.commonmark.org/0.30/#setext-heading
+    if let Some(setext) = setext_heading(reader, tokens)? {
+        return Ok(Some(setext));
+    }
 
     if let Some(tbreak) = thematic_break(reader)? {
         return Ok(Some(tbreak));
@@ -260,10 +263,52 @@ pub fn read_inline_html_tokens(
     Ok(tokens)
 }
 
+/// https://spec.commonmark.org/0.30/#setext-heading
+pub fn setext_heading(
+    reader: &mut CharReader<impl Read>,
+    tokens: &mut Vec<Token>,
+) -> Result<Option<Token>, ParseError> {
+    if let Some(Token::Paragraph { tokens: ptokens }) = tokens.last() {
+        if let Some(pos) = detect_char_with_ident(reader, |c| c == '=')? {
+            let line = reader.peek_line_from(pos)?;
+            if line.len() > 3 {
+                for c in line.chars() {
+                    if c != '=' {
+                        return Ok(None);
+                    }
+                }
+                reader.consume_string(pos + line.len())?;
+                let heading = Token::Heading {
+                    tokens: ptokens.clone(),
+                    depth: 1,
+                };
+                tokens.pop(); // remove paragraph
+                return Ok(Some(heading));
+            }
+        } else if let Some(pos) = detect_char_with_ident(reader, |c| c == '-')? {
+            let line = reader.peek_line_from(pos)?;
+            if line.len() > 3 {
+                for c in line.chars() {
+                    if c != '-' {
+                        return Ok(None);
+                    }
+                }
+                reader.consume_string(pos + line.len())?;
+                let heading = Token::Heading {
+                    tokens: ptokens.clone(),
+                    depth: 2,
+                };
+                tokens.pop(); // remove paragraph
+                return Ok(Some(heading));
+            }
+        }
+    }
+    Ok(None)
+}
+
 pub fn thematic_break(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
-    if let Some(pos) = detect_char_with_ident(|c| c == '*' || c == '-' || c == '_', reader)? {
+    if let Some(pos) = detect_char_with_ident(reader, |c| c == '*' || c == '-' || c == '_')? {
         let line = reader.peek_line_from(pos)?;
-        println!("{line:?}");
         if let Some(pattern) = line.replace(" ", "").get(0..3) {
             if pattern == "***" || pattern == "---" || pattern == "___" {
                 reader.consume_string(pos + line.len())?;
@@ -276,8 +321,8 @@ pub fn thematic_break(reader: &mut CharReader<impl Read>) -> Result<Option<Token
 
 /// ignore up to 4 space idententations returns at which position the match begins
 pub fn detect_char_with_ident(
-    op: fn(c: char) -> bool,
     reader: &mut CharReader<impl Read>,
+    op: fn(c: char) -> bool,
 ) -> Result<Option<usize>, ParseError> {
     for i in 0..4 {
         match reader.peek_char(i)? {
