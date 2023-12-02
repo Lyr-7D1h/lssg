@@ -124,6 +124,10 @@ fn read_block_token(
         return Ok(Some(list));
     }
 
+    if let Some(list) = ordered_list(reader)? {
+        return Ok(Some(list));
+    }
+
     if let Some(blockquote) = blockquote(reader)? {
         return Ok(Some(blockquote));
     }
@@ -319,6 +323,33 @@ pub fn thematic_break(reader: &mut CharReader<impl Read>) -> Result<Option<Token
     return Ok(None);
 }
 
+fn list_item_tokens(
+    reader: &mut CharReader<impl Read>,
+    ident: usize,
+) -> Result<Vec<Token>, ParseError> {
+    // read the first line
+    let line = reader.consume_until_inclusive(|c| c == '\n')?;
+    let mut item_content = line[ident..line.len()].to_string();
+    loop {
+        let line = reader.peek_line()?;
+
+        if line.is_empty() {
+            let line = reader.consume_string(line.len() + 1)?;
+            // end
+            if line.len() == 0 {
+                break;
+            }
+            item_content.push_str(&line);
+        } else if line.starts_with(&" ".repeat(ident)) {
+            let line = reader.consume_string(line.len() + 1)?;
+            item_content.push_str(&line[ident..line.len()]);
+        } else {
+            break;
+        }
+    }
+    let mut reader = CharReader::<&[u8]>::from_string(&item_content);
+    return read_tokens(&mut reader);
+}
 /// https://spec.commonmark.org/0.30/#list-items
 pub fn bullet_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
     let mut items = vec![];
@@ -338,29 +369,8 @@ pub fn bullet_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, 
         }
         let ident = pos + n;
 
-        // read the first line
-        let line = reader.consume_until_inclusive(|c| c == '\n')?;
-        let mut item_content = line[ident..line.len()].to_string();
-        loop {
-            let line = reader.peek_line()?;
-
-            if line.is_empty() {
-                let line = reader.consume_string(line.len() + 1)?;
-                // end
-                if line.len() == 0 {
-                    break;
-                }
-                item_content.push_str(&line);
-            } else if line.starts_with(&" ".repeat(ident)) {
-                let line = reader.consume_string(line.len() + 1)?;
-                item_content.push_str(&line[ident..line.len()]);
-            } else {
-                break;
-            }
-        }
-        let mut reader = CharReader::<&[u8]>::from_string(&item_content);
-        let tokens = read_tokens(&mut reader)?;
-        items.push(tokens);
+        let tokens = list_item_tokens(reader, ident)?;
+        items.push(tokens)
     }
 
     if items.len() == 0 {
@@ -368,6 +378,51 @@ pub fn bullet_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, 
     }
 
     return Ok(Some(Token::BulletList { items }));
+}
+/// https://spec.commonmark.org/0.30/#list-items
+pub fn ordered_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
+    let mut items = vec![];
+    while let Some(mut pos) = detect_char_with_ident(reader, |c| c.is_ascii_digit())? {
+        for i in 1..10 {
+            // not more than 9 digits allowed
+            if i == 10 {
+                return Ok(None);
+            }
+
+            match reader.peek_char(pos + i)? {
+                Some(c) if c.is_ascii_digit() => {}
+                Some('.') | Some(')') => {
+                    pos = i + pos;
+                    break;
+                }
+                Some(_) | None => return Ok(None),
+            }
+        }
+
+        // by default n=1
+        let mut n = 1;
+        for i in 1..5 {
+            match reader.peek_char(pos + i)? {
+                Some(' ') => {}
+                Some(_) => {
+                    n = i;
+                    break;
+                }
+                None => return Ok(None),
+            }
+        }
+
+        let ident = pos + n;
+
+        let tokens = list_item_tokens(reader, ident)?;
+        items.push(tokens)
+    }
+
+    if items.len() == 0 {
+        return Ok(None);
+    }
+
+    return Ok(Some(Token::OrderedList { items }));
 }
 
 /// ignore up to 4 space idententations returns at which position the match begins
@@ -420,7 +475,7 @@ pub fn blockquote(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, P
             match reader.peek_char(i)? {
                 Some('>') => {
                     let line = reader.consume_until_inclusive(|c| c == '\n')?;
-                    let text = line[i + 1..line.len() - 1].trim_start().to_string();
+                    let text = line[i + 1..line.len()].trim_start().to_string();
                     lines.push(text);
                     continue 'outer;
                 }

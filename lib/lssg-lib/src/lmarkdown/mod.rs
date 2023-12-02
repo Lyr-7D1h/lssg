@@ -243,4 +243,32 @@ Foo *bar*
     fn text(text: &str) -> Token {
         Token::Text { text: text.into() }
     }
+
+    #[test]
+    fn test_ordered_list() {
+        let input = r#"1.  A paragraph
+    with two lines.
+
+    > A block quote."#;
+        let expected = vec![Token::OrderedList {
+            items: vec![vec![
+                Token::Paragraph {
+                    tokens: vec![
+                        text("A paragraph"),
+                        Token::SoftBreak,
+                        text("with two lines."),
+                    ],
+                },
+                Token::BlockQuote {
+                    tokens: vec![Token::Paragraph {
+                        tokens: vec![text("A block quote.")],
+                    }],
+                },
+            ]],
+        }];
+
+        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
+        let tokens = parse_lmarkdown(reader).unwrap();
+        assert_eq!(expected, tokens);
+    }
 }
