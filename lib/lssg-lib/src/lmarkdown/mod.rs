@@ -184,7 +184,9 @@ Foo *bar*
             },
             Token::Heading {
                 tokens: vec![
-                    Token::Text { text: "Foo ".into() },
+                    Token::Text {
+                        text: "Foo ".into(),
+                    },
                     Token::Emphasis { text: "bar".into() },
                 ],
                 depth: 2,
@@ -194,5 +196,51 @@ Foo *bar*
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
         let tokens = parse_lmarkdown(reader).unwrap();
         assert_eq!(expected, tokens);
+    }
+
+    #[test]
+    fn test_bullet_list() {
+        let input = r#"- one
+ two
+"#;
+        let expected = vec![
+            Token::BulletList {
+                items: vec![vec![Token::Paragraph {
+                    tokens: vec![text("one")],
+                }]],
+            },
+            Token::Paragraph {
+                tokens: vec![text("two")],
+            },
+        ];
+
+        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
+        let tokens = parse_lmarkdown(reader).unwrap();
+        assert_eq!(expected, tokens);
+    }
+
+    #[test]
+    fn test_bullet_list_indented() {
+        let input = r#"- one
+
+  two"#;
+        let expected = vec![Token::BulletList {
+            items: vec![vec![
+                Token::Paragraph {
+                    tokens: vec![text("one")],
+                },
+                Token::Paragraph {
+                    tokens: vec![text("two")],
+                },
+            ]],
+        }];
+
+        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
+        let tokens = parse_lmarkdown(reader).unwrap();
+        assert_eq!(expected, tokens);
+    }
+
+    fn text(text: &str) -> Token {
+        Token::Text { text: text.into() }
     }
 }

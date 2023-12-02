@@ -244,6 +244,20 @@ impl RendererModule for DefaultModule {
         tr: &mut TokenRenderer,
     ) -> Option<DomId> {
         match token {
+            Token::OrderedList { items } => {
+                let ol = dom.add_element(parent_id, "ol");
+                for tokens in items {
+                    let li = dom.add_element(ol, "li");
+                    tr.render(dom, context, li, tokens)
+                }
+            }
+            Token::BulletList { items } => {
+                let ul = dom.add_element(parent_id, "ul");
+                for tokens in items {
+                    let li = dom.add_element(ul, "li");
+                    tr.render(dom, context, li, tokens)
+                }
+            }
             Token::Attributes { .. } | Token::Comment { .. } => {}
             Token::ThematicBreak => {
                 dom.add_element(parent_id, "hr");

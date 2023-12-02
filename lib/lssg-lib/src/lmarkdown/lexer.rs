@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::Read};
+use std::{collections::HashMap, io::Read, task::Wake};
 
 use log::warn;
 
@@ -120,9 +120,9 @@ fn read_block_token(
         return Ok(Some(tbreak));
     }
 
-    // if let Some(list) = bullet_list(reader)? {
-    //     return Ok(Some(list));
-    // }
+    if let Some(list) = bullet_list(reader)? {
+        return Ok(Some(list));
+    }
 
     if let Some(blockquote) = blockquote(reader)? {
         return Ok(Some(blockquote));
@@ -321,8 +321,53 @@ pub fn thematic_break(reader: &mut CharReader<impl Read>) -> Result<Option<Token
 
 /// https://spec.commonmark.org/0.30/#list-items
 pub fn bullet_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
-    if let Some(ident) = detect_char_with_ident(reader, |c| c == '-' || c == '+' || c == '*')? {}
-    todo!()
+    let mut items = vec![];
+
+    while let Some(pos) = detect_char_with_ident(reader, |c| c == '-' || c == '+' || c == '*')? {
+        // by default n=1
+        let mut n = 1;
+        for i in 1..5 {
+            match reader.peek_char(pos + i)? {
+                Some(' ') => {}
+                Some(_) => {
+                    n = i;
+                    break;
+                }
+                None => return Ok(None),
+            }
+        }
+        let ident = pos + n;
+
+        // read the first line
+        let line = reader.consume_until_inclusive(|c| c == '\n')?;
+        let mut item_content = line[ident..line.len()].to_string();
+        loop {
+            let line = reader.peek_line()?;
+
+            if line.is_empty() {
+                let line = reader.consume_string(line.len() + 1)?;
+                // end
+                if line.len() == 0 {
+                    break;
+                }
+                item_content.push_str(&line);
+            } else if line.starts_with(&" ".repeat(ident)) {
+                let line = reader.consume_string(line.len() + 1)?;
+                item_content.push_str(&line[ident..line.len()]);
+            } else {
+                break;
+            }
+        }
+        let mut reader = CharReader::<&[u8]>::from_string(&item_content);
+        let tokens = read_tokens(&mut reader)?;
+        items.push(tokens);
+    }
+
+    if items.len() == 0 {
+        return Ok(None);
+    }
+
+    return Ok(Some(Token::BulletList { items }));
 }
 
 /// ignore up to 4 space idententations returns at which position the match begins
@@ -404,6 +449,12 @@ pub enum Token {
     Attributes {
         table: toml::map::Map<String, toml::Value>,
     },
+    BulletList {
+        items: Vec<Vec<Token>>,
+    },
+    OrderedList {
+        items: Vec<Vec<Token>>,
+    },
     Heading {
         tokens: Vec<Token>,
         /// 0-6
@@ -462,6 +513,7 @@ impl Token {
             | Token::Link { tokens, .. }
             | Token::Image { tokens, .. }
             | Token::Html { tokens, .. } => Some(tokens),
+            // TODO lists
             _ => None,
         }
     }

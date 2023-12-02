@@ -83,6 +83,11 @@ impl<R: Read> CharReader<R> {
     }
 
     /// peek until \n or eof is reached
+    pub fn peek_line(&mut self) -> Result<String, ParseError> {
+        return self.peek_line_from(0);
+    }
+
+    /// peek until \n or eof is reached
     pub fn peek_line_from(&mut self, pos: usize) -> Result<String, ParseError> {
         let mut i = pos;
         let mut result = String::new();
