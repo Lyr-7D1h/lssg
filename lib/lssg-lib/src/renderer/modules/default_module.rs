@@ -297,7 +297,7 @@ impl RendererModule for DefaultModule {
             }
             Token::Code {
                 text: code,
-                language: _,
+                info: _,
             } => {
                 let parent_id = dom.add_element(parent_id, "code");
                 dom.add_text(parent_id, code);

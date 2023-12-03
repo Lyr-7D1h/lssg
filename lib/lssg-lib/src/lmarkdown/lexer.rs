@@ -91,6 +91,14 @@ fn read_block_token(
         }
     }
 
+    // if let Some(code) = indented_code(reader)? {
+    //     return Ok(Some(code));
+    // }
+
+    if let Some(code) = fenced_code(reader)? {
+        return Ok(Some(code));
+    }
+
     if let Some(heading) = heading(reader)? {
         return Ok(Some(heading));
     }
@@ -267,6 +275,75 @@ pub fn read_inline_html_tokens(
     Ok(tokens)
 }
 
+pub fn indented_code(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
+    todo!()
+}
+
+/// https://spec.commonmark.org/0.30/#fenced-code-blocks
+pub fn fenced_code(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
+    if let Some(indent) = detect_char_with_ident(reader, |c| c == '~' || c == '`')? {
+        let fence_type = reader.peek_char(indent)?.unwrap();
+        let mut count_backticks = 1;
+        while let Some(c) = reader.peek_char(indent + count_backticks)? {
+            if c != fence_type {
+                break;
+            }
+            count_backticks += 1;
+        }
+
+        // must start with more than 3 of same fence_type
+        if !(count_backticks >= 3) {
+            return Ok(None);
+        }
+
+        let info = reader.consume_until_inclusive(|c| c == '\n')?;
+        let info = &info[indent + count_backticks..info.len()];
+        let info = sanitize_text(info.to_string());
+
+        let mut text = String::new();
+        // add all content
+        'outer: loop {
+            let line = reader.consume_until_inclusive(|c| c == '\n')?;
+            if line.len() == 0 {
+                break;
+            }
+
+            let chars: Vec<char> = line.chars().collect();
+            // check if closing
+            for i in 0..4 {
+                match chars.get(i) {
+                    Some(c) if *c == fence_type => {
+                        // continue if all characters are not same as opening fence
+                        for j in i..i + count_backticks {
+                            if let Some(c) = chars.get(j) {
+                                if *c != fence_type {
+                                    break;
+                                }
+                            }
+                        }
+                        break 'outer;
+                    }
+                    Some(' ') => {}
+                    Some(_) | None => break,
+                }
+            }
+
+            let mut pos = 0;
+            for i in 0..indent {
+                if chars[i] == ' ' {
+                    pos += 1;
+                }
+                break;
+            }
+            text += &line[pos..line.len()];
+        }
+
+        return Ok(Some(Token::Code { info, text }));
+    }
+
+    return Ok(None);
+}
+
 /// https://spec.commonmark.org/0.30/#setext-heading
 pub fn setext_heading(
     reader: &mut CharReader<impl Read>,
@@ -350,6 +427,7 @@ fn list_item_tokens(
     let mut reader = CharReader::<&[u8]>::from_string(&item_content);
     return read_tokens(&mut reader);
 }
+// TODO implement all specs (check for same usage of bullet enc.)
 /// https://spec.commonmark.org/0.30/#list-items
 pub fn bullet_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
     let mut items = vec![];
@@ -379,6 +457,7 @@ pub fn bullet_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, 
 
     return Ok(Some(Token::BulletList { items }));
 }
+// TODO implement all specs (check for same usage of bullet enc.)
 /// https://spec.commonmark.org/0.30/#list-items
 pub fn ordered_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
     let mut items = vec![];
@@ -534,7 +613,7 @@ pub enum Token {
         tokens: Vec<Token>,
     },
     Code {
-        language: String,
+        info: String,
         text: String,
     },
     Image {

@@ -271,4 +271,20 @@ Foo *bar*
         let tokens = parse_lmarkdown(reader).unwrap();
         assert_eq!(expected, tokens);
     }
+
+    #[test]
+    fn test_code_fenced() {
+        let input = r#"```markdown
+aaa
+~~~
+```"#;
+        let expected = vec![Token::Code {
+            info: "markdown".into(),
+            text: "aaa\n~~~\n".into(),
+        }];
+
+        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
+        let tokens = parse_lmarkdown(reader).unwrap();
+        assert_eq!(expected, tokens);
+    }
 }
