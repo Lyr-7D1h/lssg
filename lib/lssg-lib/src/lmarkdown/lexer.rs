@@ -434,17 +434,22 @@ pub fn bullet_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, 
 
     while let Some(pos) = detect_char_with_ident(reader, |c| c == '-' || c == '+' || c == '*')? {
         // by default n=1
-        let mut n = 1;
-        for i in 1..5 {
-            match reader.peek_char(pos + i)? {
+        let mut n = 0;
+        for offset in 1..5 {
+            match reader.peek_char(pos + offset)? {
                 Some(' ') => {}
                 Some(_) => {
-                    n = i;
+                    n = offset - 1;
                     break;
                 }
                 None => return Ok(None),
             }
         }
+        // must have atleast one whitespace
+        if n == 0 {
+            return Ok(None);
+        }
+
         let ident = pos + n;
 
         let tokens = list_item_tokens(reader, ident)?;
