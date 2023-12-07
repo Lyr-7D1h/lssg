@@ -41,6 +41,10 @@ blockquote {
 blockquote p {
   margin: 10px;
 }
+code {
+  /* Dont wrap spaces */
+  white-space: pre-wrap;
+}
 h1,
 h2,
 h3,

@@ -140,6 +140,8 @@ fn read_block_token(
         return Ok(Some(blockquote));
     }
 
+    // TODO https://spec.commonmark.org/0.30/#link-reference-definitions
+
     // https://spec.commonmark.org/0.30/#paragraphs
     let text = sanitize_text(reader.consume_until_inclusive(|c| c == '\n')?);
     let mut inline_tokens = read_inline_tokens(&text)?;
@@ -181,7 +183,34 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
                 });
                 continue;
             }
+
+            // https://spec.commonmark.org/0.30/#autolinks
+            if let Some(link) = reader.peek_until_exclusive_from(1, |c| c == '>')? {
+                let mut ignore = false;
+                for c in link.chars() {
+                    match c {
+                        '<' | '>' | ' ' => {
+                            ignore = true;
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+                if !ignore {
+                    reader.consume(1)?;
+                    let text = reader.consume_string(link.len())?;
+                    reader.consume(1)?;
+                    tokens.push(Token::Link {
+                        tokens: vec![Token::Text { text }],
+                        href: link,
+                    });
+                    continue;
+                }
+            }
         }
+
+        // https://spec.commonmark.org/0.30/#code-spans
+        if c == '`' {}
 
         // https://spec.commonmark.org/0.30/#images
         if c == '!' {

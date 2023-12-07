@@ -287,4 +287,21 @@ aaa
         let tokens = parse_lmarkdown(reader).unwrap();
         assert_eq!(expected, tokens);
     }
+
+    #[test]
+    fn test_autolink() {
+        let input = r#"<http://foo.bar.baz>"#;
+        let expected = vec![
+            Token::Paragraph {
+                tokens: vec![Token::Link {
+            tokens: vec![text("http://foo.bar.baz")],
+            href: "http://foo.bar.baz".into(),
+        }]
+            }
+            ];
+
+        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
+        let tokens = parse_lmarkdown(reader).unwrap();
+        assert_eq!(expected, tokens);
+    }
 }
