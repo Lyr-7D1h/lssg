@@ -165,7 +165,7 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
     let mut reader = CharReader::<&[u8]>::from_string(text);
 
     let mut tokens = vec![];
-    while let Some(c) = reader.peek_char(0)? {
+    'outer: while let Some(c) = reader.peek_char(0)? {
         // html
         if c == '<' {
             // comment
@@ -186,17 +186,21 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
 
             // https://spec.commonmark.org/0.30/#autolinks
             if let Some(link) = reader.peek_until_exclusive_from(1, |c| c == '>')? {
-                let mut ignore = false;
+                let mut valid = false;
                 for c in link.chars() {
                     match c {
                         '<' | '>' | ' ' => {
-                            ignore = true;
+                            valid = false;
                             break;
+                        }
+                        // must contain scheme
+                        ':' => {
+                            valid = true;
                         }
                         _ => {}
                     }
                 }
-                if !ignore {
+                if valid {
                     reader.consume(1)?;
                     let text = reader.consume_string(link.len())?;
                     reader.consume(1)?;
@@ -210,7 +214,44 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
         }
 
         // https://spec.commonmark.org/0.30/#code-spans
-        if c == '`' {}
+        if c == '`' {
+            let mut backtick_count = 1;
+            while let Some('`') = reader.peek_char(backtick_count)? {
+                backtick_count += 1;
+            }
+
+            let mut i = backtick_count;
+            let mut count = 0;
+            while let Some(c) = reader.peek_char(i)? {
+                match c {
+                    '`' => {
+                        count += 1;
+
+                        // skip if next is backtick
+                        if let Ok(Some('`')) = reader.peek_char(i + 1) {
+                            i += 1;
+                            continue;
+                        }
+
+                        if count == backtick_count {
+                            reader.consume(backtick_count)?;
+                            let mut text = reader.consume_string(i + 1 - backtick_count * 2)?;
+                            // remove leading and ending space if not only contained with spaces
+                            if text.starts_with(" ") && text.ends_with(" ") {
+                                if let Some(_) = text.find(char::is_alphabetic) {
+                                    text = text[1..text.len() - 1].to_string();
+                                }
+                            }
+                            reader.consume(backtick_count)?;
+                            tokens.push(Token::Code { info: None, text });
+                            continue 'outer;
+                        }
+                    }
+                    _ => count = 0,
+                }
+                i += 1;
+            }
+        }
 
         // https://spec.commonmark.org/0.30/#images
         if c == '!' {
@@ -367,7 +408,10 @@ pub fn fenced_code(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, 
             text += &line[pos..line.len()];
         }
 
-        return Ok(Some(Token::Code { info, text }));
+        return Ok(Some(Token::Code {
+            info: Some(info),
+            text,
+        }));
     }
 
     return Ok(None);
@@ -647,7 +691,7 @@ pub enum Token {
         tokens: Vec<Token>,
     },
     Code {
-        info: String,
+        info: Option<String>,
         text: String,
     },
     Image {

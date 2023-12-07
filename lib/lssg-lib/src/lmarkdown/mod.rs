@@ -206,11 +206,8 @@ Foo *bar*
         let expected = vec![
             Token::BulletList {
                 items: vec![vec![Token::Paragraph {
-                    tokens: vec![text("one")],
+                    tokens: vec![text("one"), Token::SoftBreak, text("two")],
                 }]],
-            },
-            Token::Paragraph {
-                tokens: vec![text("two")],
             },
         ];
 
@@ -279,8 +276,37 @@ aaa
 ~~~
 ```"#;
         let expected = vec![Token::Code {
-            info: "markdown".into(),
+            info: Some("markdown".into()),
             text: "aaa\n~~~\n".into(),
+        }];
+
+        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
+        let tokens = parse_lmarkdown(reader).unwrap();
+        assert_eq!(expected, tokens);
+    }
+
+    #[test]
+    fn test_code_span() {
+        let input = r#"`foo`
+` `` `
+`` foo ` bar ``"#;
+        let expected = vec![Token::Paragraph {
+            tokens: vec![
+                Token::Code {
+                    text: "foo".into(),
+                    info: None,
+                },
+                Token::SoftBreak,
+                Token::Code {
+                    text: " `` ".into(),
+                    info: None,
+                },
+                Token::SoftBreak,
+                Token::Code {
+                    text: "foo ` bar".into(),
+                    info: None,
+                },
+            ],
         }];
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
@@ -291,14 +317,12 @@ aaa
     #[test]
     fn test_autolink() {
         let input = r#"<http://foo.bar.baz>"#;
-        let expected = vec![
-            Token::Paragraph {
-                tokens: vec![Token::Link {
-            tokens: vec![text("http://foo.bar.baz")],
-            href: "http://foo.bar.baz".into(),
-        }]
-            }
-            ];
+        let expected = vec![Token::Paragraph {
+            tokens: vec![Token::Link {
+                tokens: vec![text("http://foo.bar.baz")],
+                href: "http://foo.bar.baz".into(),
+            }],
+        }];
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
         let tokens = parse_lmarkdown(reader).unwrap();
