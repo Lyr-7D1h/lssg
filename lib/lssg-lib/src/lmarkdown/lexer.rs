@@ -91,14 +91,6 @@ fn read_block_token(
         }
     }
 
-    // if let Some(code) = indented_code(reader)? {
-    //     return Ok(Some(code));
-    // }
-
-    if let Some(code) = fenced_code(reader)? {
-        return Ok(Some(code));
-    }
-
     if let Some(heading) = heading(reader)? {
         return Ok(Some(heading));
     }
@@ -136,6 +128,15 @@ fn read_block_token(
         return Ok(Some(list));
     }
 
+    // list item takes precedence
+    if let Some(code) = indented_code(reader, tokens, blank_line)? {
+        return Ok(Some(code));
+    }
+
+    if let Some(code) = fenced_code(reader)? {
+        return Ok(Some(code));
+    }
+
     if let Some(blockquote) = blockquote(reader)? {
         return Ok(Some(blockquote));
     }
@@ -151,6 +152,7 @@ fn read_block_token(
     }) = tokens.last_mut()
     {
         if !blank_line {
+            // https://spec.commonmark.org/0.30/#soft-line-breaks
             last_tokens.push(Token::SoftBreak);
             last_tokens.append(&mut inline_tokens);
             return Ok(None);
@@ -345,8 +347,29 @@ pub fn read_inline_html_tokens(
     Ok(tokens)
 }
 
-pub fn indented_code(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
-    todo!()
+/// https://spec.commonmark.org/0.30/#indented-code-blocks
+pub fn indented_code(
+    reader: &mut CharReader<impl Read>,
+    tokens: &Vec<Token>,
+    blank_line: bool,
+) -> Result<Option<Token>, ParseError> {
+    // can't interupt a paragraph if there wasn't a blank line
+    if let Some(Token::Paragraph { .. }) = tokens.last() {
+        if !blank_line {
+            return Ok(None);
+        }
+    }
+
+    let mut text = String::new();
+    while "    " == reader.peek_string(4)? {
+        let line = reader.consume_until_inclusive(|c| c == '\n')?;
+        text.push_str(&line[4..line.len()]);
+    }
+    if text.len() == 0 {
+        return Ok(None);
+    }
+
+    return Ok(Some(Token::Code { info: None, text }));
 }
 
 /// https://spec.commonmark.org/0.30/#fenced-code-blocks

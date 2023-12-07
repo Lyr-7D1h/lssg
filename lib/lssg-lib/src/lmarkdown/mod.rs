@@ -203,13 +203,11 @@ Foo *bar*
         let input = r#"- one
  two
 "#;
-        let expected = vec![
-            Token::BulletList {
-                items: vec![vec![Token::Paragraph {
-                    tokens: vec![text("one"), Token::SoftBreak, text("two")],
-                }]],
-            },
-        ];
+        let expected = vec![Token::BulletList {
+            items: vec![vec![Token::Paragraph {
+                tokens: vec![text("one"), Token::SoftBreak, text("two")],
+            }]],
+        }];
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
         let tokens = parse_lmarkdown(reader).unwrap();
@@ -278,6 +276,20 @@ aaa
         let expected = vec![Token::Code {
             info: Some("markdown".into()),
             text: "aaa\n~~~\n".into(),
+        }];
+
+        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
+        let tokens = parse_lmarkdown(reader).unwrap();
+        assert_eq!(expected, tokens);
+    }
+
+    #[test]
+    fn test_indented_code() {
+        let input = r#"    a simple
+      indented code block"#;
+        let expected = vec![Token::Code {
+            text: "a simple\n  indented code block".into(),
+            info: None,
         }];
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
