@@ -20,6 +20,17 @@ mod tests {
 
     use super::*;
 
+    fn text(text: &str) -> Token {
+        Token::Text { text: text.into() }
+    }
+
+    fn p(tokens: Vec<Token>) -> Token {
+        Token::Paragraph {
+            tokens,
+            hard_break: false,
+        }
+    }
+
     #[test]
     fn test_text_that_looks_like_html() {
         let input = r#"# Rust > c++
@@ -35,8 +46,7 @@ This should be text
                     text: "Rust > c++".into(),
                 }],
             },
-            Token::Paragraph {
-                tokens: vec![
+            p( vec![
                     Token::Text {
                         text: "Lots of people say Rust > c++. even though it might be".into(),
                     },
@@ -53,7 +63,7 @@ This should be text
                         text: "This should be text".into(),
                     },
                 ],
-            },
+            ),
         ];
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
@@ -83,8 +93,7 @@ another comment
             Token::Comment {
                 raw: " another comment ".into(),
             },
-            Token::Paragraph {
-                tokens: vec![
+            p( vec![
                     Token::Text {
                         text: "paragraph ".into(),
                     },
@@ -92,7 +101,7 @@ another comment
                         raw: " inline comment ".into(),
                     },
                 ],
-            },
+            ),
             Token::Comment {
                 raw: "\nanother comment\n".into(),
             },
@@ -204,9 +213,8 @@ Foo *bar*
  two
 "#;
         let expected = vec![Token::BulletList {
-            items: vec![vec![Token::Paragraph {
-                tokens: vec![text("one"), Token::SoftBreak, text("two")],
-            }]],
+            items: vec![vec![p( vec![text("one"), Token::SoftBreak, text("two")],
+            )]],
         }];
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
@@ -221,22 +229,16 @@ Foo *bar*
   two"#;
         let expected = vec![Token::BulletList {
             items: vec![vec![
-                Token::Paragraph {
-                    tokens: vec![text("one")],
-                },
-                Token::Paragraph {
-                    tokens: vec![text("two")],
-                },
+                p( vec![text("one")],
+                ),
+                p( vec![text("two")],
+                ),
             ]],
         }];
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
         let tokens = parse_lmarkdown(reader).unwrap();
         assert_eq!(expected, tokens);
-    }
-
-    fn text(text: &str) -> Token {
-        Token::Text { text: text.into() }
     }
 
     #[test]
@@ -247,17 +249,15 @@ Foo *bar*
     > A block quote."#;
         let expected = vec![Token::OrderedList {
             items: vec![vec![
-                Token::Paragraph {
-                    tokens: vec![
+                p( vec![
                         text("A paragraph"),
                         Token::SoftBreak,
                         text("with two lines."),
                     ],
-                },
+                ),
                 Token::BlockQuote {
-                    tokens: vec![Token::Paragraph {
-                        tokens: vec![text("A block quote.")],
-                    }],
+                    tokens: vec![p( vec![text("A block quote.")],
+                    )],
                 },
             ]],
         }];
@@ -302,8 +302,7 @@ aaa
         let input = r#"`foo`
 ` `` `
 `` foo ` bar ``"#;
-        let expected = vec![Token::Paragraph {
-            tokens: vec![
+        let expected = vec![p( vec![
                 Token::Code {
                     text: "foo".into(),
                     info: None,
@@ -319,7 +318,29 @@ aaa
                     info: None,
                 },
             ],
-        }];
+        )];
+
+        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
+        let tokens = parse_lmarkdown(reader).unwrap();
+        assert_eq!(expected, tokens);
+    }
+
+    #[test]
+    fn test_hard_line_break() {
+        let input = r#"foo  
+bar
+foo\
+baz"#;
+        let expected = vec![p( vec![
+                text("foo"),
+                Token::HardBreak,
+                text("bar"),
+                Token::SoftBreak,
+                text("foo"),
+                Token::HardBreak,
+                text("baz"),
+            ],
+        )];
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
         let tokens = parse_lmarkdown(reader).unwrap();
@@ -329,12 +350,11 @@ aaa
     #[test]
     fn test_autolink() {
         let input = r#"<http://foo.bar.baz>"#;
-        let expected = vec![Token::Paragraph {
-            tokens: vec![Token::Link {
+        let expected = vec![p( vec![Token::Link {
                 tokens: vec![text("http://foo.bar.baz")],
                 href: "http://foo.bar.baz".into(),
             }],
-        }];
+        )];
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
         let tokens = parse_lmarkdown(reader).unwrap();

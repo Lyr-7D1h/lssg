@@ -283,7 +283,7 @@ impl RendererModule for DefaultModule {
                 let parent_id = dom.add_element(parent_id, format!("h{depth}"));
                 tr.render(dom, context, parent_id, tokens);
             }
-            Token::Paragraph { tokens } => {
+            Token::Paragraph { tokens, .. } => {
                 let parent_id = dom.add_element(parent_id, "p");
                 tr.render(dom, context, parent_id, tokens);
             }

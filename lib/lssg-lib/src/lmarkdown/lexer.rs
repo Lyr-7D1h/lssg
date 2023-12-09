@@ -144,22 +144,41 @@ fn read_block_token(
     // TODO https://spec.commonmark.org/0.30/#link-reference-definitions
 
     // https://spec.commonmark.org/0.30/#paragraphs
-    let text = sanitize_text(reader.consume_until_inclusive(|c| c == '\n')?);
+    let mut text = reader.consume_until_exclusive(|c| c == '\n')?;
+    let hard_break = if text.ends_with("  ") {
+        true
+    } else if text.ends_with("\\") {
+        text.pop();
+        true
+    } else {
+        false
+    };
+    reader.consume(1)?; // consume new line
+    let text = sanitize_text(text);
     let mut inline_tokens = read_inline_tokens(&text)?;
     // add to prev p if there isn't a blank line in between
     if let Some(Token::Paragraph {
         tokens: last_tokens,
+        hard_break: last_hard_break,
     }) = tokens.last_mut()
     {
         if !blank_line {
-            // https://spec.commonmark.org/0.30/#soft-line-breaks
-            last_tokens.push(Token::SoftBreak);
+            if *last_hard_break {
+                // https://spec.commonmark.org/0.30/#hard-line-breaks
+                last_tokens.push(Token::HardBreak);
+            } else {
+                // https://spec.commonmark.org/0.30/#soft-line-breaks
+                last_tokens.push(Token::SoftBreak);
+            }
             last_tokens.append(&mut inline_tokens);
+            *last_hard_break = hard_break;
+
             return Ok(None);
         }
     }
     return Ok(Some(Token::Paragraph {
         tokens: inline_tokens,
+        hard_break,
     }));
 }
 
@@ -445,7 +464,10 @@ pub fn setext_heading(
     reader: &mut CharReader<impl Read>,
     tokens: &mut Vec<Token>,
 ) -> Result<Option<Token>, ParseError> {
-    if let Some(Token::Paragraph { tokens: ptokens }) = tokens.last() {
+    if let Some(Token::Paragraph {
+        tokens: ptokens, ..
+    }) = tokens.last()
+    {
         if let Some(pos) = detect_char_with_ident(reader, |c| c == '=')? {
             let line = reader.peek_line_from(pos)?;
             if line.len() >= 3 {
@@ -703,6 +725,8 @@ pub enum Token {
     /// Anything that is not an already declared inline element
     Paragraph {
         tokens: Vec<Token>,
+        /// metadata to let you know the paragraph ended with a hard break symbol
+        hard_break: bool,
     },
     Bold {
         text: String,
