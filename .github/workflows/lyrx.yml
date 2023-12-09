@@ -1,4 +1,4 @@
-name: Lyrx Github Pages Deployment
+name: Lyrx Deployment
 
 on:
   push:
