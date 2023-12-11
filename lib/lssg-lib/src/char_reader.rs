@@ -290,26 +290,15 @@ impl<R: Read> CharReader<R> {
     }
 
     pub fn consume_until_match_inclusive(&mut self, pattern: &str) -> Result<String, ParseError> {
-        self.has_read = true;
-        // TODO refactor
-        let chars: Vec<char> = pattern.chars().collect();
-        let mut char_i = 0;
-
-        let mut result = String::new();
+        let mut result = self.consume_string(pattern.len())?;
         loop {
-            let c = match self.consume_char()? {
-                Some(c) => c,
+            if &result[result.len() - pattern.len()..] == pattern {
+                break;
+            }
+            match self.consume_char()? {
+                Some(c) => result.push(c),
                 None => break,
             };
-            result.push(c);
-            if c == chars[char_i] {
-                char_i += 1;
-                if char_i == chars.len() {
-                    break;
-                }
-            } else {
-                char_i = 0;
-            }
         }
         return Ok(result);
     }
@@ -383,5 +372,24 @@ Very important test"
                 .unwrap()
                 .unwrap(),
         );
+    }
+
+    #[test]
+    fn test_consume_until_match_inclusive() {
+        let input = "<!---->";
+        let mut reader = CharReader::new(input.as_bytes());
+        assert_eq!(
+            reader.consume_until_match_inclusive("-->").unwrap(),
+            input.to_owned()
+        );
+        assert_eq!(reader.consume(1).unwrap(), None);
+
+        let input = "some string";
+        let mut reader = CharReader::new(input.as_bytes());
+        assert_eq!(
+            reader.consume_until_match_inclusive("str").unwrap(),
+            "some str".to_string()
+        );
+        assert_eq!(reader.consume_string(8).unwrap(), "ing".to_string());
     }
 }
