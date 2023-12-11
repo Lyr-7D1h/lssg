@@ -12,7 +12,7 @@ use super::{
     page::Page,
     relational_graph::RelationalGraph,
     relational_graph::{Link, Relation},
-    stylesheet::Stylesheet,
+    stylesheet::{Stylesheet, StylesheetLink},
     Input, Resource, SiteNode, SiteNodeKind,
 };
 
@@ -318,10 +318,12 @@ impl SiteTree {
         parent = self.create_folders(&input, parent)?;
 
         let stylesheet = Stylesheet::try_from(&input)?;
-        let resources: Vec<String> = stylesheet
-            .resources()
+        let stylesheet_links: Vec<String> = stylesheet
+            .links()
             .into_iter()
-            .map(|p| p.to_string())
+            .map(|p| match p {
+                StylesheetLink::Import(s) | StylesheetLink::Url(s) => s.to_string(),
+            })
             .collect();
 
         let parent = self.create_folders(&input, parent)?;
@@ -332,8 +334,8 @@ impl SiteTree {
             kind: SiteNodeKind::Stylesheet(stylesheet),
         })?;
 
-        for resource in resources {
-            let input = input.new(&resource)?;
+        for link in stylesheet_links {
+            let input = input.new(&link)?;
             let parent = self.create_folders(&input, parent)?;
             let resource_id = self.add(SiteNode {
                 name: input.filename()?,
@@ -344,7 +346,7 @@ impl SiteTree {
             self.rel_graph.add(
                 stylesheet_id,
                 resource_id,
-                Relation::Discovered { raw_path: resource },
+                Relation::Discovered { raw_path: link },
             );
             self.input_to_id.insert(input, resource_id);
         }
