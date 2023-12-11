@@ -765,14 +765,17 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn get_tokens(&self) -> Option<&Vec<Token>> {
+    pub fn get_tokens(&self) -> Option<Vec<&Token>> {
         match self {
             Token::Heading { tokens, .. }
             | Token::Paragraph { tokens, .. }
             | Token::Link { tokens, .. }
             | Token::Image { tokens, .. }
-            | Token::Html { tokens, .. } => Some(tokens),
-            // TODO lists
+            | Token::Html { tokens, .. } => Some(tokens.iter().collect()),
+            Token::BulletList { items } | Token::OrderedList { items } => {
+                let tokens = items.iter().flatten().collect();
+                Some(tokens)
+            }
             _ => None,
         }
     }
