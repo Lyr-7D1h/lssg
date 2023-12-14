@@ -48,6 +48,7 @@ pub trait RendererModule {
     /// Gets called after body has been rendered, can be used for final changes to the dom
     fn after_render<'n>(&mut self, dom: &mut DomTree, context: &RenderContext<'n>) {}
 
+    /// get options by overwriting `default` with Token::Attributes
     fn options_with_default<D: Overwrite + Default>(&self, page: &Page, mut default: D) -> D
     where
         Self: Sized,
@@ -63,6 +64,7 @@ pub trait RendererModule {
         default
     }
 
+    /// get default options overwritten with Token::Attributes
     fn options<D: Overwrite + Default>(&self, page: &Page) -> D
     where
         Self: Sized,

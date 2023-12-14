@@ -110,14 +110,14 @@ if page => use modular HtmlRenderer to turn lmarkdown tokens into html, and writ
 ```
 
 ## Roadmap
-- Add html! macro for converting html to rust on compile time
 - Make default options root of Attributes (don't require [default] block) 
 - Add recovery and logging instead of panicking
     - panic on broken link
+- Code support
 - Download and install links to external resources (fonts, css, enc.)
 - Make importing pages from notion easier
 - Don't load all files into memory, might cause issues for large resource files or big sites
-- Code support
+- Add html! macro for converting html to rust on compile time
 - Add file minification for css
 - Custom styling support
 - Documentation module

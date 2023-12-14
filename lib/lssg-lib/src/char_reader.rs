@@ -289,8 +289,12 @@ impl<R: Read> CharReader<R> {
         return self.consume_string(i);
     }
 
+    /// stop consuming by pattern, if eof returns whatever is captured
     pub fn consume_until_match_inclusive(&mut self, pattern: &str) -> Result<String, ParseError> {
         let mut result = self.consume_string(pattern.len())?;
+        if result.len() < pattern.len() {
+            return Ok(result);
+        }
         loop {
             if &result[result.len() - pattern.len()..] == pattern {
                 break;

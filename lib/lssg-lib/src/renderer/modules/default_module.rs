@@ -47,6 +47,7 @@ impl Default for PropegatedOptions {
 
 #[derive(Debug, Clone, Overwrite)]
 pub struct SinglePageOptions {
+    /// Don't reuse parent options for this and following pages
     pub disable_parent_resources: bool,
 }
 impl Default for SinglePageOptions {

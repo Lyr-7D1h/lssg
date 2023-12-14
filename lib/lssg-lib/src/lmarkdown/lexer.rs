@@ -359,7 +359,7 @@ pub fn read_inline_html_tokens(
         if let Some(heading) = heading(reader)? {
             tokens.push(heading)
         }
-        let text = sanitize_text(reader.consume_until_match_inclusive("\n")?);
+        let text = sanitize_text(reader.consume_until_inclusive(|c| c == '\n')?);
         tokens.append(&mut read_inline_tokens(&text)?);
     }
 

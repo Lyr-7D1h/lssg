@@ -3,7 +3,9 @@
 title="Lyrx"
 [default.meta]
 description="Lyr's little space of the internet"
-author="Lyr"
+author="Lyr, lyr-7d1h@pm.me"
+keywords="blog,portfolio,technology,projects,software"
+subject="technology"
 -->
 <!-- add favicon -->
 [](./favicon.ico)
