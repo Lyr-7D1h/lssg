@@ -7,4 +7,4 @@ INPUT=$@
 mkdir -p build
 serve build/ &
 
-cargo watch -x "run ${INPUT} build -l debug"
+cargo watch -x "run ${INPUT} build -l info"

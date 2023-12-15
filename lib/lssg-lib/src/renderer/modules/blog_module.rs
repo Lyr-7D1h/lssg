@@ -1,6 +1,6 @@
 use std::{collections::HashSet, str::FromStr};
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use log::{error, warn};
 use serde_extensions::Overwrite;
 
@@ -15,6 +15,21 @@ use crate::{
 };
 
 use super::{RendererModule, TokenRenderer};
+
+#[derive(Overwrite, Debug)]
+pub struct BlogOptions {
+    root: bool,
+    /// When has an article been changed (%Y-%m-%d)
+    modified_on: Option<String>,
+}
+impl Default for BlogOptions {
+    fn default() -> Self {
+        Self {
+            root: false,
+            modified_on: None,
+        }
+    }
+}
 
 pub struct BlogModule {
     post_site_ids: HashSet<usize>,
@@ -46,11 +61,11 @@ impl RendererModule for BlogModule {
         for id in DFS::new(site_tree) {
             match &site_tree[id].kind {
                 SiteNodeKind::Page(page) => {
-                    if let Some(attributes) = page.attributes() {
-                        if let Some(_) = attributes.get("blog") {
-                            self.root_site_ids.insert(id);
-                            continue;
-                        }
+                    let options: BlogOptions = self.options(page);
+
+                    if options.root {
+                        self.root_site_ids.insert(id);
+                        continue;
                     }
 
                     if let Some(parent) = site_tree.page_parent(id) {
@@ -155,22 +170,12 @@ impl RendererModule for BlogModule {
     }
 }
 
-#[derive(Overwrite)]
-pub struct PostOptions {
-    modified_on: Option<String>,
-}
-impl Default for PostOptions {
-    fn default() -> Self {
-        Self { modified_on: None }
-    }
-}
-
 /// get the date from input and options
 fn get_date(module: &mut BlogModule, context: &RenderContext) -> Result<String, LssgError> {
-    let po: PostOptions = module.options(context.page);
+    let po: BlogOptions = module.options(context.page);
 
     if let Some(date) = po.modified_on {
-        match DateTime::<Utc>::from_str(&date) {
+        match NaiveDate::from_str(&date) {
             Ok(date) => {
                 let date = date.format("Updated on %B %d, %Y").to_string();
                 return Ok(date);
@@ -185,7 +190,7 @@ fn get_date(module: &mut BlogModule, context: &RenderContext) -> Result<String, 
             let date = date.format("Updated on %B %d, %Y").to_string();
             Ok(date)
         }
-        Some(Input::External { url }) => {
+        Some(Input::External { .. }) => {
             return Err(LssgError::render(
                 "getting modified date from url is not supported",
             ))

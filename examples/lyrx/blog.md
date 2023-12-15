@@ -1,4 +1,4 @@
-<!--[blog]-->
+<!--blog.root = true-->
 
 # Blog
 

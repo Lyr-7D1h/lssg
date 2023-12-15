@@ -1,3 +1,4 @@
+<!--blog.modified_on="2023-12-14"-->
 # How to self study mathematics
 
 ## Background
