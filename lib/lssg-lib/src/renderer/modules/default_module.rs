@@ -36,8 +36,6 @@ struct PropegatedOptions {
 impl Default for PropegatedOptions {
     fn default() -> Self {
         Self {
-            // favicon: None,
-            // stylesheets: vec![],
             meta: HashMap::new(),
             title: String::new(),
             language: "en".into(),
@@ -47,14 +45,12 @@ impl Default for PropegatedOptions {
 
 #[derive(Debug, Clone, Overwrite)]
 pub struct SinglePageOptions {
-    /// Don't reuse parent options for this and following pages
-    pub disable_parent_resources: bool,
+    /// If this page is a root don't reuse options from parent
+    pub root: bool,
 }
 impl Default for SinglePageOptions {
     fn default() -> Self {
-        Self {
-            disable_parent_resources: false,
-        }
+        Self { root: false }
     }
 }
 
@@ -84,7 +80,7 @@ fn create_options_map(
 
 /// Implements all basic default behavior, like rendering all tokens and adding meta tags and title to head
 pub struct DefaultModule {
-    /// Map of all site pages to options
+    /// Map of all site pages to options. Considers options from parents.
     options_map: HashMap<usize, PropegatedOptions>,
 }
 
@@ -117,12 +113,13 @@ impl RendererModule for DefaultModule {
 
         // propegate relations to stylesheets and favicon from parent to child
         for id in pages {
+            // add default stylesheet to all pages
             site_tree.add_link(id, default_stylesheet);
 
             // skip page if disabled
             if let SiteNodeKind::Page(page) = &site_tree[id].kind {
                 let opts: SinglePageOptions = self.options(page);
-                if opts.disable_parent_resources {
+                if opts.root {
                     continue;
                 }
             }

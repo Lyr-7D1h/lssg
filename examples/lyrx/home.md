@@ -1,7 +1,6 @@
 <!--
-[default]
 title="Lyrx"
-[default.meta]
+[meta]
 description="Lyr's little space of the internet"
 author="Lyr, lyr-7d1h@pm.me"
 keywords="blog,portfolio,technology,projects,software"

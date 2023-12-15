@@ -54,10 +54,17 @@ pub trait RendererModule {
         Self: Sized,
     {
         if let Some(Token::Attributes { table: toml }) = page.tokens().first() {
+            // default options are defined on root of table
+            if self.id() == "default" {
+                if let Err(e) = default.overwrite(toml.clone()) {
+                    error!("Failed to parse options for '{}' module: {e}", self.id())
+                }
+                return default;
+            }
+
             if let Some(v) = toml.get(self.id()) {
-                match default.overwrite(v.clone()) {
-                    Ok(d) => d,
-                    Err(e) => error!("Failed to parse options for '{}' module: {e}", self.id()),
+                if let Err(e) = default.overwrite(v.clone()) {
+                    error!("Failed to parse options for '{}' module: {e}", self.id())
                 }
             }
         }
@@ -71,10 +78,17 @@ pub trait RendererModule {
     {
         let mut o = D::default();
         if let Some(Token::Attributes { table: toml }) = page.tokens().first() {
+            // default options are defined on root of table
+            if self.id() == "default" {
+                if let Err(e) = o.overwrite(toml.clone()) {
+                    error!("Failed to parse options for '{}' module: {e}", self.id())
+                }
+                return o;
+            }
+
             if let Some(v) = toml.get(self.id()) {
-                match o.overwrite(v.clone()) {
-                    Ok(d) => d,
-                    Err(e) => error!("Failed to parse options for '{}' module: {e}", self.id()),
+                if let Err(e) = o.overwrite(v.clone()) {
+                    error!("Failed to parse options for '{}' module: {e}", self.id())
                 }
             }
         }
