@@ -39,7 +39,7 @@ lssg ./content/home.md ./build
 You can also use links to markdown to generate content
 
 ```bash
-lssg https://raw.githubusercontent.com/Lyr-7D1h/lssg/wip/examples/lyrx/home.md ./build
+lssg https://raw.githubusercontent.com/Lyr-7D1h/lssg/master/examples/lyrx/home.md ./build
 ```
 
 > [!NOTE]
@@ -111,16 +111,21 @@ if page => use modular HtmlRenderer to turn lmarkdown tokens into html, and writ
 
 ## Roadmap
 - Make default options root of Attributes (don't require [default] block) 
+- [Section links](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#section-links)
+- [Emoji support](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#using-emoji)
+- [Footnote support](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#footnotes)
+- [Alert support](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts)
 - Add recovery and logging instead of panicking
     - panic on broken link
 - Code support
 - Download and install links to external resources (fonts, css, enc.)
 - Make importing pages from notion easier
 - Don't load all files into memory, might cause issues for large resource files or big sites
-- Add html! macro for converting html to rust on compile time
 - Add file minification for css
 - Custom styling support
 - Documentation module
+- Multi platform support
+    - Make releases for other platforms
 
 ## Known bugs
 ~~- references to root don't work~~
