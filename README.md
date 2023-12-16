@@ -3,7 +3,7 @@
 
 The idea is to generate static html, css, js files based on custom markdown format.
 
-This uses a custom markdown parser which will not necessarly follow official specifications. I'm making it to the point that it is usable for me, PR's are welcome! See `LMarkdown` down for more information.
+This uses a custom markdown parser which will not necessarily follow official specifications. I'm making it to the point that it is usable for me, PR's are welcome! See `LMarkdown` down for more information.
 
 ## Install
 
@@ -47,7 +47,7 @@ lssg https://raw.githubusercontent.com/Lyr-7D1h/lssg/master/examples/lyrx/home.m
 
 ## LMarkdown (Lyr's Markdown)
 
-LMarkdown tries to follow [Commonmark](https://commonmark.org/) markdown specifications although deviating wherever it makes sense to make page renderning easier.
+LMarkdown tries to follow [Commonmark](https://commonmark.org/) markdown specifications although deviating wherever it makes sense to make page rendering easier.
 
 Structure of a lmarkdown file:
 
@@ -114,13 +114,14 @@ if page => use modular HtmlRenderer to turn lmarkdown tokens into html, and writ
 - [Emoji support](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#using-emoji)
 - [Footnote support](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#footnotes)
 - [Alert support](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts)
+- Code highlighting support
+- Update documentation
 - Add recovery and logging instead of panicking
     - panic on broken link
-- Code highlighting
-- Download and install links to external resources (fonts, css, enc.)
+- Download and install links to external resources (fonts, CSS, enc.)
 - Make importing pages from notion easier
 - Don't load all files into memory, might cause issues for large resource files or big sites
-- Add file minification for css
+- Add file minification for CSS
 - Documentation module
 - Multi platform support
     - Make releases for other platforms

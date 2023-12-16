@@ -78,7 +78,7 @@ fn rel_path(nodes: &Vec<SiteNode>, from: SiteId, to: SiteId) -> String {
 
 pub type SiteId = usize;
 
-/// Code representation of all nodes within the site (hiarchy and how nodes are related)
+/// Code representation of all nodes within the site (hierarchy and how nodes are related)
 #[derive(Debug)]
 pub struct SiteTree {
     nodes: Vec<SiteNode>,
