@@ -7,7 +7,7 @@ use serde_extensions::Overwrite;
 
 use crate::{
     html,
-    html::{to_attributes, DomNodeKind, Html},
+    html::{to_attributes, DomId, DomNodeKind, Html},
     lmarkdown::Token,
     lssg_error::LssgError,
     sitetree::{Page, Relation, SiteNode, SiteNodeKind, SiteTree, Stylesheet},
@@ -36,8 +36,6 @@ struct PropegatedOptions {
 impl Default for PropegatedOptions {
     fn default() -> Self {
         Self {
-            // favicon: None,
-            // stylesheets: vec![],
             meta: HashMap::new(),
             title: String::new(),
             language: "en".into(),
@@ -47,13 +45,12 @@ impl Default for PropegatedOptions {
 
 #[derive(Debug, Clone, Overwrite)]
 pub struct SinglePageOptions {
-    pub disable_parent_resources: bool,
+    /// If this page is a root don't reuse options from parent
+    pub root: bool,
 }
 impl Default for SinglePageOptions {
     fn default() -> Self {
-        Self {
-            disable_parent_resources: false,
-        }
+        Self { root: false }
     }
 }
 
@@ -83,7 +80,7 @@ fn create_options_map(
 
 /// Implements all basic default behavior, like rendering all tokens and adding meta tags and title to head
 pub struct DefaultModule {
-    /// Map of all site pages to options
+    /// Map of all site pages to options. Considers options from parents.
     options_map: HashMap<usize, PropegatedOptions>,
 }
 
@@ -109,19 +106,20 @@ impl RendererModule for DefaultModule {
             .collect();
 
         let default_stylesheet = site_tree.add(SiteNode::stylesheet(
-            "default",
+            "default.css",
             site_tree.root(),
             Stylesheet::from_readable(DEFAULT_STYLESHEET)?,
         ))?;
 
         // propegate relations to stylesheets and favicon from parent to child
         for id in pages {
+            // add default stylesheet to all pages
             site_tree.add_link(id, default_stylesheet);
 
             // skip page if disabled
             if let SiteNodeKind::Page(page) = &site_tree[id].kind {
                 let opts: SinglePageOptions = self.options(page);
-                if opts.disable_parent_resources {
+                if opts.root {
                     continue;
                 }
             }
@@ -242,17 +240,48 @@ impl RendererModule for DefaultModule {
         parent_id: usize,
         token: &crate::lmarkdown::Token,
         tr: &mut TokenRenderer,
-    ) -> bool {
+    ) -> Option<DomId> {
         match token {
-            Token::Attributes { .. } | Token::Comment { .. } | Token::EOF => {}
-            Token::Break { raw: _ } => {
+            Token::OrderedList { items } => {
+                let ol = dom.add_element(parent_id, "ol");
+                for tokens in items {
+                    let li = dom.add_element(ol, "li");
+                    tr.render(dom, context, li, tokens)
+                }
+            }
+            Token::BulletList { items } => {
+                let ul = dom.add_element(parent_id, "ul");
+                for tokens in items {
+                    let li = dom.add_element(ul, "li");
+                    tr.render(dom, context, li, tokens)
+                }
+            }
+            Token::Attributes { .. } | Token::Comment { .. } => {}
+            Token::ThematicBreak => {
+                dom.add_element(parent_id, "hr");
+            }
+            Token::Image { tokens, src } => {
+                dom.add_element_with_attributes(
+                    parent_id,
+                    "img",
+                    to_attributes([("src", src), ("alt", &tokens_to_text(tokens))]),
+                );
+            }
+            Token::BlockQuote { tokens } => {
+                let blockquote = dom.add_element(parent_id, "blockquote");
+                tr.render(dom, context, blockquote, tokens);
+            }
+            Token::HardBreak { .. } => {
                 dom.add_element(parent_id, "br");
+            }
+            Token::SoftBreak { .. } => {
+                dom.add_text(parent_id, " ");
             }
             Token::Heading { depth, tokens } => {
                 let parent_id = dom.add_element(parent_id, format!("h{depth}"));
                 tr.render(dom, context, parent_id, tokens);
             }
-            Token::Paragraph { tokens } => {
+            Token::Paragraph { tokens, .. } => {
                 let parent_id = dom.add_element(parent_id, "p");
                 tr.render(dom, context, parent_id, tokens);
             }
@@ -260,17 +289,20 @@ impl RendererModule for DefaultModule {
                 let parent_id = dom.add_element(parent_id, "b");
                 dom.add_text(parent_id, text);
             }
-            Token::Italic { text } => {
-                let parent_id = dom.add_element(parent_id, "i");
+            Token::Emphasis { text } => {
+                let parent_id = dom.add_element(parent_id, "em");
                 dom.add_text(parent_id, text);
             }
-            Token::Code { code, language: _ } => {
+            Token::Code {
+                text: code,
+                info: _,
+            } => {
                 let parent_id = dom.add_element(parent_id, "code");
                 dom.add_text(parent_id, code);
             }
             Token::Link { tokens: text, href } => {
                 if text.len() == 0 {
-                    return true;
+                    return Some(parent_id);
                 }
 
                 // external link
@@ -284,7 +316,7 @@ impl RendererModule for DefaultModule {
                     tr.render(dom, context, a, text);
 
                     dom.add_html(parent_id, html!(r##"<svg width="1em" height="1em" viewBox="0 0 24 24" style="cursor:pointer"><g stroke-width="2.1" stroke="#666" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 13.5 17 19.5 5 19.5 5 7.5 11 7.5"></polyline><path d="M14,4.5 L20,4.5 L20,10.5 M20,4.5 L11,13.5"></path></g></svg>"##));
-                    return true;
+                    return Some(parent_id);
                 }
 
                 if Page::is_href_to_page(href) {
@@ -308,7 +340,7 @@ impl RendererModule for DefaultModule {
                             to_attributes([("href", rel_path)]),
                         );
                         tr.render(dom, context, parent_id, text);
-                        return true;
+                        return Some(parent_id);
                     }
                     warn!("Could not find node where {href:?} points to");
                 }
@@ -328,6 +360,14 @@ impl RendererModule for DefaultModule {
                 attributes,
                 tokens,
             } => match tag.as_str() {
+                "centered" => {
+                    let centered = dom.add_element_with_attributes(
+                        parent_id,
+                        "div",
+                        to_attributes([("class", "centered")]),
+                    );
+                    tr.render(dom, context, centered, tokens);
+                }
                 "links" if attributes.contains_key("boxes") => {
                     let parent_id = dom
                         .add_html(parent_id, html!(r#"<nav class="links"></nav>"#))
@@ -355,7 +395,7 @@ impl RendererModule for DefaultModule {
                                         Some(to_id) => context.site_tree.path(to_id),
                                         None => {
                                             warn!("Could not find node where {href:?} points to");
-                                            return true;
+                                            return Some(parent_id);
                                         }
                                     }
                                 } else {
@@ -382,7 +422,7 @@ impl RendererModule for DefaultModule {
                 }
             },
         };
-        true
+        return Some(parent_id);
     }
 
     fn after_render<'n>(&mut self, dom: &mut crate::html::DomTree, _: &RenderContext<'n>) {
@@ -402,4 +442,14 @@ impl RendererModule for DefaultModule {
 
 pub fn is_href_external(href: &str) -> bool {
     return href.starts_with("http") || href.starts_with("mailto:");
+}
+
+pub fn tokens_to_text(tokens: &Vec<Token>) -> String {
+    let mut result = String::new();
+    for t in tokens {
+        if let Some(text) = t.to_text() {
+            result.push_str(&text)
+        }
+    }
+    return result;
 }

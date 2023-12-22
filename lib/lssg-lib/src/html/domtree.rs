@@ -249,11 +249,8 @@ impl DomTree {
                 };
 
                 if node.children.len() == 0 {
-                    match tag.as_str() {
-                        "link" | "meta" => {
-                            return format!("<{tag}{spacing}{}/>", attributes);
-                        }
-                        _ => {}
+                    if is_void_element(tag) {
+                        return format!("<{tag}{spacing}{}/>", attributes);
                     }
                 }
 
@@ -360,6 +357,14 @@ impl fmt::Display for DomTree {
 
         f.write_str(&out.join("\n"))?;
         Ok(())
+    }
+}
+
+pub fn is_void_element(tag: &str) -> bool {
+    match tag {
+        "base" | "img" | "br" | "col" | "embed" | "hr" | "area" | "input" | "link" | "meta"
+        | "param" | "source" | "track" | "wbr" => true,
+        _ => false,
     }
 }
 

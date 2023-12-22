@@ -1,8 +1,10 @@
-name: Lyrx Github Pages Deployment
+name: Lyrx Deployment
 
 on:
   push:
     branches: [ "master" ]
+    paths:
+        - examples/lyrx/**
 
 env:
   CARGO_TERM_COLOR: always
@@ -11,6 +13,7 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: lyrx
     steps:
     - uses: actions/checkout@v3
     
@@ -18,7 +21,7 @@ jobs:
       run: |
         cargo run -- examples/lyrx/home.md build/
         # FIXME temporary hack to support 404 pages, change when you can keep the name
-        mv build/404/index.html 404.html
+        mv build/404/index.html build/404.html
         rm -r build/404
       
     - name: Deploy to external repository

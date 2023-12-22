@@ -2,8 +2,9 @@
 name = "serde-extensions-derive"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["Lyr-7D1h <lyr-7d1h@pm.me>"]
+license = "MIT"
+description = "Extensions for serde serializable structs"
 
 [lib]
 proc-macro = true

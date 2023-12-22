@@ -12,7 +12,7 @@ use super::{
     page::Page,
     relational_graph::RelationalGraph,
     relational_graph::{Link, Relation},
-    stylesheet::Stylesheet,
+    stylesheet::{Stylesheet, StylesheetLink},
     Input, Resource, SiteNode, SiteNodeKind,
 };
 
@@ -78,7 +78,7 @@ fn rel_path(nodes: &Vec<SiteNode>, from: SiteId, to: SiteId) -> String {
 
 pub type SiteId = usize;
 
-/// Code representation of all nodes within the site (hiarchy and how nodes are related)
+/// Code representation of all nodes within the site (hierarchy and how nodes are related)
 #[derive(Debug)]
 pub struct SiteTree {
     nodes: Vec<SiteNode>,
@@ -181,6 +181,8 @@ impl SiteTree {
         (0..self.nodes.len() - 1).collect()
     }
 
+    /// add a link between two site nodes
+    /// This will help create resources necessary for `from`
     pub fn add_link(&mut self, from: SiteId, to: SiteId) {
         self.rel_graph.add(from, to, Relation::External);
     }
@@ -318,10 +320,12 @@ impl SiteTree {
         parent = self.create_folders(&input, parent)?;
 
         let stylesheet = Stylesheet::try_from(&input)?;
-        let resources: Vec<String> = stylesheet
-            .resources()
+        let stylesheet_links: Vec<String> = stylesheet
+            .links()
             .into_iter()
-            .map(|p| p.to_string())
+            .map(|p| match p {
+                StylesheetLink::Import(s) | StylesheetLink::Url(s) => s.to_string(),
+            })
             .collect();
 
         let parent = self.create_folders(&input, parent)?;
@@ -332,8 +336,8 @@ impl SiteTree {
             kind: SiteNodeKind::Stylesheet(stylesheet),
         })?;
 
-        for resource in resources {
-            let input = input.new(&resource)?;
+        for link in stylesheet_links {
+            let input = input.new(&link)?;
             let parent = self.create_folders(&input, parent)?;
             let resource_id = self.add(SiteNode {
                 name: input.filename()?,
@@ -344,7 +348,7 @@ impl SiteTree {
             self.rel_graph.add(
                 stylesheet_id,
                 resource_id,
-                Relation::Discovered { raw_path: resource },
+                Relation::Discovered { raw_path: link },
             );
             self.input_to_id.insert(input, resource_id);
         }

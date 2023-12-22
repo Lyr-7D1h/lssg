@@ -18,17 +18,15 @@ impl Page {
     /// Discover any resources and links inside of the page will return vec with (text, href)
     pub fn links(&self) -> Vec<(&Vec<Token>, &String)> {
         let mut hrefs = vec![];
-        let mut queue = vec![&self.tokens];
+        let mut queue: Vec<Vec<&Token>> = vec![self.tokens.iter().collect()];
         while let Some(tokens) = queue.pop() {
             for t in tokens {
-                match t {
-                    Token::Heading { tokens, .. } => queue.push(tokens),
-                    Token::Paragraph { tokens, .. } => queue.push(tokens),
-                    Token::Html { tokens, .. } => queue.push(tokens),
-                    Token::Link { href, tokens: text } => {
-                        hrefs.push((text, href));
-                    }
-                    _ => {}
+                if let Token::Link { tokens: text, href } = t {
+                    hrefs.push((text, href));
+                    continue;
+                }
+                if let Some(tokens) = t.get_tokens() {
+                    queue.push(tokens);
                 }
             }
         }

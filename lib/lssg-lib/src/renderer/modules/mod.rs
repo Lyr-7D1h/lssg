@@ -33,7 +33,7 @@ pub trait RendererModule {
     /// Modify DomTree before rendering page
     fn render_page<'n>(&mut self, dom: &mut DomTree, context: &RenderContext<'n>) {}
 
-    /// Render a token before default token renderer returns true if it parsed this token otherwise false
+    /// Render a token before default token renderer returns parent id for following tokens if it parsed this token otherwise None
     fn render_body<'n>(
         &mut self,
         dom: &mut DomTree,
@@ -41,38 +41,54 @@ pub trait RendererModule {
         parent_id: DomId,
         token: &Token,
         tr: &mut TokenRenderer,
-    ) -> bool {
-        false
+    ) -> Option<DomId> {
+        None
     }
 
     /// Gets called after body has been rendered, can be used for final changes to the dom
     fn after_render<'n>(&mut self, dom: &mut DomTree, context: &RenderContext<'n>) {}
 
+    /// get options by overwriting `default` with Token::Attributes
     fn options_with_default<D: Overwrite + Default>(&self, page: &Page, mut default: D) -> D
     where
         Self: Sized,
     {
         if let Some(Token::Attributes { table: toml }) = page.tokens().first() {
+            // default options are defined on root of table
+            if self.id() == "default" {
+                if let Err(e) = default.overwrite(toml.clone()) {
+                    error!("Failed to parse options for '{}' module: {e}", self.id())
+                }
+                return default;
+            }
+
             if let Some(v) = toml.get(self.id()) {
-                match default.overwrite(v.clone()) {
-                    Ok(d) => d,
-                    Err(e) => error!("Failed to parse options for '{}' module: {e}", self.id()),
+                if let Err(e) = default.overwrite(v.clone()) {
+                    error!("Failed to parse options for '{}' module: {e}", self.id())
                 }
             }
         }
         default
     }
 
+    /// get default options overwritten with Token::Attributes
     fn options<D: Overwrite + Default>(&self, page: &Page) -> D
     where
         Self: Sized,
     {
         let mut o = D::default();
         if let Some(Token::Attributes { table: toml }) = page.tokens().first() {
+            // default options are defined on root of table
+            if self.id() == "default" {
+                if let Err(e) = o.overwrite(toml.clone()) {
+                    error!("Failed to parse options for '{}' module: {e}", self.id())
+                }
+                return o;
+            }
+
             if let Some(v) = toml.get(self.id()) {
-                match o.overwrite(v.clone()) {
-                    Ok(d) => d,
-                    Err(e) => error!("Failed to parse options for '{}' module: {e}", self.id()),
+                if let Err(e) = o.overwrite(v.clone()) {
+                    error!("Failed to parse options for '{}' module: {e}", self.id())
                 }
             }
         }

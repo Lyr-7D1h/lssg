@@ -29,13 +29,14 @@ impl<'a> TokenRenderer {
         &mut self,
         dom: &mut DomTree,
         context: &RenderContext<'a>,
-        parent_id: DomId,
+        mut parent_id: DomId,
         tokens: &Vec<Token>,
     ) {
         'l: for token in tokens.iter() {
             let modules = unsafe { self.modules.as_mut().unwrap() };
             for module in modules.iter_mut() {
-                if module.render_body(dom, context, parent_id, &token, self) {
+                if let Some(p) = module.render_body(dom, context, parent_id, &token, self) {
+                    parent_id = p;
                     continue 'l;
                 }
             }

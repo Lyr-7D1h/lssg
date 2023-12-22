@@ -25,9 +25,9 @@ impl<R: Read> CharReader<R> {
         }
     }
 
-    pub fn from_string<'n>(input: &String) -> CharReader<&'n [u8]> {
+    pub fn from_string(input: &String) -> CharReader<&[u8]> {
         CharReader {
-            reader: BufReader::new(&[]),
+            reader: BufReader::<&[u8]>::new(&[]),
             buffer: input.chars().collect(),
             has_read: false,
         }
@@ -35,6 +35,10 @@ impl<R: Read> CharReader<R> {
 
     pub fn has_read(&self) -> bool {
         self.has_read
+    }
+
+    pub fn set_has_read(&mut self, has_read: bool) {
+        self.has_read = has_read
     }
 
     /// Will try to fill the buffer until it is filled or eof is reached
@@ -78,12 +82,57 @@ impl<R: Read> CharReader<R> {
         return Ok(string);
     }
 
-    // TODO should return usize?
-    pub fn peek_until(&mut self, op: fn(char) -> bool) -> Result<Option<String>, ParseError> {
-        return self.peek_until_from(0, op);
+    /// peek until \n or eof is reached
+    pub fn peek_line(&mut self) -> Result<String, ParseError> {
+        return self.peek_line_from(0);
     }
 
-    pub fn peek_until_from(
+    /// peek until \n or eof is reached
+    pub fn peek_line_from(&mut self, pos: usize) -> Result<String, ParseError> {
+        let mut i = pos;
+        let mut result = String::new();
+        while let Some(c) = self.peek_char(i)? {
+            if c == '\n' {
+                break;
+            }
+            result.push(c);
+            i += 1;
+        }
+        return Ok(result);
+    }
+    /// returns None if EOF is reached, to prevent false positives
+    pub fn peek_until_exclusive_from(
+        &mut self,
+        pos: usize,
+        op: fn(char) -> bool,
+    ) -> Result<Option<String>, ParseError> {
+        let mut i = pos;
+        loop {
+            match self.peek_char(i)? {
+                Some(c) => {
+                    if op(c) {
+                        break;
+                    }
+                }
+                None => return Ok(None),
+            }
+            i += 1;
+        }
+
+        let string = self.peek_string_from(pos, i - pos)?;
+        return Ok(Some(string));
+    }
+
+    /// returns None if EOF is reached, to prevent false positives
+    pub fn peek_until_inclusive(
+        &mut self,
+        op: fn(char) -> bool,
+    ) -> Result<Option<String>, ParseError> {
+        return self.peek_until_inclusive_from(0, op);
+    }
+
+    /// returns None if EOF is reached, to prevent false positives
+    pub fn peek_until_inclusive_from(
         &mut self,
         pos: usize,
         op: fn(char) -> bool,
@@ -105,34 +154,70 @@ impl<R: Read> CharReader<R> {
         return Ok(Some(string));
     }
 
+    pub fn peek_until_match_exclusive_from(
+        &mut self,
+        pos: usize,
+        pattern: &str,
+    ) -> Result<Option<String>, ParseError> {
+        let chars: Vec<char> = pattern.chars().collect();
+
+        let mut i = pos;
+        'outer: loop {
+            // check if match
+            for (mi, mc) in chars.iter().enumerate() {
+                let c = match self.peek_char(i + mi)? {
+                    Some(c) => c,
+                    None => return Ok(None), // eof
+                };
+                // no match break
+                if c != *mc {
+                    i += 1;
+                    continue 'outer;
+                }
+            }
+            // all characters matched
+            break;
+        }
+
+        let string = self.peek_string_from(pos, i - pos)?;
+        return Ok(Some(string));
+    }
+
     /// Peek until matches or return None when not found
     pub fn peek_until_match_inclusive(
         &mut self,
         pattern: &str,
     ) -> Result<Option<String>, ParseError> {
+        return self.peek_until_match_inclusive_from(0, pattern);
+    }
+
+    pub fn peek_until_match_inclusive_from(
+        &mut self,
+        pos: usize,
+        pattern: &str,
+    ) -> Result<Option<String>, ParseError> {
         let chars: Vec<char> = pattern.chars().collect();
 
-        let mut char_i = 0;
-        let mut i = 0;
-        loop {
-            let c = match self.peek_char(i)? {
-                Some(c) => c,
-                None => return Ok(None), // eof
-            };
-
-            // iterate where we left off
-            if chars[char_i] == c {
-                char_i += 1;
-                if char_i == chars.len() {
-                    break;
+        let mut i = pos;
+        'outer: loop {
+            // check if match
+            for (mi, mc) in chars.iter().enumerate() {
+                let c = match self.peek_char(i + mi)? {
+                    Some(c) => c,
+                    None => return Ok(None), // eof
+                };
+                // no match break
+                if c != *mc {
+                    i += 1;
+                    continue 'outer;
                 }
-            } else {
-                char_i = 0;
             }
-            i += 1;
+            // all characters matched
+            i += chars.len();
+            break;
         }
 
-        let string = self.peek_string(i + 1)?;
+        let string = self.peek_string_from(pos, i - pos)?;
         return Ok(Some(string));
     }
 
@@ -204,27 +289,20 @@ impl<R: Read> CharReader<R> {
         return self.consume_string(i);
     }
 
+    /// stop consuming by pattern, if eof returns whatever is captured
     pub fn consume_until_match_inclusive(&mut self, pattern: &str) -> Result<String, ParseError> {
-        self.has_read = true;
-        // TODO refactor
-        let chars: Vec<char> = pattern.chars().collect();
-        let mut char_i = 0;
-
-        let mut result = String::new();
+        let mut result = self.consume_string(pattern.len())?;
+        if result.len() < pattern.len() {
+            return Ok(result);
+        }
         loop {
-            let c = match self.consume_char()? {
-                Some(c) => c,
+            if &result[result.len() - pattern.len()..] == pattern {
+                break;
+            }
+            match self.consume_char()? {
+                Some(c) => result.push(c),
                 None => break,
             };
-            result.push(c);
-            if c == chars[char_i] {
-                char_i += 1;
-                if char_i == chars.len() {
-                    break;
-                }
-            } else {
-                char_i = 0;
-            }
         }
         return Ok(result);
     }
@@ -264,5 +342,58 @@ Very important test"
         assert_eq!(reader.peek_string(11)?, "This is a\nV".to_owned());
         assert_eq!(reader.consume_string(11)?, "This is a\nV".to_owned());
         Ok(())
+    }
+
+    #[test]
+    fn test_peek_until_match_inclusive() {
+        let input = "<!---->";
+        let mut reader = CharReader::new(input.as_bytes());
+        assert_eq!(
+            reader.peek_until_match_inclusive("-->").unwrap(),
+            Some(input.to_owned())
+        );
+        assert_eq!(
+            reader
+                .peek_until_match_exclusive_from(0, "-->")
+                .unwrap()
+                .unwrap(),
+            "<!--".to_string()
+        );
+        assert_eq!(
+            reader
+                .peek_until_match_exclusive_from(4, "-->")
+                .unwrap()
+                .unwrap(),
+            "".to_string()
+        );
+
+        let input = "   **";
+        let mut reader = CharReader::new(input.as_bytes());
+        assert_eq!(
+            "*".to_string(),
+            reader
+                .peek_until_match_inclusive_from(3, "*")
+                .unwrap()
+                .unwrap(),
+        );
+    }
+
+    #[test]
+    fn test_consume_until_match_inclusive() {
+        let input = "<!---->";
+        let mut reader = CharReader::new(input.as_bytes());
+        assert_eq!(
+            reader.consume_until_match_inclusive("-->").unwrap(),
+            input.to_owned()
+        );
+        assert_eq!(reader.consume(1).unwrap(), None);
+
+        let input = "some string";
+        let mut reader = CharReader::new(input.as_bytes());
+        assert_eq!(
+            reader.consume_until_match_inclusive("str").unwrap(),
+            "some str".to_string()
+        );
+        assert_eq!(reader.consume_string(8).unwrap(), "ing".to_string());
     }
 }

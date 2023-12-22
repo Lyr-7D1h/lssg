@@ -1,9 +1,10 @@
 <!--
-[default]
 title="Lyrx"
-[default.meta]
+[meta]
 description="Lyr's little space of the internet"
-author="Lyr"
+author="Lyr, lyr-7d1h@pm.me"
+keywords="blog,portfolio,technology,projects,software"
+subject="technology"
 -->
 <!-- add favicon -->
 [](./favicon.ico)
@@ -15,10 +16,11 @@ author="Lyr"
 <!-- external pages -->
 [](./404.md)
 
+<centered>
 # LyrX
+</centered>
 
-Hi! my name is Ivo. I go by Lyr online, and welcome to my my online space! I like to think of myself as a creator, I love making things and I do this with a bag of tools, with some tools I'm better than others. This is where I share my projects, code, data, 3d models, art, ideas and anything else I find interesting. Feel free to have a look around :) 
-
+Hi! My name is Ivo. I go by Lyr online. Welcome to my online space! I like to think of myself as a creator, I love making things and I do this with a bag of tools, with some tools I'm better than others. This is where I share my projects, code, data, 3d models, art, ideas and anything else I find interesting. Feel free to have a look around :) 
 
 <links boxes>
 [<i class="fa-solid fa-rss"></i>Blog](./blog.md)
