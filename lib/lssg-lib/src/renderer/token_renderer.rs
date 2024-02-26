@@ -1,16 +1,11 @@
-use std::{
-    cell::{Cell, RefCell, UnsafeCell},
-    collections::HashMap,
-    rc::Rc,
-};
+
 
 use log::warn;
 
-use super::{DefaultModule, RenderContext, RendererModule};
+use super::{RenderContext, RendererModule};
 use crate::{
-    html::{DomId, DomNode, DomNodeKind, DomTree},
+    html::{DomId, DomTree},
     lmarkdown::Token,
-    sitetree::{Page, SiteTree},
 };
 
 /// used for recursively rendering

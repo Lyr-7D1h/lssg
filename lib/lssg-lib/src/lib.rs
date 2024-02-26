@@ -10,8 +10,7 @@ mod path_extension;
 mod tree;
 
 use std::{
-    fs::{create_dir, create_dir_all, remove_dir_all, write, File},
-    io::{self},
+    fs::{create_dir, create_dir_all, remove_dir_all, write},
     path::PathBuf,
 };
 
