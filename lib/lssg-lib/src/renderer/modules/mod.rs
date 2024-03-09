@@ -2,7 +2,7 @@ use log::error;
 use serde_extensions::Overwrite;
 
 use crate::{
-    dom::{DomNode, DomTree},
+    dom::{DomNode, Document},
     lmarkdown::Token,
     sitetree::{Page, SiteTree},
     LssgError,
@@ -31,12 +31,12 @@ pub trait RendererModule {
     }
 
     /// Modify DomTree before rendering page
-    fn render_page<'n>(&mut self, dom: &mut DomTree, context: &RenderContext<'n>) {}
+    fn render_page<'n>(&mut self, dom: &mut Document, context: &RenderContext<'n>) {}
 
     /// Render a token before default token renderer returns parent id for following tokens if it parsed this token otherwise None
     fn render_body<'n>(
         &mut self,
-        dom: &mut DomTree,
+        dom: &mut Document,
         context: &RenderContext<'n>,
         parent: DomNode,
         token: &Token,
@@ -46,7 +46,7 @@ pub trait RendererModule {
     }
 
     /// Gets called after body has been rendered, can be used for final changes to the dom
-    fn after_render<'n>(&mut self, dom: &mut DomTree, context: &RenderContext<'n>) {}
+    fn after_render<'n>(&mut self, dom: &mut Document, context: &RenderContext<'n>) {}
 
     /// get options by overwriting `default` with Token::Attributes
     fn options_with_default<D: Overwrite + Default>(&self, page: &Page, mut default: D) -> D

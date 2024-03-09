@@ -2,17 +2,17 @@ use std::collections::HashMap;
 
 use super::dom_node::{DomNode, DomNodeKind};
 
-/// RefCell based dom tree
+/// RefCell based dom tree, tries to mimick Document as seen in browsers (https://developer.mozilla.org/en-US/docs/Web/API/Document)
 ///
 /// using a RC Tree allows for easier manipulation of single nodes and traversing the tree
-pub struct DomTree {
+pub struct Document {
     root: DomNode,
     head: DomNode,
     body: DomNode,
 }
 
-impl DomTree {
-    pub fn new() -> DomTree {
+impl Document {
+    pub fn new() -> Document {
         let root = DomNode::create_element("html");
         let head = DomNode::create_element("head");
         let body = DomNode::create_element("body");
@@ -20,7 +20,7 @@ impl DomTree {
         root.append_child(head.clone());
         root.append_child(body.clone());
 
-        DomTree { root, head, body }
+        Document { root, head, body }
     }
 
     pub fn root(&self) -> DomNode {
@@ -60,7 +60,7 @@ impl DomTree {
     }
 }
 
-impl ToString for DomTree {
+impl ToString for Document {
     fn to_string(&self) -> String {
         format!(r#"<!DOCTYPE html>{}"#, self.root.to_string())
     }
@@ -79,7 +79,7 @@ mod test {
 
     #[test]
     fn test_tree() {
-        let mut tree = DomTree::new();
+        let mut tree = Document::new();
         // tree.body().append()
     }
 }

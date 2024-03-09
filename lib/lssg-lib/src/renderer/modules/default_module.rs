@@ -6,7 +6,7 @@ use log::warn;
 use serde_extensions::Overwrite;
 
 use crate::{
-    dom::{self, to_attributes, DomNode, DomNodeKind, DomTree, Html},
+    dom::{self, to_attributes, Document, DomNode, DomNodeKind, Html},
     html,
     lmarkdown::Token,
     lssg_error::LssgError,
@@ -15,6 +15,10 @@ use crate::{
 };
 
 use crate::renderer::{RenderContext, RendererModule, TokenRenderer};
+
+use self::render_html::render_html;
+
+mod render_html;
 
 const DEFAULT_STYLESHEET: &[u8] = include_bytes!("./default_stylesheet.css");
 
@@ -165,7 +169,7 @@ impl RendererModule for DefaultModule {
         Ok(())
     }
 
-    fn render_page<'n>(&mut self, dom: &mut DomTree, context: &RenderContext<'n>) {
+    fn render_page<'n>(&mut self, dom: &mut Document, context: &RenderContext<'n>) {
         let site_id = context.site_id;
         let site_tree = context.site_tree;
 
@@ -233,7 +237,7 @@ impl RendererModule for DefaultModule {
 
     fn render_body<'n>(
         &mut self,
-        dom: &mut DomTree,
+        document: &mut Document,
         context: &super::RenderContext<'n>,
         parent: DomNode,
         token: &crate::lmarkdown::Token,
@@ -241,71 +245,71 @@ impl RendererModule for DefaultModule {
     ) -> Option<DomNode> {
         match token {
             Token::OrderedList { items } => {
-                let ol = dom.create_element("ol");
+                let ol = document.create_element("ol");
                 for tokens in items {
-                    let li = dom.create_element("li");
+                    let li = document.create_element("li");
                     ol.append_child(li.clone());
-                    tr.render(dom, context, li, tokens);
+                    tr.render(document, context, li, tokens);
                 }
                 parent.append_child(ol);
             }
             Token::BulletList { items } => {
-                let ul = dom.create_element("ul");
+                let ul = document.create_element("ul");
                 for tokens in items {
-                    let li = dom.create_element("li");
+                    let li = document.create_element("li");
                     ul.append_child(li.clone());
-                    tr.render(dom, context, li, tokens);
+                    tr.render(document, context, li, tokens);
                 }
                 parent.append_child(ul);
             }
             Token::Attributes { .. } | Token::Comment { .. } => {}
 
             Token::ThematicBreak => {
-                parent.append_child(dom.create_element("hr"));
+                parent.append_child(document.create_element("hr"));
             }
             Token::Image { tokens, src } => {
-                parent.append_child(dom.create_element_with_attributes(
+                parent.append_child(document.create_element_with_attributes(
                     "img",
                     to_attributes([("src", src), ("alt", &tokens_to_text(tokens))]),
                 ));
             }
             Token::BlockQuote { tokens } => {
-                let blockquote = dom.create_element("blockquote");
-                tr.render(dom, context, blockquote.clone(), tokens);
+                let blockquote = document.create_element("blockquote");
+                tr.render(document, context, blockquote.clone(), tokens);
                 parent.append_child(blockquote);
             }
             Token::HardBreak { .. } => {
-                parent.append_child(dom.create_element("br"));
+                parent.append_child(document.create_element("br"));
             }
             Token::SoftBreak { .. } => {
-                parent.append_child(dom.create_text_node(" "));
+                parent.append_child(document.create_text_node(" "));
             }
             Token::Heading { depth, tokens } => {
-                let heading = dom.create_element(format!("h{depth}"));
-                tr.render(dom, context, heading.clone(), tokens);
+                let heading = document.create_element(format!("h{depth}"));
+                tr.render(document, context, heading.clone(), tokens);
                 parent.append_child(heading)
             }
             Token::Paragraph { tokens, .. } => {
-                let p = dom.create_element("p");
-                tr.render(dom, context, p.clone(), tokens);
+                let p = document.create_element("p");
+                tr.render(document, context, p.clone(), tokens);
                 parent.append_child(p)
             }
             Token::Bold { text } => {
-                let b = dom.create_element("b");
-                b.append_child(dom.create_text_node(text));
+                let b = document.create_element("b");
+                b.append_child(document.create_text_node(text));
                 parent.append_child(b)
             }
             Token::Emphasis { text } => {
-                let e = dom.create_element("em");
-                e.append_child(dom.create_text_node(text));
+                let e = document.create_element("em");
+                e.append_child(document.create_text_node(text));
                 parent.append_child(e)
             }
             Token::Code {
                 text: code,
                 info: _,
             } => {
-                let code_html = dom.create_element("code");
-                code_html.append_child(dom.create_text_node(code));
+                let code_html = document.create_element("code");
+                code_html.append_child(document.create_text_node(code));
                 parent.append_child(code_html)
             }
             Token::Link { tokens: text, href } => {
@@ -315,9 +319,9 @@ impl RendererModule for DefaultModule {
 
                 // external link
                 if is_href_external(href) {
-                    let a =
-                        dom.create_element_with_attributes("a", to_attributes([("href", href)]));
-                    tr.render(dom, context, a.clone(), text);
+                    let a = document
+                        .create_element_with_attributes("a", to_attributes([("href", href)]));
+                    tr.render(document, context, a.clone(), text);
                     parent.append_child(a);
 
                     parent.append_child(html!(r##"<svg width="1em" height="1em" viewBox="0 0 24 24" style="cursor:pointer"><g stroke-width="2.1" stroke="#666" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 13.5 17 19.5 5 19.5 5 7.5 11 7.5"></polyline><path d="M14,4.5 L20,4.5 L20,10.5 M20,4.5 L11,13.5"></path></g></svg>"##));
@@ -339,91 +343,42 @@ impl RendererModule for DefaultModule {
                         });
                     if let Some(to_id) = to_id {
                         let rel_path = context.site_tree.path(to_id);
-                        let a = dom.create_element_with_attributes(
+                        let a = document.create_element_with_attributes(
                             "a",
                             to_attributes([("href", rel_path)]),
                         );
-                        tr.render(dom, context, a.clone(), text);
+                        tr.render(document, context, a.clone(), text);
                         parent.append_child(a.clone());
                         return Some(a);
                     }
                     warn!("Could not find node where {href:?} points to");
                 }
 
-                let a = dom.create_element_with_attributes("a", to_attributes([("href", href)]));
-                tr.render(dom, context, a.clone(), text);
+                let a =
+                    document.create_element_with_attributes("a", to_attributes([("href", href)]));
+                tr.render(document, context, a.clone(), text);
                 parent.append_child(a);
             }
             Token::Text { text } => {
-                parent.append_child(dom.create_text_node(text));
+                parent.append_child(document.create_text_node(text));
             }
             Token::Html {
                 tag,
                 attributes,
                 tokens,
-            } => match tag.as_str() {
-                "centered" => {
-                    let centered = dom.create_element_with_attributes(
-                        "div",
-                        to_attributes([("class", "centered")]),
-                    );
-                    tr.render(dom, context, centered.clone(), tokens);
-                    parent.append_child(centered);
+            } => {
+                let p = render_html::render_html(
+                    document, context, &parent, tr, tag, attributes, tokens,
+                );
+                if p.is_some() {
+                    return p;
                 }
-                "links" if attributes.contains_key("boxes") => {
-                    let links: DomNode = html!(r#"<nav class="links"></nav>"#).into();
-                    parent.append_child(links.clone());
-                    for t in tokens {
-                        match t {
-                            Token::Link { tokens, href } => {
-                                let href = if Page::is_href_to_page(href) {
-                                    let to_id = context
-                                        .site_tree
-                                        .links_from(context.site_id)
-                                        .into_iter()
-                                        .find_map(|l| {
-                                            if let Relation::Discovered { raw_path: path } =
-                                                &l.relation
-                                            {
-                                                if path == href {
-                                                    return Some(l.to);
-                                                }
-                                            }
-                                            None
-                                        });
-
-                                    match to_id {
-                                        Some(to_id) => context.site_tree.path(to_id),
-                                        None => {
-                                            warn!("Could not find node where {href:?} points to");
-                                            return Some(links);
-                                        }
-                                    }
-                                } else {
-                                    href.into()
-                                };
-
-                                let a: DomNode =
-                                    html!(r#"<a href="{href}"><div class="box"></div></a>"#).into();
-                                let div = a.first_child().unwrap();
-                                tr.render(dom, context, div, tokens);
-                                links.append_child(a);
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-                _ => {
-                    let element = dom.create_element_with_attributes(tag, attributes.clone());
-                    tr.render(dom, context, element.clone(), tokens);
-                    parent.append_child(element)
-                }
-            },
+            }
         };
         Some(parent)
     }
 
-    fn after_render<'n>(&mut self, dom: &mut DomTree, _: &RenderContext<'n>) {
+    fn after_render<'n>(&mut self, dom: &mut Document, _: &RenderContext<'n>) {
         let body = dom.body();
 
         // move all dom elements to under #content

@@ -5,7 +5,7 @@ use log::{debug, error};
 
 
 use crate::{
-    dom::DomTree,
+    dom::Document,
     sitetree::{SiteNodeKind, SiteTree},
     LssgError,
 };
@@ -77,7 +77,7 @@ impl Renderer {
             _ => return Err(LssgError::render("Invalid node type given")),
         };
 
-        let mut dom = DomTree::new();
+        let mut dom = Document::new();
 
         let context = RenderContext {
             input: site_tree.get_input(site_id),

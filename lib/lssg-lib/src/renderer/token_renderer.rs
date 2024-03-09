@@ -4,7 +4,7 @@ use log::warn;
 
 use super::{RenderContext, RendererModule};
 use crate::{
-    dom::{DomNode, DomNodeKind, DomTree, WeakDomNode},
+    dom::{DomNode, DomNodeKind, Document, WeakDomNode},
     lmarkdown::Token,
 };
 
@@ -24,7 +24,7 @@ impl<'a> TokenRenderer {
     pub fn render_down(
         &mut self,
         current_module: &dyn RendererModule,
-        dom: &mut DomTree,
+        dom: &mut Document,
         context: &RenderContext<'a>,
         mut parent: DomNode,
         tokens: &Vec<Token>,
@@ -47,7 +47,7 @@ impl<'a> TokenRenderer {
 
     pub fn render(
         &mut self,
-        dom: &mut DomTree,
+        dom: &mut Document,
         context: &RenderContext<'a>,
         mut parent: DomNode,
         tokens: &Vec<Token>,
@@ -66,7 +66,7 @@ impl<'a> TokenRenderer {
     }
 
     /// consume self and return a parsed domtree
-    pub fn start_render(mut self, dom: &mut DomTree, context: &RenderContext) {
+    pub fn start_render(mut self, dom: &mut Document, context: &RenderContext) {
         let body = dom.body();
         let tokens = context.page.tokens();
         self.render(dom, context, body, tokens);

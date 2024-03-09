@@ -5,7 +5,7 @@ use log::{error, warn};
 use serde_extensions::Overwrite;
 
 use crate::{
-    dom::{to_attributes, DomNode, DomTree},
+    dom::{to_attributes, Document, DomNode},
     html,
     lmarkdown::Token,
     lssg_error::LssgError,
@@ -52,7 +52,7 @@ impl BlogModule {
 
 impl RendererModule for BlogModule {
     fn id(&self) -> &'static str {
-        return "blog";
+        "blog"
     }
 
     fn init(
@@ -96,7 +96,7 @@ impl RendererModule for BlogModule {
         Ok(())
     }
 
-    fn render_page<'n>(&mut self, dom: &mut DomTree, context: &RenderContext<'n>) {
+    fn render_page<'n>(&mut self, document: &mut Document, context: &RenderContext<'n>) {
         let site_tree = context.site_tree;
         let site_id = context.site_id;
 
@@ -107,29 +107,29 @@ impl RendererModule for BlogModule {
         // reset state
         self.has_inserted_date = false;
 
-        let body = dom.body();
+        let body = document.body();
 
         // add breacrumbs
         {
-            let nav = dom
+            let nav = document
                 .create_element_with_attributes("nav", to_attributes([("class", "breadcrumbs")]));
 
-            nav.append_child(dom.create_text_node("/"));
+            nav.append_child(document.create_text_node("/"));
 
             let parents = site_tree.parents(site_id);
             let parents_length = parents.len();
             for (i, p) in parents.into_iter().rev().enumerate() {
-                let a = dom.create_element_with_attributes(
+                let a = document.create_element_with_attributes(
                     "a",
                     to_attributes([("href", site_tree.rel_path(site_id, p))]),
                 );
-                a.append_child(dom.create_text_node(site_tree[p].name.clone()));
+                a.append_child(document.create_text_node(site_tree[p].name.clone()));
                 nav.append_child(a);
                 if i != parents_length - 1 {
-                    nav.append_child(dom.create_text_node("/"));
+                    nav.append_child(document.create_text_node("/"));
                 }
             }
-            nav.append_child(dom.create_text_node(format!("/{}", site_tree[site_id].name)));
+            nav.append_child(document.create_text_node(format!("/{}", site_tree[site_id].name)));
 
             body.append_child(nav);
         }
@@ -137,7 +137,7 @@ impl RendererModule for BlogModule {
 
     fn render_body<'n>(
         &mut self,
-        dom: &mut DomTree,
+        document: &mut Document,
         context: &RenderContext<'n>,
         parent: DomNode,
         token: &Token,
@@ -153,18 +153,18 @@ impl RendererModule for BlogModule {
                 match get_date(self, context) {
                     Ok(date) => {
                         self.has_inserted_date = true;
-                        let post = dom.create_element_with_attributes(
+                        let post = document.create_element_with_attributes(
                             "div",
                             to_attributes([("class", "post")]),
                         );
-                        let content = dom.create_element_with_attributes(
+                        let content = document.create_element_with_attributes(
                             "div",
                             to_attributes([("class", "content")]),
                         );
                         post.append_child(content.clone());
                         parent.append_child(post);
                         // render heading
-                        tr.render(dom, context, content.clone(), &vec![token.clone()]);
+                        tr.render(document, context, content.clone(), &vec![token.clone()]);
                         content.append_child(html!(r#"<div class="post-updated-on">{date}</div>"#));
 
                         return Some(content);
