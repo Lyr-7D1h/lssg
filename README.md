@@ -36,6 +36,8 @@ cd examples/lyrx
 lssg ./content/home.md ./build
 ```
 
+You can use a simple html live reload server to view changes as you develop like [live-server](https://github.com/tapio/live-server)
+
 You can also use links to markdown to generate content
 
 ```bash

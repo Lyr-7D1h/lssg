@@ -1,16 +1,16 @@
-use std::cell::{RefCell, UnsafeCell};
-use std::rc::Rc;
 
-use log::{debug, error, info, warn};
 
-use crate::sitetree::Input;
+
+use log::{debug, error};
+
+
 use crate::{
     dom::DomTree,
     sitetree::{SiteNodeKind, SiteTree},
     LssgError,
 };
 
-use super::{modules::RendererModule, DefaultModule};
+use super::{modules::RendererModule};
 use super::{RenderContext, TokenRenderer};
 
 /// HtmlRenderer is responsible for the process of converting the site tree into the final HTML output.

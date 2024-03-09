@@ -1,7 +1,5 @@
 use std::{
-    io::{BufRead, BufReader, Cursor, Read},
-    mem::transmute,
-    str::Chars,
+    io::{BufRead, BufReader, Read},
 };
 
 use super::parse_error::ParseError;

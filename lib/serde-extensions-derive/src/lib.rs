@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Data, Fields, Type};
+use syn::{Data, Fields};
 
 #[proc_macro_derive(Overwrite)]
 pub fn optional_derive(input: TokenStream) -> TokenStream {
@@ -77,20 +77,20 @@ fn impl_optional_macro(ast: &syn::DeriveInput) -> TokenStream {
     gen.into()
 }
 
-fn is_vec_type(ty: &Type) -> bool {
-    if let Type::Path(path) = ty {
-        if let Some(segment) = path.path.segments.last() {
-            return segment.ident.to_string() == "Vec";
-        }
-    }
-    false
-}
-
-fn is_hashmap_type(ty: &Type) -> bool {
-    if let Type::Path(path) = ty {
-        if let Some(segment) = path.path.segments.last() {
-            return segment.ident.to_string() == "HashMap";
-        }
-    }
-    false
-}
+// fn is_vec_type(ty: &Type) -> bool {
+//     if let Type::Path(path) = ty {
+//         if let Some(segment) = path.path.segments.last() {
+//             return segment.ident.to_string() == "Vec";
+//         }
+//     }
+//     false
+// }
+//
+// fn is_hashmap_type(ty: &Type) -> bool {
+//     if let Type::Path(path) = ty {
+//         if let Some(segment) = path.path.segments.last() {
+//             return segment.ident.to_string() == "HashMap";
+//         }
+//     }
+//     false
+// }
