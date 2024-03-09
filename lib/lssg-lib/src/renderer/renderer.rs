@@ -5,7 +5,7 @@ use log::{debug, error};
 
 
 use crate::{
-    html::DomTree,
+    dom::DomTree,
     sitetree::{SiteNodeKind, SiteTree},
     LssgError,
 };
@@ -102,12 +102,12 @@ impl Renderer {
         }
 
         // sanitize html
-        dom.validate();
+        dom.sanitize();
 
         // println!("{dom}");
         // println!("{dom:?}");
         // println!("{:?}", tree.get_mut(9));
         // println!("{page:#?}");
-        return Ok(dom.to_html_string());
+        Ok(dom.to_string())
     }
 }

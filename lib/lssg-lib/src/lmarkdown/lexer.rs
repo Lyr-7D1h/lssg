@@ -2,11 +2,7 @@ use std::{collections::HashMap, io::Read};
 
 use log::warn;
 
-use crate::{
-    char_reader::CharReader,
-    html::{self, element},
-    parse_error::ParseError,
-};
+use crate::{char_reader::CharReader, dom::element, parse_error::ParseError};
 
 /// Remove any tailing new line or starting and ending spaces
 fn sanitize_text(text: String) -> String {
@@ -97,11 +93,11 @@ fn read_block_token(
 
     if c == '<' {
         // comment
-        if let Some(html::Html::Comment { text: raw }) = html::comment(reader)? {
+        if let Some(crate::dom::Html::Comment { text: raw }) = crate::dom::comment(reader)? {
             return Ok(Some(Token::Comment { raw }));
         }
 
-        if let Some((tag, attributes, content)) = html::element(reader)? {
+        if let Some((tag, attributes, content)) = crate::dom::element(reader)? {
             let mut reader = CharReader::<&[u8]>::from_string(&content);
             let tokens = read_inline_html_tokens(&mut reader)?;
             return Ok(Some(Token::Html {
@@ -190,12 +186,13 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
         // html
         if c == '<' {
             // comment
-            if let Some(html::Html::Comment { text: raw }) = html::comment(&mut reader)? {
+            if let Some(crate::dom::Html::Comment { text: raw }) = crate::dom::comment(&mut reader)?
+            {
                 tokens.push(Token::Comment { raw });
                 continue;
             }
 
-            if let Some((tag, attributes, content)) = html::element(&mut reader)? {
+            if let Some((tag, attributes, content)) = crate::dom::element(&mut reader)? {
                 let content = sanitize_text(content);
                 tokens.push(Token::Html {
                     tag,

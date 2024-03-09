@@ -16,7 +16,7 @@ mod tests {
 
     use toml::Table;
 
-    use crate::html::to_attributes;
+    use crate::dom::to_attributes;
 
     use super::*;
 
@@ -46,24 +46,23 @@ This should be text
                     text: "Rust > c++".into(),
                 }],
             },
-            p( vec![
-                    Token::Text {
-                        text: "Lots of people say Rust > c++. even though it might be".into(),
-                    },
-                    Token::SoftBreak,
-                    Token::Text {
-                        text: "< then c++. Who knows?".into(),
-                    },
-                    Token::SoftBreak,
-                    Token::Text {
-                        text: "<nonclosing>".into(),
-                    },
-                    Token::SoftBreak,
-                    Token::Text {
-                        text: "This should be text".into(),
-                    },
-                ],
-            ),
+            p(vec![
+                Token::Text {
+                    text: "Lots of people say Rust > c++. even though it might be".into(),
+                },
+                Token::SoftBreak,
+                Token::Text {
+                    text: "< then c++. Who knows?".into(),
+                },
+                Token::SoftBreak,
+                Token::Text {
+                    text: "<nonclosing>".into(),
+                },
+                Token::SoftBreak,
+                Token::Text {
+                    text: "This should be text".into(),
+                },
+            ]),
         ];
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
@@ -93,15 +92,14 @@ another comment
             Token::Comment {
                 raw: " another comment ".into(),
             },
-            p( vec![
-                    Token::Text {
-                        text: "paragraph ".into(),
-                    },
-                    Token::Comment {
-                        raw: " inline comment ".into(),
-                    },
-                ],
-            ),
+            p(vec![
+                Token::Text {
+                    text: "paragraph ".into(),
+                },
+                Token::Comment {
+                    raw: " inline comment ".into(),
+                },
+            ]),
             Token::Comment {
                 raw: "\nanother comment\n".into(),
             },
@@ -213,8 +211,7 @@ Foo *bar*
  two
 "#;
         let expected = vec![Token::BulletList {
-            items: vec![vec![p( vec![text("one"), Token::SoftBreak, text("two")],
-            )]],
+            items: vec![vec![p(vec![text("one"), Token::SoftBreak, text("two")])]],
         }];
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
@@ -228,12 +225,7 @@ Foo *bar*
 
   two"#;
         let expected = vec![Token::BulletList {
-            items: vec![vec![
-                p( vec![text("one")],
-                ),
-                p( vec![text("two")],
-                ),
-            ]],
+            items: vec![vec![p(vec![text("one")]), p(vec![text("two")])]],
         }];
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
@@ -249,15 +241,13 @@ Foo *bar*
     > A block quote."#;
         let expected = vec![Token::OrderedList {
             items: vec![vec![
-                p( vec![
-                        text("A paragraph"),
-                        Token::SoftBreak,
-                        text("with two lines."),
-                    ],
-                ),
+                p(vec![
+                    text("A paragraph"),
+                    Token::SoftBreak,
+                    text("with two lines."),
+                ]),
                 Token::BlockQuote {
-                    tokens: vec![p( vec![text("A block quote.")],
-                    )],
+                    tokens: vec![p(vec![text("A block quote.")])],
                 },
             ]],
         }];
@@ -302,23 +292,22 @@ aaa
         let input = r#"`foo`
 ` `` `
 `` foo ` bar ``"#;
-        let expected = vec![p( vec![
-                Token::Code {
-                    text: "foo".into(),
-                    info: None,
-                },
-                Token::SoftBreak,
-                Token::Code {
-                    text: " `` ".into(),
-                    info: None,
-                },
-                Token::SoftBreak,
-                Token::Code {
-                    text: "foo ` bar".into(),
-                    info: None,
-                },
-            ],
-        )];
+        let expected = vec![p(vec![
+            Token::Code {
+                text: "foo".into(),
+                info: None,
+            },
+            Token::SoftBreak,
+            Token::Code {
+                text: " `` ".into(),
+                info: None,
+            },
+            Token::SoftBreak,
+            Token::Code {
+                text: "foo ` bar".into(),
+                info: None,
+            },
+        ])];
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
         let tokens = parse_lmarkdown(reader).unwrap();
@@ -331,16 +320,15 @@ aaa
 bar
 foo\
 baz"#;
-        let expected = vec![p( vec![
-                text("foo"),
-                Token::HardBreak,
-                text("bar"),
-                Token::SoftBreak,
-                text("foo"),
-                Token::HardBreak,
-                text("baz"),
-            ],
-        )];
+        let expected = vec![p(vec![
+            text("foo"),
+            Token::HardBreak,
+            text("bar"),
+            Token::SoftBreak,
+            text("foo"),
+            Token::HardBreak,
+            text("baz"),
+        ])];
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
         let tokens = parse_lmarkdown(reader).unwrap();
@@ -350,11 +338,10 @@ baz"#;
     #[test]
     fn test_autolink() {
         let input = r#"<http://foo.bar.baz>"#;
-        let expected = vec![p( vec![Token::Link {
-                tokens: vec![text("http://foo.bar.baz")],
-                href: "http://foo.bar.baz".into(),
-            }],
-        )];
+        let expected = vec![p(vec![Token::Link {
+            tokens: vec![text("http://foo.bar.baz")],
+            href: "http://foo.bar.baz".into(),
+        }])];
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
         let tokens = parse_lmarkdown(reader).unwrap();

@@ -4,7 +4,7 @@ use log::warn;
 
 use super::{RenderContext, RendererModule};
 use crate::{
-    html::{DomId, DomTree},
+    dom::{DomNode, DomNodeKind, DomTree, WeakDomNode},
     lmarkdown::Token,
 };
 
@@ -20,28 +20,54 @@ impl<'a> TokenRenderer {
         TokenRenderer { modules }
     }
 
-    pub fn render(
+    /// Render using other modules
+    pub fn render_down(
         &mut self,
+        current_module: &dyn RendererModule,
         dom: &mut DomTree,
         context: &RenderContext<'a>,
-        mut parent_id: DomId,
+        mut parent: DomNode,
         tokens: &Vec<Token>,
-    ) {
+    ) -> DomNode {
         'l: for token in tokens.iter() {
             let modules = unsafe { self.modules.as_mut().unwrap() };
             for module in modules.iter_mut() {
-                if let Some(p) = module.render_body(dom, context, parent_id, &token, self) {
-                    parent_id = p;
+                if current_module.id() == module.id() {
+                    continue;
+                }
+                if let Some(p) = module.render_body(dom, context, parent.clone(), &token, self) {
+                    parent = p;
                     continue 'l;
                 }
             }
             warn!("{token:?} not renderered");
         }
+        parent
+    }
+
+    pub fn render(
+        &mut self,
+        dom: &mut DomTree,
+        context: &RenderContext<'a>,
+        mut parent: DomNode,
+        tokens: &Vec<Token>,
+    ) -> DomNode {
+        'l: for token in tokens.iter() {
+            let modules = unsafe { self.modules.as_mut().unwrap() };
+            for module in modules.iter_mut() {
+                if let Some(p) = module.render_body(dom, context, parent.clone(), &token, self) {
+                    parent = p;
+                    continue 'l;
+                }
+            }
+            warn!("{token:?} not renderered");
+        }
+        parent
     }
 
     /// consume self and return a parsed domtree
     pub fn start_render(mut self, dom: &mut DomTree, context: &RenderContext) {
-        let body = dom.get_elements_by_tag_name("body")[0];
+        let body = dom.body();
         let tokens = context.page.tokens();
         self.render(dom, context, body, tokens);
     }
