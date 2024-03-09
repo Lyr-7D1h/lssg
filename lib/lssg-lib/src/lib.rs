@@ -4,7 +4,7 @@ pub mod parse_error;
 pub mod renderer;
 pub mod sitetree;
 
-pub mod html;
+pub mod dom;
 pub mod lssg_error;
 mod path_extension;
 mod tree;

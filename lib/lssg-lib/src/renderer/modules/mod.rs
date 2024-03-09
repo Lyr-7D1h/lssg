@@ -2,7 +2,7 @@ use log::error;
 use serde_extensions::Overwrite;
 
 use crate::{
-    html::{DomId, DomTree},
+    dom::{DomNode, DomTree},
     lmarkdown::Token,
     sitetree::{Page, SiteTree},
     LssgError,
@@ -38,10 +38,10 @@ pub trait RendererModule {
         &mut self,
         dom: &mut DomTree,
         context: &RenderContext<'n>,
-        parent_id: DomId,
+        parent: DomNode,
         token: &Token,
         tr: &mut TokenRenderer,
-    ) -> Option<DomId> {
+    ) -> Option<DomNode> {
         None
     }
 

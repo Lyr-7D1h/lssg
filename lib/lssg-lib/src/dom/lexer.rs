@@ -1,11 +1,16 @@
-use std::{collections::HashMap, io::Read};
+use std::{
+    collections::{HashMap, VecDeque},
+    io::Read,
+};
 
 use crate::{char_reader::CharReader, parse_error::ParseError};
+
+use super::DomNode;
 
 #[macro_export]
 macro_rules! html {
     ($x:tt) => {
-        $crate::html::parse_html(format!($x).as_bytes())
+        $crate::dom::parse_html(format!($x).as_bytes())
             .map(|html| match html.into_iter().next() {
                 Some(i) => i,
                 None => panic!("has to contain valid html"),
@@ -187,11 +192,51 @@ pub enum Html {
     },
 }
 
+impl Into<DomNode> for Html {
+    fn into(self) -> DomNode {
+        match self {
+            Html::Comment { .. } => panic!("root html can't be comment"),
+            Html::Text { text } => DomNode::create_text(text),
+            Html::Element {
+                tag,
+                attributes,
+                children,
+            } => {
+                let root = DomNode::create_element_with_attributes(tag, attributes);
+                let mut queue: VecDeque<(Html, DomNode)> = VecDeque::from(
+                    children
+                        .into_iter()
+                        .zip(std::iter::repeat(root.clone()))
+                        .collect::<Vec<(Html, DomNode)>>(),
+                );
+                while let Some((c, parent)) = queue.pop_front() {
+                    if let Some(p) = match c {
+                        Html::Text { text } => Some(DomNode::create_text(text)),
+                        Html::Element {
+                            tag,
+                            attributes,
+                            children,
+                        } => {
+                            let p = DomNode::create_element_with_attributes(tag, attributes);
+                            queue.extend(children.into_iter().zip(std::iter::repeat(p.clone())));
+                            Some(p)
+                        }
+                        _ => None,
+                    } {
+                        parent.append_child(p)
+                    }
+                }
+                root
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::io::Cursor;
 
-    use crate::html::to_attributes;
+    use crate::dom::to_attributes;
 
     use super::*;
 
