@@ -24,7 +24,7 @@ Hi! My name is Ivo. I go by Lyr online. Welcome to my online space! I like to th
 
 <links boxes>
 [<i class="fa-solid fa-rss"></i>Blog](./blog.md)
-<!-- [<i class="fa-solid fa-paintbrush"></i>Art](./art.md) -->
+[<i class="fa-solid fa-paintbrush"></i>Art](./art.md)
 [<i class="fa-solid fa-envelope"></i>Email](mailto:lyr-7d1h@pm.me)
 [<i class="fa-brands fa-github"></i>Github](https://github.com/Lyr-7D1h)
 [<i class="fa-brands fa-linkedin"></i>Linkedin](https://www.linkedin.com/in/ivo-velthoven/)

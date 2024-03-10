@@ -154,3 +154,8 @@ nav.links a {
 .box:hover {
   box-shadow: 8px 8px 8px 8px rgba(0, 0, 0, 0.2);
 }
+
+.breadcrumbs {
+  padding: 20px;
+  text-align: left;
+}

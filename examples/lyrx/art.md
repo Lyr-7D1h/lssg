@@ -1,5 +1,5 @@
 <!-- art.root=true -->
 
-<links boxes>
+<links>
 [Hello World](./art/hello_world.md)
 </links>

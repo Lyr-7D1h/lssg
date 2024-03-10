@@ -97,7 +97,6 @@ impl RendererModule for BlogModule {
     }
 
     fn render_page<'n>(&mut self, document: &mut Document, context: &RenderContext<'n>) {
-        let site_tree = context.site_tree;
         let site_id = context.site_id;
 
         if !self.post_site_ids.contains(&site_id) && !self.root_site_ids.contains(&site_id) {
@@ -106,33 +105,6 @@ impl RendererModule for BlogModule {
 
         // reset state
         self.has_inserted_date = false;
-
-        let body = document.body();
-
-        // add breacrumbs
-        {
-            let nav = document
-                .create_element_with_attributes("nav", to_attributes([("class", "breadcrumbs")]));
-
-            nav.append_child(document.create_text_node("/"));
-
-            let parents = site_tree.parents(site_id);
-            let parents_length = parents.len();
-            for (i, p) in parents.into_iter().rev().enumerate() {
-                let a = document.create_element_with_attributes(
-                    "a",
-                    to_attributes([("href", site_tree.rel_path(site_id, p))]),
-                );
-                a.append_child(document.create_text_node(site_tree[p].name.clone()));
-                nav.append_child(a);
-                if i != parents_length - 1 {
-                    nav.append_child(document.create_text_node("/"));
-                }
-            }
-            nav.append_child(document.create_text_node(format!("/{}", site_tree[site_id].name)));
-
-            body.append_child(nav);
-        }
     }
 
     fn render_body<'n>(

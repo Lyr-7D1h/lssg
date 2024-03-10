@@ -7,8 +7,8 @@ use super::dom_node::{DomNode, DomNodeKind};
 /// using a RC Tree allows for easier manipulation of single nodes and traversing the tree
 pub struct Document {
     root: DomNode,
-    head: DomNode,
-    body: DomNode,
+    pub head: DomNode,
+    pub body: DomNode,
 }
 
 impl Document {
@@ -25,14 +25,6 @@ impl Document {
 
     pub fn root(&self) -> DomNode {
         self.root.clone()
-    }
-
-    pub fn head(&self) -> DomNode {
-        self.head.clone()
-    }
-
-    pub fn body(&self) -> DomNode {
-        self.body.clone()
     }
 
     pub fn sanitize(&mut self) {

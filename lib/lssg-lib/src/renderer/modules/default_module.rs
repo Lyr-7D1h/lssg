@@ -169,7 +169,7 @@ impl RendererModule for DefaultModule {
         Ok(())
     }
 
-    fn render_page<'n>(&mut self, dom: &mut Document, context: &RenderContext<'n>) {
+    fn render_page<'n>(&mut self, document: &mut Document, context: &RenderContext<'n>) {
         let site_id = context.site_id;
         let site_tree = context.site_tree;
 
@@ -179,22 +179,22 @@ impl RendererModule for DefaultModule {
             .expect("expected options map to contain all page ids");
 
         // Add language to html tag
-        if let DomNodeKind::Element { attributes, .. } = &mut *dom.root().kind_mut() {
+        if let DomNodeKind::Element { attributes, .. } = &mut *document.root().kind_mut() {
             attributes.insert("lang".to_owned(), options.language.clone());
         }
 
         // fill head
-        let head = dom.head();
+        let head = &document.head;
 
-        let title = dom.create_element("title");
-        title.append_child(dom.create_text_node(options.title.clone()));
+        let title = document.create_element("title");
+        title.append_child(document.create_text_node(options.title.clone()));
         head.append_child(title);
 
         for link in site_tree.links_from(site_id) {
             match link.relation {
                 Relation::External | Relation::Discovered { .. } => match site_tree[link.to].kind {
                     SiteNodeKind::Resource { .. } if site_tree[link.to].name == "favicon.ico" => {
-                        head.append_child(dom.create_element_with_attributes(
+                        head.append_child(document.create_element_with_attributes(
                             "link",
                             to_attributes([
                                 ("rel", "icon"),
@@ -204,7 +204,7 @@ impl RendererModule for DefaultModule {
                         ));
                     }
                     SiteNodeKind::Stylesheet { .. } => {
-                        head.append_child(dom.create_element_with_attributes(
+                        head.append_child(document.create_element_with_attributes(
                             "link",
                             to_attributes([
                                 ("rel", "stylesheet"),
@@ -217,7 +217,7 @@ impl RendererModule for DefaultModule {
                 _ => {}
             }
         }
-        head.append_child(dom.create_element_with_attributes(
+        head.append_child(document.create_element_with_attributes(
             "meta",
             to_attributes([
                 ("name", "viewport"),
@@ -225,13 +225,38 @@ impl RendererModule for DefaultModule {
             ]),
         ));
         head.append_child(
-            dom.create_element_with_attributes("meta", to_attributes([("charset", "utf-8")])),
+            document.create_element_with_attributes("meta", to_attributes([("charset", "utf-8")])),
         );
         for (key, value) in &options.meta {
-            head.append_child(dom.create_element_with_attributes(
+            head.append_child(document.create_element_with_attributes(
                 "meta",
                 to_attributes([("name", key), ("content", value)]),
             ));
+        }
+
+        // add breacrumbs if not root
+        if context.site_id != context.site_tree.root() {
+            let nav = document
+                .create_element_with_attributes("nav", to_attributes([("class", "breadcrumbs")]));
+
+            nav.append_child(document.create_text_node("/"));
+
+            let parents = site_tree.parents(site_id);
+            let parents_length = parents.len();
+            for (i, p) in parents.into_iter().rev().enumerate() {
+                let a = document.create_element_with_attributes(
+                    "a",
+                    to_attributes([("href", site_tree.rel_path(site_id, p))]),
+                );
+                a.append_child(document.create_text_node(site_tree[p].name.clone()));
+                nav.append_child(a);
+                if i != parents_length - 1 {
+                    nav.append_child(document.create_text_node("/"));
+                }
+            }
+            nav.append_child(document.create_text_node(format!("/{}", site_tree[site_id].name)));
+
+            document.body.append_child(nav);
         }
     }
 
@@ -379,7 +404,7 @@ impl RendererModule for DefaultModule {
     }
 
     fn after_render<'n>(&mut self, dom: &mut Document, _: &RenderContext<'n>) {
-        let body = dom.body();
+        let body = &dom.body;
 
         // move all dom elements to under #content
         let content = dom.create_element_with_attributes("div", to_attributes([("id", "content")]));
