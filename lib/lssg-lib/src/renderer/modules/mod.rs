@@ -2,11 +2,11 @@ use log::error;
 use serde_extensions::Overwrite;
 
 use crate::{
-    dom::{DomNode, Document},
     lmarkdown::Token,
     sitetree::{Page, SiteTree},
     LssgError,
 };
+use virtual_dom::{Document, DomNode};
 
 mod blog_module;
 pub use blog_module::*;

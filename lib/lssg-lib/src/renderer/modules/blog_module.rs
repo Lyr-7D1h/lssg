@@ -5,14 +5,14 @@ use log::{error, warn};
 use serde_extensions::Overwrite;
 
 use crate::{
-    dom::{to_attributes, Document, DomNode},
-    html,
     lmarkdown::Token,
     lssg_error::LssgError,
     renderer::RenderContext,
     sitetree::{Input, SiteNode, SiteNodeKind, Stylesheet},
     tree::{Node, Tree, DFS},
 };
+use proc_html::html;
+use virtual_dom::{to_attributes, Document, DomNode};
 
 use super::{tokens_to_text, RendererModule, TokenRenderer};
 
@@ -137,7 +137,7 @@ impl RendererModule for BlogModule {
                         parent.append_child(post);
                         // render heading
                         tr.render(document, context, content.clone(), &vec![token.clone()]);
-                        content.append_child(html!(r#"<div class="post-updated-on">{date}</div>"#));
+                        content.append_child(html!(<div class="post-updated-on">{date}</div>));
 
                         return Some(content);
                     }

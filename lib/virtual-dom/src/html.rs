@@ -1,25 +1,12 @@
 use std::{
     collections::{HashMap, VecDeque},
+    io,
     io::Read,
 };
 
-use crate::{char_reader::CharReader, parse_error::ParseError};
+use char_reader::CharReader;
 
-use super::DomNode;
-
-#[macro_export]
-macro_rules! html {
-    ($x:tt) => {
-        $crate::dom::parse_html(format!($x).as_bytes())
-            .map(|html| match html.into_iter().next() {
-                Some(i) => i,
-                None => panic!("has to contain valid html"),
-            })
-            .expect("should contain valid html")
-    };
-}
-
-pub fn parse_html(input: impl Read) -> Result<Vec<Html>, ParseError> {
+pub fn parse_html(input: impl Read) -> Result<Vec<Html>, io::Error> {
     let mut reader = CharReader::new(input);
 
     let mut tokens = vec![];
@@ -46,7 +33,7 @@ pub fn parse_html(input: impl Read) -> Result<Vec<Html>, ParseError> {
     Ok(reduced_tokens)
 }
 
-fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, ParseError> {
+fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, io::Error> {
     let chars: Vec<char> = start_tag_content.chars().collect();
     let mut attributes = HashMap::new();
     let mut key = String::new();
@@ -93,7 +80,7 @@ fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, ParseE
 /// seperated to make logic more reusable
 pub fn element(
     reader: &mut CharReader<impl Read>,
-) -> Result<Option<(String, HashMap<String, String>, String)>, ParseError> {
+) -> Result<Option<(String, HashMap<String, String>, String)>, io::Error> {
     if let Some('<') = reader.peek_char(0)? {
         if let Some(start_tag) = reader.peek_until_exclusive_from(1, |c| c == '>')? {
             // get html tag
@@ -125,7 +112,7 @@ pub fn element(
     return Ok(None);
 }
 
-pub fn comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, ParseError> {
+pub fn comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io::Error> {
     if "<!--" == reader.peek_string(4)? {
         if let Some(text) = reader.peek_until_match_exclusive_from(4, "-->")? {
             reader.consume(4)?; // skip start
@@ -142,7 +129,7 @@ pub fn comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, Parse
 /// ignoring a lot of edge cases and validation normally seen when parsing html.
 ///
 /// **NOTE: Might return multiple Text tokens one after another.**
-pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, ParseError> {
+pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io::Error> {
     match reader.peek_char(0)? {
         None => return Ok(None),
         Some(c) => {
@@ -192,53 +179,16 @@ pub enum Html {
     },
 }
 
-impl Into<DomNode> for Html {
-    fn into(self) -> DomNode {
-        match self {
-            Html::Comment { .. } => panic!("root html can't be comment"),
-            Html::Text { text } => DomNode::create_text(text),
-            Html::Element {
-                tag,
-                attributes,
-                children,
-            } => {
-                let root = DomNode::create_element_with_attributes(tag, attributes);
-                let mut queue: VecDeque<(Html, DomNode)> = VecDeque::from(
-                    children
-                        .into_iter()
-                        .zip(std::iter::repeat(root.clone()))
-                        .collect::<Vec<(Html, DomNode)>>(),
-                );
-                while let Some((c, parent)) = queue.pop_front() {
-                    if let Some(p) = match c {
-                        Html::Text { text } => Some(DomNode::create_text(text)),
-                        Html::Element {
-                            tag,
-                            attributes,
-                            children,
-                        } => {
-                            let p = DomNode::create_element_with_attributes(tag, attributes);
-                            queue.extend(children.into_iter().zip(std::iter::repeat(p.clone())));
-                            Some(p)
-                        }
-                        _ => None,
-                    } {
-                        parent.append_child(p)
-                    }
-                }
-                root
-            }
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
-
-    use crate::dom::to_attributes;
-
     use super::*;
+
+    /// Utility function to convert iteratables into attributes hashmap
+    pub fn to_attributes<I: IntoIterator<Item = (impl Into<String>, impl Into<String>)>>(
+        arr: I,
+    ) -> HashMap<String, String> {
+        arr.into_iter().map(|(k, v)| (k.into(), v.into())).collect()
+    }
 
     #[test]
     fn test_html() {
@@ -267,8 +217,7 @@ mod tests {
             },
         ];
 
-        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
-        let tokens = parse_html(reader).unwrap();
+        let tokens = parse_html(input.as_bytes()).unwrap();
         assert_eq!(expected, tokens);
 
         let input = r#"<div>
@@ -289,8 +238,7 @@ mod tests {
                 Html::Text { text: "\n".into() },
             ],
         }];
-        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
-        let tokens = parse_html(reader).unwrap();
+        let tokens = parse_html(input.as_bytes()).unwrap();
         assert_eq!(expected, tokens);
     }
 
@@ -312,8 +260,7 @@ This should be text
             .into(),
         }];
 
-        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
-        let tokens = parse_html(reader).unwrap();
+        let tokens = parse_html(input.as_bytes()).unwrap();
         assert_eq!(expected, tokens);
     }
 }

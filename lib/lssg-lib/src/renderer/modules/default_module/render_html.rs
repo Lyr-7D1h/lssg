@@ -2,9 +2,10 @@ use std::collections::HashMap;
 
 use log::warn;
 
+use proc_html::html;
+use virtual_dom::{to_attributes, Document, DomNode};
+
 use crate::{
-    dom::{to_attributes, Document, DomNode},
-    html,
     lmarkdown::Token,
     renderer::{RenderContext, TokenRenderer},
     sitetree::{Page, Relation},
@@ -29,7 +30,7 @@ pub fn render_html(
             parent.append_child(centered);
         }
         "links" if attributes.contains_key("boxes") => {
-            let links: DomNode = html!(r#"<nav class="links"></nav>"#).into();
+            let links: DomNode = html!(<nav class="links"></nav>).into();
             parent.append_child(links.clone());
             for t in tokens {
                 match t {
@@ -59,8 +60,7 @@ pub fn render_html(
                             href.into()
                         };
 
-                        let a: DomNode =
-                            html!(r#"<a href="{href}"><div class="box"></div></a>"#).into();
+                        let a: DomNode = html!(<a href="{href}"><div class="box"></div></a>).into();
                         let div = a.first_child().unwrap();
                         tr.render(document, context, div, tokens);
                         links.append_child(a);

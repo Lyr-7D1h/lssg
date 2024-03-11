@@ -17,4 +17,4 @@ lssg-lib = { path="./lib/lssg-lib/", version="0.1.0"}
 log = "0.4.20"
 
 [workspace]
-members = ["lib/lssg-lib", "lib/serde-extensions", "lib/serde-extensions-derive"]
+members = [ "lib/char-reader", "lib/lssg-lib", "lib/proc-html", "lib/serde-extensions", "lib/serde-extensions-derive", "lib/virtual-dom"]

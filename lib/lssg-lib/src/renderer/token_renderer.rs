@@ -1,10 +1,8 @@
 use log::warn;
 
 use super::{RenderContext, RendererModule};
-use crate::{
-    dom::{Document, DomNode, DomNodeKind, WeakDomNode},
-    lmarkdown::Token,
-};
+use crate::lmarkdown::Token;
+use virtual_dom::{Document, DomNode};
 
 /// used for recursively rendering
 pub struct TokenRenderer {

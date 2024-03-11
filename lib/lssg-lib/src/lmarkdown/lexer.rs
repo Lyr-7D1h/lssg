@@ -1,8 +1,9 @@
 use std::{collections::HashMap, io::Read};
 
 use log::warn;
+use virtual_dom::Html;
 
-use crate::{char_reader::CharReader, dom::element, parse_error::ParseError};
+use crate::{char_reader::CharReader, parse_error::ParseError};
 
 /// Remove any tailing new line or starting and ending spaces
 fn sanitize_text(text: String) -> String {
@@ -77,7 +78,7 @@ fn read_block_token(
                 }
             }
         }
-        if let Some((tag, attributes, content)) = element(reader)? {
+        if let Some((tag, attributes, content)) = html_element(reader)? {
             let tokens = read_inline_tokens(&content)?;
             return Ok(Some(Token::Html {
                 tag,
@@ -93,11 +94,11 @@ fn read_block_token(
 
     if c == '<' {
         // comment
-        if let Some(crate::dom::Html::Comment { text: raw }) = crate::dom::comment(reader)? {
+        if let Some(Html::Comment { text: raw }) = html_comment(reader)? {
             return Ok(Some(Token::Comment { raw }));
         }
 
-        if let Some((tag, attributes, content)) = crate::dom::element(reader)? {
+        if let Some((tag, attributes, content)) = html_element(reader)? {
             let mut reader = CharReader::<&[u8]>::from_string(&content);
             let tokens = read_inline_html_tokens(&mut reader)?;
             return Ok(Some(Token::Html {
@@ -186,13 +187,12 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
         // html
         if c == '<' {
             // comment
-            if let Some(crate::dom::Html::Comment { text: raw }) = crate::dom::comment(&mut reader)?
-            {
+            if let Some(Html::Comment { text: raw }) = html_comment(&mut reader)? {
                 tokens.push(Token::Comment { raw });
                 continue;
             }
 
-            if let Some((tag, attributes, content)) = crate::dom::element(&mut reader)? {
+            if let Some((tag, attributes, content)) = html_element(&mut reader)? {
                 let content = sanitize_text(content);
                 tokens.push(Token::Html {
                     tag,
@@ -344,6 +344,98 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
     }
 
     return Ok(tokens);
+}
+
+/// from virtual_dom::html
+fn html_attributes(start_tag_content: &str) -> Result<HashMap<String, String>, ParseError> {
+    let chars: Vec<char> = start_tag_content.chars().collect();
+    let mut attributes = HashMap::new();
+    let mut key = String::new();
+    let mut value = String::new();
+    let mut in_value = false;
+    let mut i = 0;
+    while i < chars.len() {
+        match chars[i] {
+            ' ' if in_value == false => {
+                if key.len() > 0 {
+                    attributes.insert(key, value);
+                    key = String::new();
+                    value = String::new();
+                    in_value = false;
+                }
+            }
+            '=' => match chars.get(i + 1) {
+                Some('"') | Some('\'') => {
+                    i += 1;
+                    in_value = true
+                }
+                _ => {}
+            },
+            '\'' | '"' if in_value => in_value = false,
+            c => {
+                if in_value {
+                    value.push(c)
+                } else {
+                    key.push(c)
+                }
+            }
+        }
+        i += 1;
+    }
+    if key.len() > 0 {
+        attributes.insert(key, value);
+    }
+
+    Ok(attributes)
+}
+
+/// from virtual_dom::html
+fn html_element(
+    reader: &mut CharReader<impl Read>,
+) -> Result<Option<(String, HashMap<String, String>, String)>, ParseError> {
+    if let Some('<') = reader.peek_char(0)? {
+        if let Some(start_tag) = reader.peek_until_exclusive_from(1, |c| c == '>')? {
+            // get html tag
+            let mut tag = String::new();
+            for c in start_tag.chars() {
+                match c {
+                    ' ' => break,
+                    '\n' => break,
+                    _ => tag.push(c),
+                }
+            }
+
+            let end_tag = format!("</{tag}>");
+            if let Some(html_block) =
+                reader.peek_until_match_exclusive_from(2 + start_tag.len(), &end_tag)?
+            {
+                // <{start_tag}>
+                reader.consume(start_tag.len() + 2)?;
+
+                let attributes = html_attributes(&start_tag[tag.len()..start_tag.len()])?;
+
+                let content = reader.consume_string(html_block.len())?;
+                reader.consume(end_tag.len())?;
+
+                return Ok(Some((tag, attributes, content)));
+            }
+        }
+    }
+    Ok(None)
+}
+
+/// from virtual_dom::html
+fn html_comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, ParseError> {
+    if "<!--" == reader.peek_string(4)? {
+        if let Some(text) = reader.peek_until_match_exclusive_from(4, "-->")? {
+            reader.consume(4)?; // skip start
+            let text = reader.consume_string(text.len())?;
+            reader.consume(3)?; // skip end
+            return Ok(Some(Html::Comment { text }));
+        }
+    }
+
+    Ok(None)
 }
 
 /// Allow for certain block tokens inside html

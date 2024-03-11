@@ -1,7 +1,9 @@
 use std::cell::{Ref, RefCell, RefMut};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::rc::{Rc, Weak};
 use std::{fmt, iter};
+
+use super::Html;
 
 /// Strong link
 type Link = Rc<RefCell<DomNodeData>>;
@@ -447,6 +449,46 @@ impl ToString for DomNode {
                 }
 
                 format!("<{tag}{spacing}{}>{}</{tag}>", attributes, content)
+            }
+        }
+    }
+}
+
+impl From<Html> for DomNode {
+    fn from(value: Html) -> Self {
+        match value {
+            Html::Comment { .. } => panic!("root html can't be comment"),
+            Html::Text { text } => DomNode::create_text(text),
+            Html::Element {
+                tag,
+                attributes,
+                children,
+            } => {
+                let root = DomNode::create_element_with_attributes(tag, attributes);
+                let mut queue: VecDeque<(Html, DomNode)> = VecDeque::from(
+                    children
+                        .into_iter()
+                        .zip(std::iter::repeat(root.clone()))
+                        .collect::<Vec<(Html, DomNode)>>(),
+                );
+                while let Some((c, parent)) = queue.pop_front() {
+                    if let Some(p) = match c {
+                        Html::Text { text } => Some(DomNode::create_text(text)),
+                        Html::Element {
+                            tag,
+                            attributes,
+                            children,
+                        } => {
+                            let p = DomNode::create_element_with_attributes(tag, attributes);
+                            queue.extend(children.into_iter().zip(std::iter::repeat(p.clone())));
+                            Some(p)
+                        }
+                        _ => None,
+                    } {
+                        parent.append_child(p)
+                    }
+                }
+                root
             }
         }
     }

@@ -1,16 +1,12 @@
-
-
-
 use log::{debug, error};
 
-
 use crate::{
-    dom::Document,
     sitetree::{SiteNodeKind, SiteTree},
     LssgError,
 };
+use virtual_dom::Document;
 
-use super::{modules::RendererModule};
+use super::modules::RendererModule;
 use super::{RenderContext, TokenRenderer};
 
 /// HtmlRenderer is responsible for the process of converting the site tree into the final HTML output.
