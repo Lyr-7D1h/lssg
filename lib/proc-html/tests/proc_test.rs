@@ -1,6 +1,5 @@
-use std::collections::HashMap;
-
 use proc_html::html;
+use std::collections::HashMap;
 use virtual_dom::Html;
 
 /// Utility function to convert iteratables into attributes hashmap
@@ -10,13 +9,25 @@ pub fn to_attributes<I: IntoIterator<Item = (impl Into<String>, impl Into<String
     arr.into_iter().map(|(k, v)| (k.into(), v.into())).collect()
 }
 
+fn text(text: &str) -> Html {
+    Html::Text { text: text.into() }
+}
+
+fn p(children: Vec<Html>) -> Html {
+    Html::Element {
+        tag: "p".into(),
+        attributes: HashMap::new(),
+        children,
+    }
+}
+
 #[test]
-fn proc_html() {
-    let input = html!(<a href="test.com">
-            <i class="fa-solid fa-rss"></i>Test
-        </a>
+fn static_html_works() {
+    let input = html! {
+        <a href="test.com">
+            <i class="fa-solid fa-rss"></i>Test</a>
         <button disabled></button>
-    );
+    };
 
     let expected = vec![
         Html::Element {
@@ -33,7 +44,6 @@ fn proc_html() {
                 },
             ],
         },
-        Html::Text { text: "\n".into() },
         Html::Element {
             tag: "button".into(),
             attributes: to_attributes([("disabled", "")]),
@@ -47,20 +57,34 @@ fn proc_html() {
     <a href="link.com">[other](other.com)</a>
     </div>);
 
-    let expected = vec![Html::Element {
+    let expected = Html::Element {
         tag: "div".into(),
         attributes: HashMap::new(),
-        children: vec![
-            Html::Text { text: "\n".into() },
-            Html::Element {
-                tag: "a".into(),
-                attributes: to_attributes([("href", "link.com")]),
-                children: vec![Html::Text {
-                    text: "[other](other.com)".into(),
-                }],
-            },
-            Html::Text { text: "\n".into() },
-        ],
-    }];
+        children: vec![Html::Element {
+            tag: "a".into(),
+            attributes: to_attributes([("href", "link.com")]),
+            children: vec![Html::Text {
+                text: "[other](other.com)".into(),
+            }],
+        }],
+    };
     assert_eq!(expected, input);
+}
+
+#[test]
+fn html_interpolation_works() {
+    let title = "Lyr";
+    let paragraph = "Story of an awesome dev";
+    let input = html!(<h1>{title}</h1><p>{paragraph}</p>);
+    assert_eq!(
+        vec![
+            Html::Element {
+                tag: "h1".into(),
+                attributes: HashMap::new(),
+                children: vec![text("Lyr")]
+            },
+            p(vec![text("Story of an awesome dev")])
+        ],
+        input
+    )
 }

@@ -1,8 +1,4 @@
-use std::{
-    collections::{HashMap, VecDeque},
-    io,
-    io::Read,
-};
+use std::{collections::HashMap, io, io::Read};
 
 use char_reader::CharReader;
 
@@ -34,6 +30,7 @@ pub fn parse_html(input: impl Read) -> Result<Vec<Html>, io::Error> {
 }
 
 fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, io::Error> {
+    let start_tag_content = start_tag_content.trim();
     let chars: Vec<char> = start_tag_content.chars().collect();
     let mut attributes = HashMap::new();
     let mut key = String::new();
@@ -109,7 +106,7 @@ pub fn element(
             }
         }
     }
-    return Ok(None);
+    Ok(None)
 }
 
 pub fn comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io::Error> {
@@ -130,38 +127,40 @@ pub fn comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io::E
 ///
 /// **NOTE: Might return multiple Text tokens one after another.**
 pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io::Error> {
-    match reader.peek_char(0)? {
-        None => return Ok(None),
-        Some(c) => {
-            if c == '<' {
-                if let Some(comment) = comment(reader)? {
-                    return Ok(Some(comment));
-                }
-
-                if let Some((tag, attributes, content)) = element(reader)? {
-                    let mut children = vec![];
-                    let mut reader = CharReader::new(content.as_bytes());
-                    while let Some(html) = read_token(&mut reader)? {
-                        children.push(html);
-                    }
-                    return Ok(Some(Html::Element {
-                        tag,
-                        attributes,
-                        children,
-                    }));
-                }
-
-                // non html opening
-                reader.consume(1)?;
-                let mut text = "<".to_string();
-                text.push_str(&reader.consume_until_exclusive(|c| c == '<')?);
-                return Ok(Some(Html::Text { text }));
+    while let Some(c) = reader.peek_char(0)? {
+        if c == '<' {
+            if let Some(comment) = comment(reader)? {
+                return Ok(Some(comment));
             }
 
-            let text = reader.consume_until_exclusive(|c| c == '<')?;
+            if let Some((tag, attributes, content)) = element(reader)? {
+                let mut children = vec![];
+                let mut reader = CharReader::new(content.as_bytes());
+                while let Some(html) = read_token(&mut reader)? {
+                    children.push(html);
+                }
+                return Ok(Some(Html::Element {
+                    tag,
+                    attributes,
+                    children,
+                }));
+            }
+
+            // non html opening
+            reader.consume(1)?;
+            let mut text = "<".to_string();
+            text.push_str(&reader.consume_until_exclusive(|c| c == '<')?);
+            return Ok(Some(Html::Text { text }));
+        }
+
+        let text = reader.consume_until_exclusive(|c| c == '<')?;
+        // only valid text if it contains a non whitespace character
+        if text.chars().any(|c| c != ' ' && c != '\n') {
             return Ok(Some(Html::Text { text }));
         }
     }
+
+    Ok(None)
 }
 
 #[derive(Debug, Clone, PartialEq)]

@@ -223,7 +223,7 @@ impl DomNode {
                 }
                 DomNodeKind::Element { tag, .. } => match tag.as_str() {
                     "p" => {
-                        // remove node if no children
+                        // remove paragraph if no children
                         if let None = self.first_child() {
                             self.detach();
                             continue;
