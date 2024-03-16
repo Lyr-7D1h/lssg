@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::dom_node::{DomNode, DomNodeKind};
+use super::dom_node::DomNode;
 
 /// RefCell based dom tree, tries to mimick Document as seen in browsers (https://developer.mozilla.org/en-US/docs/Web/API/Document)
 ///
@@ -63,15 +63,4 @@ pub fn to_attributes<I: IntoIterator<Item = (impl Into<String>, impl Into<String
     arr: I,
 ) -> HashMap<String, String> {
     arr.into_iter().map(|(k, v)| (k.into(), v.into())).collect()
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_tree() {
-        let mut tree = Document::new();
-        // tree.body().append()
-    }
 }

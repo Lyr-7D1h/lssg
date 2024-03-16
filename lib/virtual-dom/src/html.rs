@@ -2,6 +2,7 @@ use std::{collections::HashMap, io, io::Read};
 
 use char_reader::CharReader;
 
+// TODO: return DomNode directly instead of parsing to intermediary representation
 pub fn parse_html(input: impl Read) -> Result<Vec<Html>, io::Error> {
     let mut reader = CharReader::new(input);
 
@@ -30,6 +31,7 @@ pub fn parse_html(input: impl Read) -> Result<Vec<Html>, io::Error> {
 }
 
 fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, io::Error> {
+    // remove whitespace before and after text
     let start_tag_content = start_tag_content.trim();
     let chars: Vec<char> = start_tag_content.chars().collect();
     let mut attributes = HashMap::new();
@@ -119,7 +121,7 @@ pub fn comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io::E
         }
     }
 
-    return Ok(None);
+    Ok(None)
 }
 
 /// A "simple" streaming html parser function. This is a fairly simplified way of parsing html
@@ -163,6 +165,7 @@ pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io
     Ok(None)
 }
 
+/// Simple parsed html object with recursively added children
 #[derive(Debug, Clone, PartialEq)]
 pub enum Html {
     Comment {
@@ -208,7 +211,6 @@ mod tests {
                     },
                 ],
             },
-            Html::Text { text: "\n".into() },
             Html::Element {
                 tag: "button".into(),
                 attributes: to_attributes([("disabled", "")]),
@@ -226,7 +228,6 @@ mod tests {
             tag: "div".into(),
             attributes: HashMap::new(),
             children: vec![
-                Html::Text { text: "\n".into() },
                 Html::Element {
                     tag: "a".into(),
                     attributes: to_attributes([("href", "link.com")]),
@@ -234,7 +235,6 @@ mod tests {
                         text: "[other](other.com)".into(),
                     }],
                 },
-                Html::Text { text: "\n".into() },
             ],
         }];
         let tokens = parse_html(input.as_bytes()).unwrap();

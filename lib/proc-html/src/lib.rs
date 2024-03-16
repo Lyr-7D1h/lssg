@@ -1,11 +1,6 @@
 use proc_macro2::{Span, TokenStream, TokenTree};
-use quote::{quote, ToTokens, TokenStreamExt};
-use syn::{
-    parse::Parse,
-    parse_macro_input,
-    token::{Brace, Token},
-    Block, Expr, ExprLit, ExprPath, Lit, LitStr, PatPath, Stmt,
-};
+use quote::quote;
+use syn::{parse::Parse, parse_macro_input, token::Brace, Block, Expr, ExprPath, Stmt};
 use virtual_dom::{parse_html, Html};
 
 // using https://github.com/chinedufn/percy/blob/master/crates/html-macro/src/lib.rs as example
@@ -17,18 +12,18 @@ use virtual_dom::{parse_html, Html};
 /// eg.
 ///
 /// ```
-/// html!(<div>" This is my text with preserved whitespace "</div>)
+/// use proc_html::html;
+/// html!(<div>" This is my text with preserved whitespace "</div>);
 /// ```
 ///
 /// # Examples
 ///
 /// ```
-/// let title = "My beautiful website"
-/// let body = html!(<body></body>);
+/// use proc_html::html;
+/// let title = "My beautiful website";
 /// let content = html! {
-///     <div>{title}</div><button disabled></button
+///     <div>{title}</div>
 /// };
-/// body.append_child(content);
 /// ```
 #[proc_macro]
 pub fn html(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -86,6 +81,8 @@ impl Parse for Template {
                 }
                 continue;
             }
+            // parse other expressions
+            let _ = input.parse::<TokenTree>();
         }
 
         Ok(Template { tokens })

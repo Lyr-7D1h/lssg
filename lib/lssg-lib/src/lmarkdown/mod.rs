@@ -16,9 +16,14 @@ mod tests {
 
     use toml::Table;
 
-    use crate::dom::to_attributes;
-
     use super::*;
+
+    /// Utility function to convert iteratables into attributes hashmap
+    fn to_attributes<I: IntoIterator<Item = (impl Into<String>, impl Into<String>)>>(
+        arr: I,
+    ) -> HashMap<String, String> {
+        arr.into_iter().map(|(k, v)| (k.into(), v.into())).collect()
+    }
 
     fn text(text: &str) -> Token {
         Token::Text { text: text.into() }

@@ -578,17 +578,6 @@ impl Drop for DomNodeData {
     }
 }
 
-// /// Iterators prelude.
-// pub mod iterator {
-//     pub use super::Ancestors;
-//     pub use super::Children;
-//     pub use super::Descendants;
-//     pub use super::FollowingSiblings;
-//     pub use super::NodeEdge;
-//     pub use super::PrecedingSiblings;
-//     pub use super::Traverse;
-// }
-
 macro_rules! impl_node_iterator {
     ($name: ident, $next: expr) => {
         impl Iterator for $name {
