@@ -1,7 +1,7 @@
 use std::cell::{Ref, RefCell, RefMut};
 use std::collections::{HashMap, VecDeque};
+use std::fmt;
 use std::rc::{Rc, Weak};
-use std::{fmt, iter};
 
 use super::Html;
 

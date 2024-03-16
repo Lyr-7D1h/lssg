@@ -9,13 +9,31 @@ use syn::{
 use virtual_dom::{parse_html, Html};
 
 // using https://github.com/chinedufn/percy/blob/master/crates/html-macro/src/lib.rs as example
-/// parse html
+/// Parse a string into virtual_dom::DomNode's with minimal variable interpolation
+///
+/// Because of the nature of macros whitespace is fairly arbitrary and might spawn spaces or
+/// newlines in between text one way to prevent this it to explicitly add quotes around your text.
+///
+/// eg.
+///
+/// ```
+/// html!(<div>" This is my text with preserved whitespace "</div>)
+/// ```
+///
+/// # Examples
+///
+/// ```
+/// let title = "My beautiful website"
+/// let body = html!(<body></body>);
+/// let content = html! {
+///     <div>{title}</div><button disabled></button
+/// };
+/// body.append_child(content);
+/// ```
 #[proc_macro]
 pub fn html(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let parsed_content = input.to_string();
     let template = parse_macro_input!(input as Template);
-    // let input = parse_macro_input!(input as syn::Expr);
-    // let interpolated_input = interpolate_html(&input.to_string());
 
     let tokens = match parse_html(parsed_content.to_string().as_bytes()) {
         Ok(t) => t,
@@ -31,16 +49,16 @@ pub fn html(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let html = to_tokens(&doc, &template, &mut template_token);
 
     quote! {
-            {
-                use std::collections::HashMap;
-                use virtual_dom::*;
-                #html
-    }
+        {
+            use std::collections::HashMap;
+            use virtual_dom::*;
+            #html
         }
+    }
     .into()
 }
 
-/// used for interpolating variables
+/// collect all interpolated variables
 #[derive(Clone)]
 struct Template {
     tokens: Vec<ExprPath>,
@@ -68,7 +86,6 @@ impl Parse for Template {
                 }
                 continue;
             }
-            let tt: TokenTree = input.parse()?;
         }
 
         Ok(Template { tokens })
@@ -97,6 +114,7 @@ fn to_tokens(doc: &HtmlDocument, template: &Template, template_token: &mut usize
                 let mut chars = text.chars();
                 let mut variables = vec![];
                 let mut text = String::new();
+                // if text has interpolated variables add
                 while let Some(c) = chars.next() {
                     if c == '{' {
                         let mut variable_name = String::new();
@@ -192,116 +210,3 @@ fn to_tokens(doc: &HtmlDocument, template: &Template, template_token: &mut usize
 struct HtmlDocument {
     tokens: Vec<Html>,
 }
-
-// fn interpolate_html(html_content: &str) -> proc_macro2::TokenStream {
-//     let mut tokens = proc_macro2::TokenStream::new();
-//     let mut buffer = String::new();
-//     let mut in_interpolation = false;
-//
-//     for c in html_content.chars() {
-//         if c == '{' {
-//             if in_interpolation {
-//                 // Nested opening brace
-//                 buffer.push(c);
-//             } else {
-//                 // Start of interpolation
-//                 in_interpolation = true;
-//                 if !buffer.is_empty() {
-//                     // If there's text before the interpolation, add it as a string literal
-//                     let lit = LitStr::new(&buffer, proc_macro2::Span::call_site());
-//                     tokens.extend(std::iter::once(TokenTree::Literal(lit)));
-//                     buffer.clear();
-//                 }
-//             }
-//         } else if c == '}' {
-//             if in_interpolation {
-//                 // End of interpolation
-//                 in_interpolation = false;
-//                 if !buffer.is_empty() {
-//                     // Process the interpolation
-//                     tokens.extend(parse_interpolation(&buffer));
-//                     buffer.clear();
-//                 }
-//             } else {
-//                 // Nested closing brace
-//                 buffer.push(c);
-//             }
-//         } else {
-//             // Regular character
-//             buffer.push(c);
-//         }
-//     }
-//     println!("{buffer:?}");
-//
-//     // If there's remaining text after the loop, add it as a string literal
-//     if !buffer.is_empty() {
-//         let t = TokenTree::Literal(Literal::string(&buffer));
-//         tokens.extend(std::iter::once(t));
-//     }
-//
-//     tokens
-// }
-// fn parse_interpolation(interpolation: &str) -> proc_macro2::TokenStream {
-//     println!("AAA");
-//     // Here you can extend this function to handle parsing of Rust expressions inside the interpolation
-//     // For simplicity, let's just return the interpolation as a string literal
-//     let lit = Lit::Str(LitStr::new(interpolation, proc_macro2::Span::call_site()));
-//     quote!(#lit)
-// }
-
-// fn interpolate_html(input: Expr) -> proc_macro2::TokenStream {
-//     println!("AA ");
-//     match input {
-//         Expr::Lit(ExprLit {
-//             lit: Lit::Str(ref lit_str),
-//             ..
-//         }) => {
-//             // If the expression is a string literal, return it as is
-//             let lit_str = lit_str.value();
-//             quote! {
-//                 #lit_str
-//             }
-//         }
-//         Expr::Path(expr_path) => {
-//             // If the expression is a path, get its string representation
-//             let path_str = expr_path.path.into_token_stream().to_string();
-//             quote! {
-//                 #path_str
-//             }
-//         }
-//         Expr::Group(expr_group) => {
-//             // If the expression is a group, recursively interpolate its content
-//             let inner_tokens = interpolate_html(*expr_group.expr);
-//             quote! {
-//                 (#inner_tokens)
-//             }
-//         }
-//         Expr::Block(block) => {
-//             // If the expression is a block, recursively interpolate its content
-//             let content = match &block.block.stmts.first() {
-//                 Some(expr) => match expr {
-//                     Stmt::Expr(expr, _) => interpolate_html(expr.clone()),
-//                     _ => panic!("Unsupported expression type inside html! macro."),
-//                 },
-//                 None => quote! { "" },
-//             };
-//             println!("AA {content}");
-//             quote! {
-//                 #content
-//             }
-//         }
-//         Expr::Unary(_) => {
-//             // If the expression is a unary operator, recursively interpolate its operand
-//             let inner_tokens = interpolate_html(input);
-//             quote! {
-//                 #inner_tokens
-//             }
-//         }
-//         _ => {
-//             // For other types of expressions, return an empty string
-//             quote! {
-//                 ""
-//             }
-//         }
-//     }
-// }
