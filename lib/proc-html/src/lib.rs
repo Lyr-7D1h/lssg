@@ -1,6 +1,13 @@
+use std::{collections::HashMap, fmt::write, str::Chars};
+
 use proc_macro2::{Span, TokenStream, TokenTree};
-use quote::quote;
-use syn::{parse::Parse, parse_macro_input, token::Brace, Block, Expr, ExprPath, Stmt};
+use quote::{quote, ToTokens};
+use syn::{
+    parse::{Parse, ParseStream},
+    parse_macro_input, parse_quote, parse_str,
+    token::Brace,
+    Block, Expr, ExprPath, Ident, Stmt, Token,
+};
 use virtual_dom::{parse_html, Html};
 
 // using https://github.com/chinedufn/percy/blob/master/crates/html-macro/src/lib.rs as example
@@ -56,12 +63,15 @@ pub fn html(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 /// collect all interpolated variables
 #[derive(Clone)]
 struct Template {
-    tokens: Vec<ExprPath>,
+    // tokens: Vec<ExprPath>,
+    variables: HashMap<String, Ident>,
 }
 
 impl Parse for Template {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let mut tokens = vec![];
+        // let mut tokens = vec![];
+        let mut variables = HashMap::new();
+
         while input.is_empty() == false {
             if input.peek(Brace) {
                 let content;
@@ -70,7 +80,17 @@ impl Parse for Template {
                     match s {
                         Stmt::Expr(e, _) => match e {
                             _ => match e {
-                                Expr::Path(p) => tokens.push(p),
+                                Expr::Path(p) => {
+                                    let a = p.path.segments[0].ident.to_string();
+                                    let ident = p
+                                        .path
+                                        .segments
+                                        .first()
+                                        .expect("path does not include ident")
+                                        .ident
+                                        .clone();
+                                    variables.insert(a, ident);
+                                }
                                 _ => {}
                             },
                         },
@@ -79,14 +99,89 @@ impl Parse for Template {
                         }
                     }
                 }
+
                 continue;
             }
             // parse other expressions
-            let _ = input.parse::<TokenTree>();
+            let t = input.parse::<TokenTree>()?;
+
+            // also check literals for brackets
+            if let TokenTree::Literal(l) = t {
+                let text = l.to_string();
+                let mut chars = text.chars();
+                while let Some(c) = chars.next() {
+                    if c == '{' {
+                        if let Ok(var) = parse_braces(&mut chars) {
+                            let ident = Ident::new(&var, l.span());
+                            variables.insert(var, ident);
+                        }
+                    }
+                }
+            }
         }
 
-        Ok(Template { tokens })
+        Ok(Template { variables })
     }
+}
+
+/// parse a text with braces and return the variable name if syntax is valid otherwise return raw
+/// string
+fn parse_braces(chars: &mut Chars) -> Result<String, String> {
+    let mut raw = String::new();
+    let mut variable_name = String::new();
+    let mut var_has_whitespace = false;
+    while let Some(c) = chars.next() {
+        raw.push(c);
+        match c {
+            // if whitespace in between alphabetical not a valid block
+            ' ' | '\n' if variable_name.len() > 0 => {
+                var_has_whitespace = true;
+            }
+            // ignore whitespace
+            ' ' | '\n' => {}
+            '}' => {
+                return Ok(variable_name);
+            }
+            // if not alphatic character not valid interpolation
+            c if !c.is_alphabetic() => {
+                return Err(raw);
+            }
+            _ => {
+                // if whitespace in between characters not valid
+                if var_has_whitespace {
+                    return Err(raw);
+                }
+                variable_name.push(c)
+            }
+        }
+    }
+
+    Err(raw)
+}
+
+/// add variables into a piece of string
+fn interpolate(text: &str, template: &Template) -> TokenStream {
+    let mut chars = text.chars();
+    let mut variables = vec![];
+    let mut text = String::new();
+    // if text has interpolated variables add
+    while let Some(c) = chars.next() {
+        if c == '{' {
+            match parse_braces(&mut chars) {
+                Ok(variable_name) => {
+                    let variable = template.variables.get(&variable_name).expect(&format!(
+                        "failed to parse or find variable '{variable_name}'"
+                    ));
+                    text.push_str("{}");
+                    variables.push(quote!(#variable));
+                }
+                Err(t) => text.push_str(&t),
+            }
+        } else {
+            text.push(c);
+        }
+    }
+    quote!(format!(#text, #(#variables,)*))
 }
 
 fn to_tokens(doc: &HtmlDocument, template: &Template, template_token: &mut usize) -> TokenStream {
@@ -108,52 +203,10 @@ fn to_tokens(doc: &HtmlDocument, template: &Template, template_token: &mut usize
                     text
                 };
 
-                let mut chars = text.chars();
-                let mut variables = vec![];
-                let mut text = String::new();
-                // if text has interpolated variables add
-                while let Some(c) = chars.next() {
-                    if c == '{' {
-                        let mut variable_name = String::new();
-                        let mut var_has_whitespace = false;
-                        while let Some(c) = chars.next() {
-                            match c {
-                                // if whitespace in between alphabetical not a valid block
-                                ' ' | '\n' if variable_name.len() > 0 => {
-                                    var_has_whitespace = true;
-                                }
-                                // ignore whitespace
-                                ' ' | '\n' => {}
-                                '}' => {
-                                    let variable = &template.tokens[*template_token];
-                                    *template_token += 1;
-                                    text.push_str("{}");
-                                    variables.push(quote!(#variable));
-                                    break;
-                                }
-                                // if not alphatic character not valid interpolation
-                                c if !c.is_alphabetic() => {
-                                    text.push_str(&variable_name);
-                                    text.push(c);
-                                    break;
-                                }
-                                _ => {
-                                    // if whitespace in between characters not valid
-                                    if var_has_whitespace {
-                                        text.push_str(&variable_name);
-                                        text.push(c);
-                                        break;
-                                    }
-                                    variable_name.push(c)
-                                }
-                            }
-                        }
-                    } else {
-                        text.push(c);
-                    }
-                }
+                let text = interpolate(&text, template);
+
                 Some(quote!(Html::Text {
-                    text: format!(#text, #(#variables,)*)
+                    text: #text
                 }))
             }
             Html::Element {
@@ -162,8 +215,10 @@ fn to_tokens(doc: &HtmlDocument, template: &Template, template_token: &mut usize
                 children,
             } => {
                 let attributes_values = attributes.iter().map(|(key, value)| {
+                    let key = interpolate(key, template);
+                    let value = interpolate(value, template);
                     quote! {
-                        attributes.insert(#key.to_string(), #value.to_string());
+                        attributes.insert(#key, #value);
                     }
                 });
 

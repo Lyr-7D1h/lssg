@@ -9,12 +9,12 @@ use crate::{
     lssg_error::LssgError,
     renderer::RenderContext,
     sitetree::{Input, SiteNode, SiteNodeKind, Stylesheet},
-    tree::{Node, Tree, DFS},
+    tree::{Tree, DFS},
 };
 use proc_html::html;
 use virtual_dom::{to_attributes, Document, DomNode};
 
-use super::{tokens_to_text, RendererModule, TokenRenderer};
+use super::{RendererModule, TokenRenderer};
 
 const BLOG_STYLESHEET: &[u8] = include_bytes!("./blog_stylesheet.css");
 

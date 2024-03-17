@@ -75,12 +75,13 @@ fn static_html_works() {
 fn html_interpolation_works() {
     let title = "Lyr";
     let paragraph = "Story of an awesome dev";
-    let input = html!(<h1>{title}</h1><p>{paragraph}</p>);
+    let class = "test";
+    let input = html!(<h1 class="{class}">{title}</h1><p>{paragraph}</p>);
     assert_eq!(
         vec![
             Html::Element {
                 tag: "h1".into(),
-                attributes: HashMap::new(),
+                attributes: to_attributes([("class", "test")]),
                 children: vec![text("Lyr")]
             },
             p(vec![text("Story of an awesome dev")])

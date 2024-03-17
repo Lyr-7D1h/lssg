@@ -61,6 +61,7 @@ pub fn render_html(
                         };
 
                         let a: DomNode = html!(<a href="{href}"><div class="box"></div></a>).into();
+                        println!("{a:?}");
                         let div = a.first_child().unwrap();
                         tr.render(document, context, div, tokens);
                         links.append_child(a);

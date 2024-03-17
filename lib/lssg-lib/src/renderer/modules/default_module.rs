@@ -11,11 +11,10 @@ use crate::{
     tree::{Node, DFS},
 };
 use proc_html::html;
-use virtual_dom::{self, to_attributes, Document, DomNode, DomNodeKind, Html};
+use virtual_dom::{self, to_attributes, Document, DomNode, DomNodeKind};
 
 use crate::renderer::{RenderContext, RendererModule, TokenRenderer};
 
-use self::render_html::render_html;
 
 mod render_html;
 
