@@ -17,7 +17,7 @@ use super::{RenderContext, TokenRenderer};
 
 #[allow(unused)]
 pub trait RendererModule {
-    /// Return a static id
+    /// Return a static identifier for this module
     fn id(&self) -> &'static str;
 
     /// This gets run once just after site_tree has been created

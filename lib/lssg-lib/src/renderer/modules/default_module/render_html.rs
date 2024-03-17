@@ -11,6 +11,91 @@ use crate::{
     sitetree::{Page, Relation},
 };
 
+fn links_grid(
+    document: &mut Document,
+    context: &RenderContext,
+    parent: &DomNode,
+    tr: &mut TokenRenderer,
+    tag: &str,
+    attributes: &HashMap<String, String>,
+    tokens: &Vec<Token>,
+) {
+    println!("{tokens:?}");
+    let grid: DomNode = html!(<div class="default__links_grid"></div>).into();
+    tr.render(document, context, grid.clone(), tokens);
+    parent.append_child(grid);
+}
+
+fn links_boxes(
+    document: &mut Document,
+    context: &RenderContext,
+    parent: &DomNode,
+    tr: &mut TokenRenderer,
+    tag: &str,
+    attributes: &HashMap<String, String>,
+    tokens: &Vec<Token>,
+) {
+    let links: DomNode = html!(<nav class="links"></nav>).into();
+    parent.append_child(links.clone());
+    for t in tokens {
+        match t {
+            Token::Link { tokens, href } => {
+                let mut href = href.clone();
+
+                // if a local link to a page get site path to the page
+                if Page::is_href_to_page(&href) {
+                    // find site id where href is pointing to
+                    let to_id = context
+                        .site_tree
+                        .links_from(context.site_id)
+                        .into_iter()
+                        .find_map(|l| {
+                            if let Relation::Discovered { raw_path: path } = &l.relation {
+                                if *path == href {
+                                    return Some(l.to);
+                                }
+                            }
+                            None
+                        });
+
+                    href = match to_id {
+                        Some(to_id) => context.site_tree.path(to_id),
+                        None => {
+                            warn!("Could not find node where {href:?} points to, ignoring..");
+                            continue;
+                        }
+                    }
+                }
+
+                let a: DomNode = html!(<a href="{href}"><div class="box"></div></a>).into();
+                let div = a.first_child().unwrap();
+                tr.render(document, context, div, tokens);
+                links.append_child(a);
+            }
+            _ => {}
+        }
+    }
+}
+
+fn links(
+    document: &mut Document,
+    context: &RenderContext,
+    parent: &DomNode,
+    tr: &mut TokenRenderer,
+    tag: &str,
+    attributes: &HashMap<String, String>,
+    tokens: &Vec<Token>,
+) {
+    if attributes.contains_key("boxes") {
+        links_boxes(document, context, parent, tr, tag, attributes, tokens);
+    } else if attributes.contains_key("grid") {
+        links_grid(document, context, parent, tr, tag, attributes, tokens);
+    } else {
+        warn!("unknown links html element, ignoring..");
+        tr.render(document, context, parent.clone(), tokens);
+    }
+}
+
 pub fn render_html(
     document: &mut Document,
     context: &RenderContext,
@@ -29,47 +114,7 @@ pub fn render_html(
             tr.render(document, context, centered.clone(), tokens);
             parent.append_child(centered);
         }
-        "links" if attributes.contains_key("boxes") => {
-            let links: DomNode = html!(<nav class="links"></nav>).into();
-            parent.append_child(links.clone());
-            for t in tokens {
-                match t {
-                    Token::Link { tokens, href } => {
-                        let href = if Page::is_href_to_page(href) {
-                            let to_id = context
-                                .site_tree
-                                .links_from(context.site_id)
-                                .into_iter()
-                                .find_map(|l| {
-                                    if let Relation::Discovered { raw_path: path } = &l.relation {
-                                        if path == href {
-                                            return Some(l.to);
-                                        }
-                                    }
-                                    None
-                                });
-
-                            match to_id {
-                                Some(to_id) => context.site_tree.path(to_id),
-                                None => {
-                                    warn!("Could not find node where {href:?} points to");
-                                    return Some(links);
-                                }
-                            }
-                        } else {
-                            href.into()
-                        };
-
-                        let a: DomNode = html!(<a href="{href}"><div class="box"></div></a>).into();
-                        println!("{a:?}");
-                        let div = a.first_child().unwrap();
-                        tr.render(document, context, div, tokens);
-                        links.append_child(a);
-                    }
-                    _ => {}
-                }
-            }
-        }
+        "links" => links(document, context, parent, tr, tag, attributes, tokens),
         _ => {
             let element = document.create_element_with_attributes(tag, attributes.clone());
             tr.render(document, context, element.clone(), tokens);

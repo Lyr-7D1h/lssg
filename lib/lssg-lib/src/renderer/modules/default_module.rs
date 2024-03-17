@@ -8,13 +8,12 @@ use crate::{
     lmarkdown::Token,
     lssg_error::LssgError,
     sitetree::{Page, Relation, SiteNode, SiteNodeKind, SiteTree, Stylesheet},
-    tree::{Node, DFS},
+    tree::DFS,
 };
 use proc_html::html;
 use virtual_dom::{self, to_attributes, Document, DomNode, DomNodeKind};
 
 use crate::renderer::{RenderContext, RendererModule, TokenRenderer};
-
 
 mod render_html;
 

@@ -1,7 +1,6 @@
-# WIP
 # Lyr's Static Site Generator
 
-The idea is to generate static html, css, js files based on custom markdown format.
+Recursively generate static html, css, js files based on a single markdown file.
 
 This uses a custom markdown parser which will not necessarily follow official specifications. I'm making it to the point that it is usable for me, PR's are welcome! See `LMarkdown` down for more information.
 
@@ -67,6 +66,7 @@ eg.
 [default]
 title="This is the html title"
 [blog]
+root = true
 -->
 <!--
     The first comment on a page is seen as module configuration and is parsed as toml 
@@ -78,7 +78,7 @@ title="This is the html title"
 
 # Just some header in file
 
-<!-- All HTML comments are ignore in output -->
+<!-- All HTML comments are ignore in output except starting comments like seen above -->
 
 <!-- The following will generate `http://{root}/test` url based on the markdown file -->
 
@@ -129,6 +129,4 @@ if page => use modular HtmlRenderer to turn lmarkdown tokens into html, and writ
     - Make releases for other platforms
 ~~- Custom styling support~~
 ~~- Make default options root of Attributes (don't require [default] block)~~
-
-## Known bugs
-~~- references to root don't work~~
+~~- Html macro
