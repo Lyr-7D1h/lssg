@@ -59,7 +59,7 @@ fn links_boxes(
                         });
 
                     href = match to_id {
-                        Some(to_id) => context.site_tree.path(to_id),
+                        Some(to_id) => context.site_tree.rel_path(context.site_id, to_id),
                         None => {
                             warn!("Could not find node where {href:?} points to, ignoring..");
                             continue;

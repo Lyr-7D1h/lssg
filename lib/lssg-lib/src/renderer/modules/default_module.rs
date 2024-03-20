@@ -190,7 +190,7 @@ impl RendererModule for DefaultModule {
                             to_attributes([
                                 ("rel", "icon"),
                                 ("type", "image/x-icon"),
-                                ("href", &site_tree.path(link.to)),
+                                ("href", &site_tree.rel_path(site_id, link.to)),
                             ]),
                         ));
                     }
@@ -199,7 +199,7 @@ impl RendererModule for DefaultModule {
                             "link",
                             to_attributes([
                                 ("rel", "stylesheet"),
-                                ("href", &site_tree.path(link.to)),
+                                ("href", &site_tree.rel_path(site_id, link.to)),
                             ]),
                         ));
                     }
@@ -358,7 +358,7 @@ impl RendererModule for DefaultModule {
                             None
                         });
                     if let Some(to_id) = to_id {
-                        let rel_path = context.site_tree.path(to_id);
+                        let rel_path = context.site_tree.rel_path(context.site_id, to_id);
                         let a = document.create_element_with_attributes(
                             "a",
                             to_attributes([("href", rel_path)]),
