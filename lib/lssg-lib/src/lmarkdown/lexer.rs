@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::Read};
+use std::{collections::HashMap, io::Read, ops::Index};
 
 use log::warn;
 use virtual_dom::Html;
@@ -216,6 +216,7 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
                     tokens.push(Token::Link {
                         tokens: vec![Token::Text { text }],
                         href: link,
+                        title: None,
                     });
                     continue;
                 }
@@ -275,9 +276,31 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
                             let text = reader.consume_string(raw_text.len() - 1)?;
                             reader.consume(2)?;
                             let src = reader.consume_string(raw_href.len() - 1)?;
+                            let src = sanitize_text(src);
+
+                            // https://spec.commonmark.org/0.30/#link-title
+                            let title = if let Some(start_title) = src.find(" ") {
+                                let title = &src[start_title..src.len()];
+
+                                if ((title.starts_with("\"") && title.ends_with("\""))
+                                    || (title.starts_with("\'") && title.ends_with("\'")))
+                                    && title.len() >= 2
+                                {
+                                    Some(title.to_string())
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            };
+
                             reader.consume(1)?;
                             let alt = read_inline_tokens(&text)?;
-                            tokens.push(Token::Image { tokens: alt, src });
+                            tokens.push(Token::Image {
+                                tokens: alt,
+                                src,
+                                title,
+                            });
                             continue;
                         }
                     }
@@ -317,7 +340,28 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
                         reader.consume(1)?;
                         let text = sanitize_text(text);
                         let text = read_inline_tokens(&text)?;
-                        tokens.push(Token::Link { tokens: text, href });
+
+                        // https://spec.commonmark.org/0.30/#link-title
+                        let title = if let Some(start_title) = href.find(" ") {
+                            let title = &href[start_title..href.len()];
+
+                            if ((title.starts_with("\"") && title.ends_with("\""))
+                                || (title.starts_with("\'") && title.ends_with("\'")))
+                                && title.len() >= 2
+                            {
+                                Some(title.to_string())
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        };
+
+                        tokens.push(Token::Link {
+                            tokens: text,
+                            href,
+                            title,
+                        });
                         continue;
                     }
                 }
@@ -845,15 +889,18 @@ pub enum Token {
         info: Option<String>,
         text: String,
     },
+    /// https://spec.commonmark.org/0.30/#images
     Image {
         /// alt, recommended to convert tokens to text
         tokens: Vec<Token>,
         src: String,
+        title: Option<String>,
     },
     Link {
         /// The text portion of a link that contains Tokens
         tokens: Vec<Token>,
         href: String,
+        title: Option<String>,
     },
     Text {
         text: String,

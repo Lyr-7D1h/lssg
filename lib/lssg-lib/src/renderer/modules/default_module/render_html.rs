@@ -39,7 +39,11 @@ fn links_boxes(
     parent.append_child(links.clone());
     for t in tokens {
         match t {
-            Token::Link { tokens, href } => {
+            Token::Link {
+                tokens,
+                href,
+                title,
+            } => {
                 let mut href = href.clone();
 
                 // if a local link to a page get site path to the page

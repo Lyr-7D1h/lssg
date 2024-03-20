@@ -144,6 +144,26 @@ impl RendererModule for BlogModule {
                     Err(e) => error!("failed to read date from post: {e}"),
                 }
             }
+            Token::Link {
+                tokens: text, href, ..
+            } => {
+                if text.len() == 0 {
+                    return Some(parent);
+                }
+
+                // add icon if external link
+                if is_href_external(href) {
+                    tr.render_down(
+                        self,
+                        document,
+                        context,
+                        parent.clone(),
+                        &vec![token.clone()],
+                    );
+                    parent.append_child(html!(<svg width="1em" height="1em" viewBox="0 0 24 24" style="cursor:pointer"><g stroke-width="2.1" stroke="#666" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 13.5 17 19.5 5 19.5 5 7.5 11 7.5"></polyline><path d="M14,4.5 L20,4.5 L20,10.5 M20,4.5 L11,13.5"></path></g></svg>));
+                    return Some(parent);
+                }
+            }
             // TODO add section links
             // Token::Heading { depth, tokens } if *depth == 2 => {
             //     let href = tokens_to_text(tokens).to_lowercase().replace(" ", "-");
@@ -158,6 +178,10 @@ impl RendererModule for BlogModule {
         }
         return None;
     }
+}
+
+pub fn is_href_external(href: &str) -> bool {
+    return href.starts_with("http") || href.starts_with("mailto:");
 }
 
 /// get the date from input and options

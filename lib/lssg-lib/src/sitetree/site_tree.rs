@@ -284,7 +284,7 @@ impl SiteTree {
             SiteNodeKind::Page(page) => page
                 .links()
                 .into_iter()
-                .map(|(text, href)| (text.len() == 0, href.clone()))
+                .map(|(text, href, ..)| (text.len() == 0, href.clone()))
                 .collect(),
             _ => panic!("has to be page"),
         };

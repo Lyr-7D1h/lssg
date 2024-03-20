@@ -119,7 +119,7 @@ another comment
     fn test_links() {
         let input = r#"# A [test](test.com)
 <div>
-[](empty.com)
+[](empty.com "Empty")
 [<b>bold</b>](bold.com)
 <a href="link.com">[other](other.com)</a>
 </div>"#;
@@ -137,6 +137,7 @@ another comment
                             text: "test".into(),
                         }],
                         href: "test.com".into(),
+                        title: None,
                     },
                 ],
             },
@@ -147,6 +148,7 @@ another comment
                     Token::Link {
                         tokens: vec![],
                         href: "empty.com".into(),
+                        title: Some("empty".into()),
                     },
                     Token::Link {
                         tokens: vec![Token::Html {
@@ -157,6 +159,7 @@ another comment
                             }],
                         }],
                         href: "bold.com".into(),
+                        title: None,
                     },
                     Token::Html {
                         tag: "a".into(),
@@ -166,6 +169,7 @@ another comment
                                 text: "other".into(),
                             }],
                             href: "other.com".into(),
+                            title: None,
                         }],
                     },
                 ],
@@ -346,6 +350,7 @@ baz"#;
         let expected = vec![p(vec![Token::Link {
             tokens: vec![text("http://foo.bar.baz")],
             href: "http://foo.bar.baz".into(),
+            title: None,
         }])];
 
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
