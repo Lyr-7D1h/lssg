@@ -78,14 +78,6 @@ fn read_block_token(
                 }
             }
         }
-        if let Some((tag, attributes, content)) = html_element(reader)? {
-            let tokens = read_inline_tokens(&content)?;
-            return Ok(Some(Token::Html {
-                tag,
-                attributes,
-                tokens,
-            }));
-        }
     }
 
     if let Some(heading) = heading(reader)? {
@@ -141,7 +133,7 @@ fn read_block_token(
     // TODO https://spec.commonmark.org/0.30/#link-reference-definitions
 
     // https://spec.commonmark.org/0.30/#paragraphs
-    let mut text = reader.consume_until_exclusive(|c| c == '\n')?;
+    let mut text = reader.consume_until_match_inclusive("\n\n")?;
     let hard_break = if text.ends_with("  ") {
         true
     } else if text.ends_with("\\") {
@@ -150,7 +142,6 @@ fn read_block_token(
     } else {
         false
     };
-    reader.consume(1)?; // consume new line
     let text = sanitize_text(text);
     let mut inline_tokens = read_inline_tokens(&text)?;
     // add to prev p if there isn't a blank line in between
@@ -296,17 +287,35 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
 
         // links: https://spec.commonmark.org/0.30/#links
         if c == '[' {
-            if let Some(raw_text) = reader.peek_until_inclusive_from(1, |c| c == ']')? {
-                let href_start = 1 + raw_text.len();
-                if let Some('(') = reader.peek_char(href_start)? {
-                    if let Some(raw_href) =
-                        reader.peek_until_inclusive_from(href_start + 1, |c| c == ')')?
-                    {
+            let mut indent = 1;
+            let mut i = 1;
+            while let Ok(Some(c)) = reader.peek_char(i) {
+                i += 1;
+                match c {
+                    '[' => {
+                        if let Ok(Some('!')) = reader.peek_char(i - 1) {
+                            continue;
+                        }
+                        indent += 1;
+                    }
+                    ']' => {
+                        indent -= 1;
+                        if indent == 0 {
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            if indent == 0 {
+                if let Some('(') = reader.peek_char(i)? {
+                    if let Some(raw_href) = reader.peek_until_inclusive_from(i + 1, |c| c == ')')? {
                         reader.consume(1)?;
-                        let text = reader.consume_string(raw_text.len() - 1)?;
+                        let text = reader.consume_string(i - 2)?;
                         reader.consume(2)?;
                         let href = reader.consume_string(raw_href.len() - 1)?;
                         reader.consume(1)?;
+                        let text = sanitize_text(text);
                         let text = read_inline_tokens(&text)?;
                         tokens.push(Token::Link { tokens: text, href });
                         continue;
@@ -336,9 +345,14 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
         }
 
         let c = reader.consume_char().unwrap().expect("has to be a char");
+        // push character to text ignoring new line
         if let Some(Token::Text { text }) = tokens.last_mut() {
-            text.push(c)
-        } else {
+            if c == '\n' {
+                text.push(' ')
+            } else {
+                text.push(c)
+            }
+        } else if c != '\n' {
             tokens.push(Token::Text { text: c.into() })
         }
     }
@@ -448,7 +462,8 @@ pub fn read_inline_html_tokens(
         if let Some(heading) = heading(reader)? {
             tokens.push(heading)
         }
-        let text = sanitize_text(reader.consume_until_inclusive(|c| c == '\n')?);
+        let text = reader.consume_until_match_inclusive("\n\n")?;
+        let text = sanitize_text(text);
         tokens.append(&mut read_inline_tokens(&text)?);
     }
 
