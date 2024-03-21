@@ -3,8 +3,12 @@ use std::io::Read;
 use crate::{char_reader::CharReader, parse_error::ParseError};
 
 mod lexer;
+mod tokenizer;
 pub use lexer::*;
 
+/// Parse LMarkdown using a recursive decent parser
+///
+/// **NOTE: Current implementation is fairly wonky but fast**
 pub fn parse_lmarkdown(input: impl Read) -> Result<Vec<Token>, ParseError> {
     let mut reader = CharReader::new(input);
     return read_tokens(&mut reader);
@@ -30,10 +34,7 @@ mod tests {
     }
 
     fn p(tokens: Vec<Token>) -> Token {
-        Token::Paragraph {
-            tokens,
-            hard_break: false,
-        }
+        Token::Paragraph { tokens }
     }
 
     #[test]

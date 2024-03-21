@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::Read, ops::Index};
+use std::{collections::HashMap, io::Read};
 
 use log::warn;
 use virtual_dom::Html;
@@ -23,8 +23,8 @@ fn sanitize_text(text: String) -> String {
 // https://github.com/songquanpeng/md2html/blob/main/lexer/lexer.go
 // demo: https://marked.js.org/demo/
 // demo: https://spec.commonmark.org/dingus/
-/// A function to get the next markdown token using recrusive decent.
-/// Will first parse a block token (token for a whole line and then parse for any inline tokens when needed.
+/// A function to get the next markdown token using recursive decent.
+/// Will first parse a block token (token for one or multiple lines) and then parse for any inline tokens when needed.
 pub fn read_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token>, ParseError> {
     let mut tokens = vec![];
     loop {
@@ -133,62 +133,58 @@ fn read_block_token(
     // TODO https://spec.commonmark.org/0.30/#link-reference-definitions
 
     // https://spec.commonmark.org/0.30/#paragraphs
-    let mut text = reader.consume_until_match_inclusive("\n\n")?;
-    let hard_break = if text.ends_with("  ") {
-        true
-    } else if text.ends_with("\\") {
-        text.pop();
-        true
-    } else {
-        false
-    };
-    let text = sanitize_text(text);
-    let mut inline_tokens = read_inline_tokens(&text)?;
+    // let mut text = reader.consume_until_match_inclusive("\n\n")?;
+    // let hard_break = if text.ends_with("  ") {
+    //     true
+    // } else if text.ends_with("\\") {
+    //     text.pop();
+    //     true
+    // } else {
+    //     false
+    // };
+    let inline_tokens = read_inline_tokens(reader)?;
     // add to prev p if there isn't a blank line in between
-    if let Some(Token::Paragraph {
-        tokens: last_tokens,
-        hard_break: last_hard_break,
-    }) = tokens.last_mut()
-    {
-        if !blank_line {
-            if *last_hard_break {
-                // https://spec.commonmark.org/0.30/#hard-line-breaks
-                last_tokens.push(Token::HardBreak);
-            } else {
-                // https://spec.commonmark.org/0.30/#soft-line-breaks
-                last_tokens.push(Token::SoftBreak);
-            }
-            last_tokens.append(&mut inline_tokens);
-            *last_hard_break = hard_break;
-
-            return Ok(None);
-        }
-    }
+    // if let Some(Token::Paragraph {
+    //     tokens: last_tokens,
+    //     hard_break: last_hard_break,
+    // }) = tokens.last_mut()
+    // {
+    //     if !blank_line {
+    //         if *last_hard_break {
+    //             // https://spec.commonmark.org/0.30/#hard-line-breaks
+    //             last_tokens.push(Token::HardBreak);
+    //         } else {
+    //             // https://spec.commonmark.org/0.30/#soft-line-breaks
+    //             last_tokens.push(Token::SoftBreak);
+    //         }
+    //         last_tokens.append(&mut inline_tokens);
+    //         *last_hard_break = hard_break;
+    //
+    //         return Ok(None);
+    //     }
+    // }
     return Ok(Some(Token::Paragraph {
         tokens: inline_tokens,
-        hard_break,
     }));
 }
 
-fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
-    let mut reader = CharReader::<&[u8]>::from_string(text);
-
+fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token>, ParseError> {
     let mut tokens = vec![];
     'outer: while let Some(c) = reader.peek_char(0)? {
         // html
         if c == '<' {
             // comment
-            if let Some(Html::Comment { text: raw }) = html_comment(&mut reader)? {
+            if let Some(Html::Comment { text: raw }) = html_comment(reader)? {
                 tokens.push(Token::Comment { raw });
                 continue;
             }
 
-            if let Some((tag, attributes, content)) = html_element(&mut reader)? {
+            if let Some((tag, attributes, content)) = html_element(reader)? {
                 let content = sanitize_text(content);
                 tokens.push(Token::Html {
                     tag,
                     attributes,
-                    tokens: read_inline_tokens(&content)?,
+                    tokens: read_inline_tokens(&mut CharReader::new(content.as_bytes()))?,
                 });
                 continue;
             }
@@ -295,7 +291,7 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
                             };
 
                             reader.consume(1)?;
-                            let alt = read_inline_tokens(&text)?;
+                            let alt = read_inline_tokens(&mut CharReader::new(text.as_bytes()))?;
                             tokens.push(Token::Image {
                                 tokens: alt,
                                 src,
@@ -339,7 +335,7 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
                         let href = reader.consume_string(raw_href.len() - 1)?;
                         reader.consume(1)?;
                         let text = sanitize_text(text);
-                        let text = read_inline_tokens(&text)?;
+                        let text = read_inline_tokens(&mut CharReader::new(text.as_bytes()))?;
 
                         // https://spec.commonmark.org/0.30/#link-title
                         let title = if let Some(start_title) = href.find(" ") {
@@ -389,14 +385,35 @@ fn read_inline_tokens(text: &String) -> Result<Vec<Token>, ParseError> {
         }
 
         let c = reader.consume_char().unwrap().expect("has to be a char");
-        // push character to text ignoring new line
-        if let Some(Token::Text { text }) = tokens.last_mut() {
-            if c == '\n' {
-                text.push(' ')
-            } else {
-                text.push(c)
+
+        // line breaks
+        if c == '\n' {
+            if let Ok(Some('\n')) = reader.peek_char(1) {
+                // end of paragraph
+                break;
             }
-        } else if c != '\n' {
+            // https://spec.commonmark.org/0.30/#hard-line-break
+            if let Some(Token::Text { text }) = tokens.last_mut() {
+                println!("{text:?}");
+                if text.ends_with("\\") {
+                    text.pop();
+                    tokens.push(Token::HardBreak);
+                    continue;
+                }
+                if text.ends_with("  ") {
+                    *text = text.trim_end().to_string();
+                    tokens.push(Token::HardBreak);
+                    continue;
+                }
+            }
+            // soft break: https://spec.commonmark.org/0.30/#soft-line-breaks
+            tokens.push(Token::SoftBreak);
+            continue;
+        }
+        // push character to text
+        if let Some(Token::Text { text }) = tokens.last_mut() {
+            text.push(c)
+        } else {
             tokens.push(Token::Text { text: c.into() })
         }
     }
@@ -508,7 +525,9 @@ pub fn read_inline_html_tokens(
         }
         let text = reader.consume_until_match_inclusive("\n\n")?;
         let text = sanitize_text(text);
-        tokens.append(&mut read_inline_tokens(&text)?);
+        tokens.append(&mut read_inline_tokens(&mut CharReader::new(
+            text.as_bytes(),
+        ))?);
     }
 
     Ok(tokens)
@@ -809,7 +828,7 @@ pub fn heading(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, Pars
                 .skip(depth as usize + 1)
                 .collect(),
         );
-        let tokens = read_inline_tokens(&text)?;
+        let tokens = read_inline_tokens(&mut CharReader::new(text.as_bytes()))?;
 
         Ok(Some(Token::Heading { depth, tokens }))
     } else {
@@ -873,8 +892,6 @@ pub enum Token {
     /// Anything that is not an already declared inline element
     Paragraph {
         tokens: Vec<Token>,
-        /// metadata to let you know the paragraph ended with a hard break symbol
-        hard_break: bool,
     },
     Bold {
         text: String,
