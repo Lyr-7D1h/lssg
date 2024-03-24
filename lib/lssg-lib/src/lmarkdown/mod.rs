@@ -2,6 +2,7 @@ use std::io::Read;
 
 use crate::{char_reader::CharReader, parse_error::ParseError};
 
+mod block_token;
 mod lexer;
 mod tokenizer;
 pub use lexer::*;
