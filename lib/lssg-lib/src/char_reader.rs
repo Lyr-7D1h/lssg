@@ -1,6 +1,4 @@
-use std::{
-    io::{BufRead, BufReader, Read},
-};
+use std::io::{BufRead, BufReader, Read};
 
 use super::parse_error::ParseError;
 
@@ -33,10 +31,6 @@ impl<R: Read> CharReader<R> {
 
     pub fn has_read(&self) -> bool {
         self.has_read
-    }
-
-    pub fn set_has_read(&mut self, has_read: bool) {
-        self.has_read = has_read
     }
 
     /// Will try to fill the buffer until it is filled or eof is reached

@@ -260,7 +260,7 @@ impl RendererModule for DefaultModule {
         tr: &mut TokenRenderer,
     ) -> Option<DomNode> {
         match token {
-            Token::OrderedList { items } => {
+            Token::OrderedList { items, .. } => {
                 let ol = document.create_element("ol");
                 for tokens in items {
                     let li = document.create_element("li");
@@ -269,7 +269,7 @@ impl RendererModule for DefaultModule {
                 }
                 parent.append_child(ol);
             }
-            Token::BulletList { items } => {
+            Token::BulletList { items, .. } => {
                 let ul = document.create_element("ul");
                 for tokens in items {
                     let li = document.create_element("li");
@@ -292,7 +292,7 @@ impl RendererModule for DefaultModule {
                     parent.append_child(html!(<img src="{src}" alt="{alt}" />))
                 }
             }
-            Token::BlockQuote { tokens } => {
+            Token::BlockQuote { tokens, .. } => {
                 let blockquote = document.create_element("blockquote");
                 tr.render(document, context, blockquote.clone(), tokens);
                 parent.append_child(blockquote);
@@ -303,7 +303,7 @@ impl RendererModule for DefaultModule {
             Token::SoftBreak { .. } => {
                 parent.append_child(document.create_text_node(" "));
             }
-            Token::Heading { depth, tokens } => {
+            Token::Heading { depth, tokens, .. } => {
                 let heading = document.create_element(format!("h{depth}"));
                 tr.render(document, context, heading.clone(), tokens);
                 parent.append_child(heading)
