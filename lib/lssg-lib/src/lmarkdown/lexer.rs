@@ -18,37 +18,56 @@ pub fn read_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token>, Par
 
     // parse text inside of block tokens to inline tokens
     for t in block_tokens.iter_mut() {
-        block_token_lexer(t);
+        parse_block_token_text(t)?;
     }
 
     return Ok(block_tokens);
 }
 
 /// parse text inside of block tokens to inline tokens
-fn block_token_lexer(block_token: &mut Token) -> Result<(), ParseError> {
+fn parse_block_token_text(block_token: &mut Token) -> Result<(), ParseError> {
     match block_token {
         // Html is special because it can contains any kind of token
-        Token::Html { tokens, .. } => tokens.into_iter().for_each(|t| {
-            if t.is_block_token() {
-                block_token_lexer(t);
-            }
-        }),
-        Token::BulletList { texts, items, .. } | Token::OrderedList { texts, items, .. } => {
-            *items = texts
+        Token::Html { tokens, .. } => {
+            *tokens = tokens
                 .into_iter()
-                .map(|text| {
-                    let mut reader = CharReader::new(text.as_bytes());
-                    read_inline_tokens(&mut reader)
+                .map(|t| {
+                    // take into account that paragraphs have been changed to text
+                    if let Token::Text { text } = t {
+                        let mut reader = CharReader::new(text.as_bytes());
+                        read_inline_tokens(&mut reader)
+                    } else {
+                        parse_block_token_text(t)?;
+                        Ok(vec![t.clone()])
+                    }
                 })
-                .collect::<Result<Vec<Vec<Token>>, ParseError>>()?;
+                .collect::<Result<Vec<Vec<Token>>, ParseError>>()?
+                .into_iter()
+                .flatten()
+                .collect();
         }
-        Token::Heading { text, tokens, .. }
-        | Token::Paragraph { text, tokens, .. }
-        | Token::BlockQuote { text, tokens, .. } => {
+        Token::BlockQuote { tokens, .. } => {
+            for t in tokens.iter_mut() {
+                parse_block_token_text(t)?;
+            }
+        }
+        Token::BulletList { items, .. } | Token::OrderedList { items, .. } => {
+            for i in items.iter_mut() {
+                for t in i.iter_mut() {
+                    parse_block_token_text(t)?;
+                }
+            }
+        }
+        Token::Heading { text, tokens, .. } | Token::Paragraph { text, tokens, .. } => {
             let mut reader = CharReader::new(text.as_bytes());
             *tokens = read_inline_tokens(&mut reader)?;
         }
-        _ => {}
+        Token::Code { .. } | Token::Attributes { .. } | Token::Comment { .. } => {}
+        _ => {
+            return Err(ParseError::invalid(
+                "inline token found when parsing block tokens",
+            ));
+        }
     };
 
     return Ok(());
@@ -61,11 +80,9 @@ pub enum Token {
         table: toml::map::Map<String, toml::Value>,
     },
     BulletList {
-        texts: Vec<String>,
         items: Vec<Vec<Token>>,
     },
     OrderedList {
-        texts: Vec<String>,
         items: Vec<Vec<Token>>,
     },
     Heading {
@@ -84,7 +101,6 @@ pub enum Token {
         tokens: Vec<Token>,
     },
     BlockQuote {
-        text: String,
         tokens: Vec<Token>,
     },
     Code {

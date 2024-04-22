@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::Read};
+use std::io::Read;
 
 use virtual_dom::Html;
 
@@ -189,20 +189,22 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
                         reader.consume(1)?;
                         let text = reader.consume_string(i - 2)?;
                         reader.consume(2)?;
-                        let href = reader.consume_string(raw_href.len() - 1)?;
+                        let mut href = reader.consume_string(raw_href.len() - 1)?;
                         reader.consume(1)?;
                         let text = sanitize_text(text);
                         let text = read_inline_tokens(&mut CharReader::new(text.as_bytes()))?;
 
                         // https://spec.commonmark.org/0.30/#link-title
                         let title = if let Some(start_title) = href.find(" ") {
-                            let title = &href[start_title..href.len()];
+                            let title = &href[start_title + 1..href.len()];
 
                             if ((title.starts_with("\"") && title.ends_with("\""))
                                 || (title.starts_with("\'") && title.ends_with("\'")))
                                 && title.len() >= 2
                             {
-                                Some(title.to_string())
+                                let title = title[1..title.len() - 1].to_string();
+                                href = (&href[0..start_title]).into();
+                                Some(title)
                             } else {
                                 None
                             }
@@ -245,13 +247,8 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
 
         // line breaks
         if c == '\n' {
-            if let Ok(Some('\n')) = reader.peek_char(1) {
-                // end of paragraph
-                break;
-            }
             // https://spec.commonmark.org/0.30/#hard-line-break
             if let Some(Token::Text { text }) = tokens.last_mut() {
-                println!("{text:?}");
                 if text.ends_with("\\") {
                     text.pop();
                     tokens.push(Token::HardBreak);
@@ -263,8 +260,12 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
                     continue;
                 }
             }
+
             // soft break: https://spec.commonmark.org/0.30/#soft-line-breaks
-            tokens.push(Token::SoftBreak);
+            // only add soft break if not last character
+            if reader.peek_char(0)?.is_some() {
+                tokens.push(Token::SoftBreak);
+            }
             continue;
         }
         // push character to text

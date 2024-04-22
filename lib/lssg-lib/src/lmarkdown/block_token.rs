@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::Read};
+use std::io::Read;
 
 use log::warn;
 use virtual_dom::Html;
@@ -18,7 +18,7 @@ pub fn read_block_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token
     loop {
         match reader.peek_char(0)? {
             None => return Ok(tokens),
-            Some(mut c) => {
+            Some(c) => {
                 // if you start a new block with a newline skip it
                 if c == '\n' {
                     reader.consume(0)?;
@@ -27,9 +27,8 @@ pub fn read_block_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token
                         .consume_until_exclusive(|c| c != '\n' && c != '\r')?
                         .len()
                         > 0;
-                    match reader.peek_char(0)? {
-                        None => return Ok(tokens),
-                        Some(new_c) => c = new_c,
+                    if reader.peek_char(0)?.is_none() {
+                        return Ok(tokens);
                     }
                     if let Some(token) = from_reader(blank_line, reader, &mut tokens)? {
                         tokens.push(token)
@@ -82,7 +81,7 @@ fn from_reader(
         let tokens = read_block_tokens(&mut reader)?
             .into_iter()
             .flat_map(|t| match t {
-                // dissallow paragraphs in text
+                // HACK: dissallowing paragraphs in html so transforming them to inline element Text
                 Token::Paragraph { text, .. } => vec![Token::Text { text }],
                 _ => vec![t],
             })
@@ -125,19 +124,21 @@ fn from_reader(
     }
 
     // TODO https://spec.commonmark.org/0.30/#link-reference-definitions
+
     let text = reader.consume_until_match_inclusive("\n")?;
-    if let Some(Token::Paragraph {
-        text: last_text, ..
-    }) = tokens.last_mut()
-    {
-        *last_text += &text;
-        return Ok(None);
-    } else {
-        return Ok(Some(Token::Paragraph {
-            text,
-            tokens: vec![],
-        }));
+    if !blank_line {
+        if let Some(Token::Paragraph {
+            text: last_text, ..
+        }) = tokens.last_mut()
+        {
+            *last_text += &text;
+            return Ok(None);
+        }
     }
+    return Ok(Some(Token::Paragraph {
+        text,
+        tokens: vec![],
+    }));
 }
 
 /// https://spec.commonmark.org/0.30/#indented-code-blocks
@@ -291,10 +292,10 @@ pub fn thematic_break(reader: &mut CharReader<impl Read>) -> Result<Option<Token
     return Ok(None);
 }
 
-fn list_item_tokens(
+fn list_item_text(
     reader: &mut CharReader<impl Read>,
     ident: usize,
-) -> Result<String, ParseError> {
+) -> Result<Vec<Token>, ParseError> {
     // read the first line
     let line = reader.consume_until_inclusive(|c| c == '\n')?;
     let mut item_content = line[ident..line.len()].to_string();
@@ -315,12 +316,14 @@ fn list_item_tokens(
             break;
         }
     }
-    return Ok(line);
+    let mut reader = CharReader::new(item_content.as_bytes());
+    let t = read_block_tokens(&mut reader)?;
+    Ok(t)
 }
 // TODO implement all specs (check for same usage of bullet enc.)
 /// https://spec.commonmark.org/0.30/#list-items
 pub fn bullet_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
-    let mut texts = vec![];
+    let mut items = vec![];
 
     while let Some(pos) = detect_char_with_ident(reader, |c| c == '-' || c == '+' || c == '*')? {
         // by default n=1
@@ -340,25 +343,22 @@ pub fn bullet_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, 
             return Ok(None);
         }
 
-        let ident = pos + n;
+        let ident = 1 + pos + n;
 
-        let tokens = list_item_tokens(reader, ident)?;
-        texts.push(tokens)
+        let tokens = list_item_text(reader, ident)?;
+        items.push(tokens)
     }
 
-    if texts.len() == 0 {
+    if items.len() == 0 {
         return Ok(None);
     }
 
-    return Ok(Some(Token::BulletList {
-        texts: texts,
-        items: vec![],
-    }));
+    return Ok(Some(Token::BulletList { items }));
 }
 // TODO implement all specs (check for same usage of bullet enc.)
 /// https://spec.commonmark.org/0.30/#list-items
 pub fn ordered_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
-    let mut texts = vec![];
+    let mut items = vec![];
     while let Some(mut pos) = detect_char_with_ident(reader, |c| c.is_ascii_digit())? {
         for i in 1..10 {
             // not more than 9 digits allowed
@@ -391,18 +391,15 @@ pub fn ordered_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>,
 
         let ident = pos + n;
 
-        let tokens = list_item_tokens(reader, ident)?;
-        texts.push(tokens)
+        let tokens = list_item_text(reader, ident)?;
+        items.push(tokens)
     }
 
-    if texts.len() == 0 {
+    if items.len() == 0 {
         return Ok(None);
     }
 
-    return Ok(Some(Token::OrderedList {
-        items: vec![],
-        texts,
-    }));
+    return Ok(Some(Token::OrderedList { items }));
 }
 
 /// ignore up to 4 space idententations returns at which position the match begins
@@ -475,11 +472,10 @@ pub fn blockquote(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, P
     }
 
     let text = lines.join("\n");
+    let mut reader = CharReader::new(text.as_bytes());
+    let tokens = read_block_tokens(&mut reader)?;
 
-    return Ok(Some(Token::BlockQuote {
-        text,
-        tokens: vec![],
-    }));
+    return Ok(Some(Token::BlockQuote { tokens }));
 }
 
 #[cfg(test)]
