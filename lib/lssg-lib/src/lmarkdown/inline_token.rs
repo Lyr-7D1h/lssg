@@ -2,12 +2,9 @@ use std::io::Read;
 
 use virtual_dom::Html;
 
-use crate::{
-    char_reader::CharReader, lmarkdown::block_token::read_block_tokens, parse_error::ParseError,
-};
+use crate::{char_reader::CharReader, parse_error::ParseError};
 
 use super::{
-    block_token::heading,
     html::{html_comment, html_element},
     sanitize_text, Token,
 };
@@ -26,17 +23,6 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
             // html
             if let Some((tag, attributes, content)) = html_element(reader)? {
                 let content = sanitize_text(content);
-
-                while let Some(_) = reader.peek_char(0)? {
-                    if let Some(heading) = heading(reader)? {
-                        tokens.push(heading)
-                    }
-                    let text = reader.consume_until_match_inclusive("\n\n")?;
-                    let text = sanitize_text(text);
-                    tokens.append(&mut read_block_tokens(&mut CharReader::new(
-                        text.as_bytes(),
-                    ))?);
-                }
 
                 tokens.push(Token::Html {
                     tag,
@@ -192,6 +178,7 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
                         let mut href = reader.consume_string(raw_href.len() - 1)?;
                         reader.consume(1)?;
                         let text = sanitize_text(text);
+                        println!("{text:?}");
                         let text = read_inline_tokens(&mut CharReader::new(text.as_bytes()))?;
 
                         // https://spec.commonmark.org/0.30/#link-title
@@ -212,6 +199,7 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
                             None
                         };
 
+                        println!("{text:?}");
                         tokens.push(Token::Link {
                             tokens: text,
                             href,

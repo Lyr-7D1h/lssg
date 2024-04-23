@@ -1,8 +1,9 @@
 use log::LevelFilter;
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
 use clap::Parser;
 use lssg_lib::{
+    lmarkdown::parse_lmarkdown,
     renderer::{BlogModule, DefaultModule, Renderer},
     sitetree::{Input, SiteTree},
     Lssg,
@@ -31,6 +32,10 @@ struct Args {
     #[clap(long, short, global = true)]
     single_page: bool,
 
+    /// Print ast tokens of a single page
+    #[clap(long, short, global = true)]
+    ast: bool,
+
     /// "TRACE", "DEBUG", "INFO", "WARN", "ERROR"
     #[clap(long, short)]
     log: Option<LevelFilter>,
@@ -58,6 +63,14 @@ fn main() {
             .render(&site_tree, site_tree.root())
             .expect("failed to render");
         println!("{html}");
+        fs::write(args.output, html).expect("failed to write to file");
+        return;
+    }
+
+    if args.ast {
+        let read = input.readable().expect("failed to fetch input");
+        let out = parse_lmarkdown(read).expect("failed to parse input");
+        println!("{out:#?}");
         return;
     }
 
