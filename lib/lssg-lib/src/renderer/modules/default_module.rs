@@ -357,7 +357,7 @@ impl RendererModule for DefaultModule {
                         });
 
                     if let Some(to_id) = to_id {
-                        let rel_path = context.site_tree.rel_path(context.site_id, to_id);
+                        let rel_path = context.site_tree.path(to_id);
                         let a = document.create_element_with_attributes(
                             "a",
                             to_attributes([("href", rel_path)]),

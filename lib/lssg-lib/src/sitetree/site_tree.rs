@@ -69,7 +69,7 @@ fn rel_path(nodes: &Vec<SiteNode>, from: SiteId, to: SiteId) -> String {
     };
 
     // get remaining path
-    if depth > 0 {
+    if depth > 1 {
         return format!("{}{}", "../".repeat(depth), to_path);
     } else {
         return format!("./{}", to_path);
