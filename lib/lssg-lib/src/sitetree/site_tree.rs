@@ -319,15 +319,15 @@ impl SiteTree {
             .into_iter()
             .filter_map(|(_tokens, src, _title)| {
                 if Input::is_relative(src) {
-                    println!("{src:?}");
-                    Some(input.new(src))
+                    let input = input.new(src);
+                    Some(input)
                 } else {
                     None
                 }
             })
             .collect();
         for input in images {
-            self.add_from_input(input?, id)?;
+            self.add_from_input(input?, parent.unwrap_or(self.root))?;
         }
 
         return Ok(id);

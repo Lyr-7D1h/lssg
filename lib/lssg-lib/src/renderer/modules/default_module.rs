@@ -284,7 +284,6 @@ impl RendererModule for DefaultModule {
                 parent.append_child(document.create_element("hr"));
             }
             Token::Image { tokens, src, title } => {
-                let mut attributes = String::new();
                 let alt = tokens_to_text(tokens);
                 if let Some(title) = title {
                     parent.append_child(html!(<img src="{src}" alt="{alt}" title={title} />))
