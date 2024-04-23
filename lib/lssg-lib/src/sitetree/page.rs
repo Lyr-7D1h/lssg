@@ -15,7 +15,7 @@ impl Page {
         Ok(Page { tokens })
     }
 
-    /// Discover any resources and links inside of the page will return vec with (text, href)
+    /// Discover any links inside of the page will return vec with (text, href)
     pub fn links(&self) -> Vec<(&Vec<Token>, &String, &Option<String>)> {
         let mut hrefs = vec![];
         let mut queue: Vec<Vec<&Token>> = vec![self.tokens.iter().collect()];
@@ -36,6 +36,24 @@ impl Page {
             }
         }
         return hrefs;
+    }
+
+    /// Discover any images inside of the page
+    pub fn images(&self) -> Vec<(&Vec<Token>, &String, &Option<String>)> {
+        let mut srcs = vec![];
+        let mut queue: Vec<Vec<&Token>> = vec![self.tokens.iter().collect()];
+        while let Some(tokens) = queue.pop() {
+            for t in tokens {
+                if let Token::Image { tokens, src, title } = t {
+                    srcs.push((tokens, src, title));
+                    continue;
+                }
+                if let Some(tokens) = t.get_tokens() {
+                    queue.push(tokens);
+                }
+            }
+        }
+        return srcs;
     }
 
     pub fn attributes(&self) -> Option<&toml::Table> {

@@ -117,6 +117,8 @@ if page => use modular HtmlRenderer to turn lmarkdown tokens into html, and writ
 - [Footnote support](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#footnotes)
 - [Alert support](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts)
 - Code highlighting support
+- Support for relative base website.com/blog/index.html
+    - See `<base href="http://yourdomain.com/">`
 - Update documentation
 - Add recovery and logging instead of panicking
     - panic on broken link

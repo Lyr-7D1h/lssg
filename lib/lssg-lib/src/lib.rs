@@ -82,7 +82,12 @@ impl Lssg {
                     // update resources to stylesheet sitenode path
                     for link in site_tree.links_from(site_id) {
                         if let Relation::Discovered { raw_path } = &link.relation {
-                            let updated_resource = site_tree.rel_path(site_id, link.to);
+                            let updated_resource = site_tree.rel_path(
+                                site_tree[site_id]
+                                    .parent
+                                    .expect("stylesheet must have parent"),
+                                link.to,
+                            );
                             stylesheet.update_resource(raw_path, &updated_resource);
                         }
                     }

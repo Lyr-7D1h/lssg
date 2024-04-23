@@ -63,7 +63,7 @@ fn main() {
             .render(&site_tree, site_tree.root())
             .expect("failed to render");
         println!("{html}");
-        fs::write(args.output, html).expect("failed to write to file");
+        // fs::write(args.output, html).expect("failed to write to file");
         return;
     }
 

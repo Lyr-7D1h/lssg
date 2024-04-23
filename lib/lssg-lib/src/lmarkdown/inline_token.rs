@@ -178,7 +178,6 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
                         let mut href = reader.consume_string(raw_href.len() - 1)?;
                         reader.consume(1)?;
                         let text = sanitize_text(text);
-                        println!("{text:?}");
                         let text = read_inline_tokens(&mut CharReader::new(text.as_bytes()))?;
 
                         // https://spec.commonmark.org/0.30/#link-title
@@ -199,7 +198,6 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
                             None
                         };
 
-                        println!("{text:?}");
                         tokens.push(Token::Link {
                             tokens: text,
                             href,

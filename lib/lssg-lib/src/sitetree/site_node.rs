@@ -61,6 +61,7 @@ impl Input {
         }
         return true;
     }
+
     /// Create a new Input with path relative to `self` or absolute path
     pub fn new(&self, path_string: &str) -> Result<Input, LssgError> {
         // return new if absolute
