@@ -1,17 +1,17 @@
 use std::collections::{HashMap, HashSet};
 
-use log::warn;
+use log::{error, warn};
 
 use serde_extensions::Overwrite;
 
 use crate::{
     lmarkdown::Token,
     lssg_error::LssgError,
-    sitetree::{Page, Relation, SiteNode, SiteNodeKind, SiteTree, Stylesheet},
+    sitetree::{Input, Page, Relation, SiteNode, SiteNodeKind, SiteTree, Stylesheet},
     tree::DFS,
 };
 use proc_html::html;
-use virtual_dom::{self, to_attributes, Document, DomNode, DomNodeKind};
+use virtual_dom::{self, parse_html, to_attributes, Document, DomNode, DomNodeKind, Html};
 
 use crate::renderer::{RenderContext, RendererModule, TokenRenderer};
 
@@ -284,6 +284,53 @@ impl RendererModule for DefaultModule {
                 parent.append_child(document.create_element("hr"));
             }
             Token::Image { tokens, src, title } => {
+                if src.ends_with(".svg") {
+                    let input = if Input::is_relative(src) {
+                        match context
+                            .site_tree
+                            .links_from(context.site_id)
+                            .into_iter()
+                            .find_map(|l| {
+                                if let Relation::Discovered { raw_path: path } = &l.relation {
+                                    if path == src {
+                                        return Some(l.to);
+                                    }
+                                }
+                                None
+                            }) {
+                            Some(id) => match &context.site_tree[id].kind {
+                                SiteNodeKind::Resource(r) => r.input().clone(),
+                                _ => {
+                                    warn!("svg is not found as a resource");
+                                    return Some(parent);
+                                }
+                            },
+                            None => {
+                                warn!("could not find svg in local site tree");
+                                return Some(parent);
+                            }
+                        }
+                    } else {
+                        match Input::from_string(src) {
+                            Ok(i) => i,
+                            Err(e) => {
+                                error!("failed to get svg: {e}");
+                                return Some(parent);
+                            }
+                        }
+                    };
+
+                    match input.readable() {
+                        Ok(r) => {
+                            let svg = parse_html(r).unwrap().into_iter().next().unwrap();
+                            parent.append_child(svg);
+                        }
+                        Err(e) => {
+                            error!("failed to read {src}: {e}");
+                            return Some(parent);
+                        }
+                    }
+                }
                 let alt = tokens_to_text(tokens);
                 if let Some(title) = title {
                     parent.append_child(html!(<img src="{src}" alt="{alt}" title={title} />))

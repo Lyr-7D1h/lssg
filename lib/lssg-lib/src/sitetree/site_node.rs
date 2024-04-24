@@ -54,9 +54,9 @@ impl Input {
         }
     }
 
-    /// check if path is a relative path
-    pub fn is_relative(path: &str) -> bool {
-        if path.starts_with("/") || path.starts_with("http") {
+    /// check if string looks like a relative path
+    pub fn is_relative(input: &str) -> bool {
+        if input.starts_with("/") || input.starts_with("http") {
             return false;
         }
         return true;

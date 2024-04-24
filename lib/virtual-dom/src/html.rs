@@ -128,7 +128,7 @@ pub fn comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io::E
 /// ignoring a lot of edge cases and validation normally seen when parsing html.
 ///
 /// **NOTE: Might return multiple Text tokens one after another.**
-pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io::Error> {
+fn read_token(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io::Error> {
     while let Some(c) = reader.peek_char(0)? {
         if c == '<' {
             if let Some(comment) = comment(reader)? {
@@ -227,15 +227,13 @@ mod tests {
         let expected = vec![Html::Element {
             tag: "div".into(),
             attributes: HashMap::new(),
-            children: vec![
-                Html::Element {
-                    tag: "a".into(),
-                    attributes: to_attributes([("href", "link.com")]),
-                    children: vec![Html::Text {
-                        text: "[other](other.com)".into(),
-                    }],
-                },
-            ],
+            children: vec![Html::Element {
+                tag: "a".into(),
+                attributes: to_attributes([("href", "link.com")]),
+                children: vec![Html::Text {
+                    text: "[other](other.com)".into(),
+                }],
+            }],
         }];
         let tokens = parse_html(input.as_bytes()).unwrap();
         assert_eq!(expected, tokens);

@@ -238,7 +238,7 @@ impl SiteTree {
                 name: input.filename()?,
                 parent: Some(parent_id),
                 children: vec![],
-                kind: SiteNodeKind::Resource(Resource::from_input(&input)?),
+                kind: SiteNodeKind::Resource(Resource::from_input(input.clone())?),
             })?;
             self.input_to_id.insert(input.clone(), id);
             id
@@ -314,20 +314,18 @@ impl SiteTree {
             SiteNodeKind::Page(page) => page,
             _ => panic!("has to be page"),
         };
-        let images: Vec<Result<Input, LssgError>> = page
+        let images: Vec<String> = page
             .images()
             .into_iter()
-            .filter_map(|(_tokens, src, _title)| {
-                if Input::is_relative(src) {
-                    let input = input.new(src);
-                    Some(input)
-                } else {
-                    None
-                }
-            })
+            .map(|(_tokens, src, _title)| src.clone())
             .collect();
-        for input in images {
-            self.add_from_input(input?, parent.unwrap_or(self.root))?;
+        for src in images {
+            if Input::is_relative(&src) {
+                let input = input.new(&src);
+                let child_id = self.add_from_input(input?, parent.unwrap_or(self.root))?;
+                self.rel_graph
+                    .add(id, child_id, Relation::Discovered { raw_path: src });
+            }
         }
 
         return Ok(id);
@@ -365,7 +363,7 @@ impl SiteTree {
                 name: input.filename()?,
                 parent: Some(parent),
                 children: vec![],
-                kind: SiteNodeKind::Resource(Resource::from_input(&input)?),
+                kind: SiteNodeKind::Resource(Resource::from_input(input.clone())?),
             })?;
             self.rel_graph.add(
                 stylesheet_id,
