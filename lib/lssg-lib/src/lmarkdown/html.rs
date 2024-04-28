@@ -5,7 +5,7 @@ use virtual_dom::Html;
 use crate::{char_reader::CharReader, parse_error::ParseError};
 
 /// from virtual_dom::html
-fn html_attributes(start_tag_content: &str) -> Result<HashMap<String, String>, ParseError> {
+fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, ParseError> {
     let chars: Vec<char> = start_tag_content.chars().collect();
     let mut attributes = HashMap::new();
     let mut key = String::new();
@@ -50,7 +50,7 @@ fn html_attributes(start_tag_content: &str) -> Result<HashMap<String, String>, P
 /// from virtual_dom::html
 pub fn html_element(
     reader: &mut CharReader<impl Read>,
-) -> Result<Option<(String, HashMap<String, String>, String)>, ParseError> {
+) -> Result<Option<(String, HashMap<String, String>, Option<String>)>, ParseError> {
     if let Some('<') = reader.peek_char(0)? {
         if let Some(start_tag) = reader.peek_until_exclusive_from(1, |c| c == '>')? {
             // get html tag
@@ -63,6 +63,13 @@ pub fn html_element(
                 }
             }
 
+            if start_tag.ends_with("/") && is_void_element(&tag) {
+                // <{start_tag}/>
+                reader.consume(start_tag.len() + 2)?;
+                let attributes = attributes(&start_tag[tag.len()..start_tag.len() - 1])?;
+                return Ok(Some((tag, attributes, None)));
+            }
+
             let end_tag = format!("</{tag}>");
             if let Some(html_block) =
                 reader.peek_until_match_exclusive_from(2 + start_tag.len(), &end_tag)?
@@ -70,12 +77,12 @@ pub fn html_element(
                 // <{start_tag}>
                 reader.consume(start_tag.len() + 2)?;
 
-                let attributes = html_attributes(&start_tag[tag.len()..start_tag.len()])?;
+                let attributes = attributes(&start_tag[tag.len()..start_tag.len()])?;
 
                 let content = reader.consume_string(html_block.len())?;
                 reader.consume(end_tag.len())?;
 
-                return Ok(Some((tag, attributes, content)));
+                return Ok(Some((tag, attributes, Some(content))));
             }
         }
     }
@@ -94,4 +101,13 @@ pub fn html_comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, 
     }
 
     Ok(None)
+}
+
+/// check if a html tag is a void tag (it can not have children)
+fn is_void_element(tag: &str) -> bool {
+    match tag {
+        "base" | "img" | "br" | "col" | "embed" | "hr" | "area" | "input" | "link" | "meta"
+        | "param" | "source" | "track" | "wbr" => true,
+        _ => false,
+    }
 }

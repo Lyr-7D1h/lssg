@@ -1,13 +1,8 @@
-use std::{collections::HashMap, fmt::write, str::Chars};
+use std::{collections::HashMap, str::Chars};
 
 use proc_macro2::{Span, TokenStream, TokenTree};
-use quote::{quote, ToTokens};
-use syn::{
-    parse::{Parse, ParseStream},
-    parse_macro_input, parse_quote, parse_str,
-    token::Brace,
-    Block, Expr, ExprPath, Ident, Stmt, Token,
-};
+use quote::quote;
+use syn::{parse::Parse, parse_macro_input, token::Brace, Block, Expr, Ident, Stmt};
 use virtual_dom::{parse_html, Html};
 
 // using https://github.com/chinedufn/percy/blob/master/crates/html-macro/src/lib.rs as example
@@ -19,21 +14,21 @@ use virtual_dom::{parse_html, Html};
 /// eg.
 ///
 /// ```
-/// use proc_html::html;
-/// html!(<div>" This is my text with preserved whitespace "</div>);
+/// use proc_virtual_dom::dom;
+/// dom!(<div>" This is my text with preserved whitespace "</div>);
 /// ```
 ///
 /// # Examples
 ///
 /// ```
-/// use proc_html::html;
+/// use proc_virtual_dom::dom;
 /// let title = "My beautiful website";
-/// let content = html! {
+/// let content = dom! {
 ///     <div>{title}</div>
 /// };
 /// ```
 #[proc_macro]
-pub fn html(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn dom(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let parsed_content = input.to_string();
     let template = parse_macro_input!(input as Template);
 
@@ -45,31 +40,39 @@ pub fn html(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
     };
 
-    let mut template_token = 0;
-    let doc = HtmlDocument { tokens };
+    let html = to_tokens(&tokens, &template, None, 0);
 
-    let html = to_tokens(&doc, &template, &mut template_token);
+    if html.len() > 1 {
+        let children = quote!(vec![#({#html},)*]);
+        return quote! {
+            {
+                use ::std::collections::HashMap;
+                use ::virtual_dom::*;
+                #children
+            }
+        }
+        .into();
+    }
 
-    quote! {
+    let html = html.into_iter().next().expect("no html given");
+    return quote! {
         {
-            use std::collections::HashMap;
-            use virtual_dom::*;
+            use ::std::collections::HashMap;
+            use ::virtual_dom::*;
             #html
         }
     }
-    .into()
+    .into();
 }
 
 /// collect all interpolated variables
 #[derive(Clone)]
 struct Template {
-    // tokens: Vec<ExprPath>,
     variables: HashMap<String, Ident>,
 }
 
 impl Parse for Template {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        // let mut tokens = vec![];
         let mut variables = HashMap::new();
 
         while input.is_empty() == false {
@@ -159,8 +162,8 @@ fn parse_braces(chars: &mut Chars) -> Result<String, String> {
     Err(raw)
 }
 
-/// add variables into a piece of string
-fn interpolate(text: &str, template: &Template) -> TokenStream {
+/// check if string has interpolated character if so add it
+fn interpolate_string(text: &str, template: &Template) -> TokenStream {
     let mut chars = text.chars();
     let mut variables = vec![];
     let mut text = String::new();
@@ -181,33 +184,74 @@ fn interpolate(text: &str, template: &Template) -> TokenStream {
             text.push(c);
         }
     }
-    quote!(format!(#text, #(#variables,)*))
+    if variables.len() > 0 {
+        return quote!(format!(#text, #(#variables,)*));
+    }
+    quote!(String::from(#text))
 }
 
-fn to_tokens(doc: &HtmlDocument, template: &Template, template_token: &mut usize) -> TokenStream {
-    let mut stream = TokenStream::new();
-    let parsed: Vec<TokenStream> = doc
-        .tokens
-        .iter()
-        .filter_map(|t| match t {
-            Html::Comment { .. } => None,
+fn to_tokens(
+    tokens: &Vec<Html>,
+    template: &Template,
+    parent: Option<&Ident>,
+    mut i: usize,
+) -> Vec<TokenStream> {
+    let mut items = vec![];
+
+    for t in tokens {
+        i += 1;
+        match t {
+            Html::Comment { .. } => {}
             Html::Text { text } => {
                 // if text starts with quotes and ends with quotes remove quotes
                 let text = if text.starts_with("\"") && text.ends_with("\"") {
                     let text = text.get(1..text.len() - 1).unwrap_or("".into());
                     if text.len() == 0 {
-                        return None;
+                        continue;
                     }
                     text
                 } else {
                     text
                 };
 
-                let text = interpolate(&text, template);
-
-                Some(quote!(Html::Text {
-                    text: #text
-                }))
+                let mut chars = text.chars();
+                let mut text = String::new();
+                while let Some(c) = chars.next() {
+                    if c == '{' {
+                        match parse_braces(&mut chars) {
+                            Ok(variable_name) => {
+                                let variable = template.variables.get(&variable_name).expect(
+                                    &format!("failed to parse or find variable '{variable_name}'"),
+                                );
+                                if let Some(parent) = parent {
+                                    if text.len() > 0 {
+                                        items.push(
+                                            quote!(#parent.append_child(DomNode::create_text(#text))),
+                                        );
+                                        text.clear();
+                                    }
+                                    items.push(quote!(#parent.append_child(#variable)));
+                                } else {
+                                    if text.len() > 0 {
+                                        items.push(quote!(DomNode::create_text(#text)));
+                                        text.clear();
+                                    }
+                                    items.push(quote!(#variable));
+                                }
+                            }
+                            Err(t) => text.push_str(&t),
+                        }
+                    } else {
+                        text.push(c);
+                    }
+                }
+                if text.len() > 0 {
+                    if let Some(parent) = parent {
+                        items.push(quote!(#parent.append_child(DomNode::create_text(#text))));
+                    } else {
+                        items.push(quote!(DomNode::create_text(#text)));
+                    }
+                }
             }
             Html::Element {
                 tag,
@@ -215,50 +259,45 @@ fn to_tokens(doc: &HtmlDocument, template: &Template, template_token: &mut usize
                 children,
             } => {
                 let attributes_values = attributes.iter().map(|(key, value)| {
-                    let key = interpolate(key, template);
-                    let value = interpolate(value, template);
+                    let key = interpolate_string(key, template);
+                    let value = interpolate_string(value, template);
                     quote! {
                         attributes.insert(#key, #value);
                     }
                 });
 
-                let parse_children = to_tokens(
-                    &HtmlDocument {
-                        tokens: children.clone(),
-                    },
-                    template,
-                    template_token,
-                );
+                let id = Ident::new(&format!("node_{i}"), Span::call_site());
 
-                let parsed_children = if children.len() > 1 {
-                    parse_children
+                let el = if children.len() > 0 {
+                    let children = to_tokens(children, template, Some(&id), i + tokens.len());
+                    quote!(
+                        let mut attributes = HashMap::new();
+                        #(#attributes_values)*
+                        let #id = DomNode::create_element_with_attributes(#tag, attributes);
+                        #({#children})*;
+                    )
                 } else {
-                    quote!(vec![#parse_children])
+                    quote!(
+                        let mut attributes = HashMap::new();
+                        #(#attributes_values)*
+                        let #id = DomNode::create_element_with_attributes(#tag, attributes);
+                    )
                 };
 
-                Some(quote!({
-                    let mut attributes = HashMap::new();
-                    #(#attributes_values)*
-
-                    Html::Element {
-                        attributes,
-                        children: #parsed_children,
-                        tag: #tag.to_string()
-                    }
-                }))
+                if let Some(parent) = parent {
+                    items.push(quote!(
+                        #el
+                        #parent.append_child(#id);
+                    ))
+                } else {
+                    items.push(quote!(
+                        #el
+                        #id
+                    ))
+                }
             }
-        })
-        .collect();
-
-    if parsed.len() > 1 {
-        stream.extend(quote!(vec![#(#parsed,)*]));
-    } else if parsed.len() == 1 {
-        let p = &parsed[0];
-        stream.extend(quote!(#p))
+        }
     }
-    stream
-}
 
-struct HtmlDocument {
-    tokens: Vec<Html>,
+    return items;
 }

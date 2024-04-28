@@ -76,16 +76,20 @@ fn from_reader(
     }
 
     if let Some((tag, attributes, content)) = html_element(reader)? {
-        let mut reader = CharReader::<&[u8]>::from_string(&content);
-        // NOTE: html allows for block tokens inside of it
-        let tokens = read_block_tokens(&mut reader)?
-            .into_iter()
-            .flat_map(|t| match t {
-                // HACK: dissallowing paragraphs in html so transforming them to inline element Text
-                Token::Paragraph { text, .. } => vec![Token::Text { text }],
-                _ => vec![t],
-            })
-            .collect();
+        let tokens = if let Some(content) = content {
+            let mut reader = CharReader::<&[u8]>::from_string(&content);
+            // NOTE: html allows for block tokens inside of it
+            read_block_tokens(&mut reader)?
+                .into_iter()
+                .flat_map(|t| match t {
+                    // HACK: dissallowing paragraphs in html so transforming them to inline element Text
+                    Token::Paragraph { text, .. } => vec![Token::Text { text }],
+                    _ => vec![t],
+                })
+                .collect()
+        } else {
+            vec![]
+        };
 
         return Ok(Some(Token::Html {
             tag,

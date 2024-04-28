@@ -4,10 +4,7 @@ use virtual_dom::Html;
 
 use crate::{char_reader::CharReader, parse_error::ParseError};
 
-use super::{
-    html::{html_comment, html_element},
-    sanitize_text, Token,
-};
+use super::{html::html_comment, html::html_element, sanitize_text, Token};
 
 pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token>, ParseError> {
     let mut tokens = vec![];
@@ -22,12 +19,17 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
 
             // html
             if let Some((tag, attributes, content)) = html_element(reader)? {
-                let content = sanitize_text(content);
+                let content_tokens = if let Some(content) = content {
+                    let content = sanitize_text(content);
+                    read_inline_tokens(&mut CharReader::new(content.as_bytes()))?
+                } else {
+                    vec![]
+                };
 
                 tokens.push(Token::Html {
                     tag,
                     attributes,
-                    tokens: read_inline_tokens(&mut CharReader::new(content.as_bytes()))?,
+                    tokens: content_tokens,
                 });
                 continue;
             }

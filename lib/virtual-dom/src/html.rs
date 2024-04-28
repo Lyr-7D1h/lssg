@@ -2,6 +2,8 @@ use std::{collections::HashMap, io, io::Read};
 
 use char_reader::CharReader;
 
+use crate::DomNode;
+
 // TODO: return DomNode directly instead of parsing to intermediary representation
 pub fn parse_html(input: impl Read) -> Result<Vec<Html>, io::Error> {
     let mut reader = CharReader::new(input);
@@ -77,9 +79,9 @@ fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, io::Er
 /// parse html from start to end and return (tag, attributes, innerHtml)
 ///
 /// seperated to make logic more reusable
-pub fn element(
+fn element(
     reader: &mut CharReader<impl Read>,
-) -> Result<Option<(String, HashMap<String, String>, String)>, io::Error> {
+) -> Result<Option<(String, HashMap<String, String>, Option<String>)>, io::Error> {
     if let Some('<') = reader.peek_char(0)? {
         if let Some(start_tag) = reader.peek_until_exclusive_from(1, |c| c == '>')? {
             // get html tag
@@ -90,6 +92,13 @@ pub fn element(
                     '\n' => break,
                     _ => tag.push(c),
                 }
+            }
+
+            if start_tag.ends_with("/") && is_void_element(&tag) {
+                // <{start_tag}/>
+                reader.consume(start_tag.len() + 2)?;
+                let attributes = attributes(&start_tag[tag.len()..start_tag.len() - 1])?;
+                return Ok(Some((tag, attributes, None)));
             }
 
             let end_tag = format!("</{tag}>");
@@ -104,14 +113,14 @@ pub fn element(
                 let content = reader.consume_string(html_block.len())?;
                 reader.consume(end_tag.len())?;
 
-                return Ok(Some((tag, attributes, content)));
+                return Ok(Some((tag, attributes, Some(content))));
             }
         }
     }
     Ok(None)
 }
 
-pub fn comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io::Error> {
+fn comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io::Error> {
     if "<!--" == reader.peek_string(4)? {
         if let Some(text) = reader.peek_until_match_exclusive_from(4, "-->")? {
             reader.consume(4)?; // skip start
@@ -122,6 +131,15 @@ pub fn comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io::E
     }
 
     Ok(None)
+}
+
+/// check if a html tag is a void tag (it can not have children)
+pub fn is_void_element(tag: &str) -> bool {
+    match tag {
+        "base" | "img" | "br" | "col" | "embed" | "hr" | "area" | "input" | "link" | "meta"
+        | "param" | "source" | "track" | "wbr" => true,
+        _ => false,
+    }
 }
 
 /// A "simple" streaming html parser function. This is a fairly simplified way of parsing html
@@ -137,9 +155,11 @@ fn read_token(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io::Er
 
             if let Some((tag, attributes, content)) = element(reader)? {
                 let mut children = vec![];
-                let mut reader = CharReader::new(content.as_bytes());
-                while let Some(html) = read_token(&mut reader)? {
-                    children.push(html);
+                if let Some(content) = content {
+                    let mut reader = CharReader::new(content.as_bytes());
+                    while let Some(html) = read_token(&mut reader)? {
+                        children.push(html);
+                    }
                 }
                 return Ok(Some(Html::Element {
                     tag,
@@ -165,7 +185,7 @@ fn read_token(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io::Er
     Ok(None)
 }
 
-/// Simple parsed html object with recursively added children
+/// Simple parsed html representation with recursively added children
 #[derive(Debug, Clone, PartialEq)]
 pub enum Html {
     Comment {
@@ -179,6 +199,22 @@ pub enum Html {
         attributes: HashMap<String, String>,
         children: Vec<Html>,
     },
+}
+
+impl From<DomNode> for Html {
+    fn from(value: DomNode) -> Self {
+        match &*value.kind() {
+            crate::DomNodeKind::Text { text } => Html::Text { text: text.clone() },
+            crate::DomNodeKind::Element { tag, attributes } => {
+                let children = value.children().into_iter().map(|c| c.into()).collect();
+                Html::Element {
+                    tag: tag.clone(),
+                    attributes: attributes.clone(),
+                    children,
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]

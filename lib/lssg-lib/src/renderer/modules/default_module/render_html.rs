@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use log::warn;
 
-use proc_html::html;
+use proc_virtual_dom::dom;
 use virtual_dom::{to_attributes, Document, DomNode};
 
 use crate::{
@@ -20,8 +20,24 @@ fn links_grid(
     attributes: &HashMap<String, String>,
     tokens: &Vec<Token>,
 ) {
-    println!("{tokens:?}");
-    let grid: DomNode = html!(<div class="default__links_grid"></div>).into();
+    let links: Vec<DomNode> = tokens
+        .into_iter()
+        .filter_map(|t| {
+            if let Token::Link {
+                tokens,
+                href,
+                title,
+            } = t
+            {
+                let a = tr.render(document, context, parent.clone(), &vec![t.clone()]);
+                a.append_child(dom!(<div class="default__links_grid_card"></div>));
+                Some(a)
+            } else {
+                None
+            }
+        })
+        .collect();
+    let grid: DomNode = dom!(<div class="default__links_grid">{links}</div>).into();
     tr.render(document, context, grid.clone(), tokens);
     parent.append_child(grid);
 }
@@ -35,7 +51,7 @@ fn links_boxes(
     attributes: &HashMap<String, String>,
     tokens: &Vec<Token>,
 ) {
-    let links: DomNode = html!(<nav class="links"></nav>).into();
+    let links: DomNode = dom!(<nav class="links"></nav>).into();
     parent.append_child(links.clone());
     for t in tokens {
         match t {
@@ -71,7 +87,7 @@ fn links_boxes(
                     }
                 }
 
-                let a: DomNode = html!(<a href="{href}"><div class="box"></div></a>).into();
+                let a: DomNode = dom!(<a href="{href}"><div class="box"></div></a>).into();
                 let div = a.first_child().unwrap();
                 tr.render(document, context, div, tokens);
                 links.append_child(a);

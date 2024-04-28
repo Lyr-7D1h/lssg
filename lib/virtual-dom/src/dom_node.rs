@@ -1,12 +1,13 @@
 use std::cell::{Ref, RefCell, RefMut};
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 use std::fmt;
 use std::rc::{Rc, Weak};
 
-use super::Html;
+use crate::{is_void_element, IterableNodes};
 
 /// Strong link
 type Link = Rc<RefCell<DomNodeData>>;
+
 type WeakLink = Weak<RefCell<DomNodeData>>;
 
 /// Based on https://docs.rs/rctree/latest/rctree/struct.Node.html
@@ -14,7 +15,7 @@ pub struct DomNode(Link);
 
 pub struct WeakDomNode(WeakLink);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum DomNodeKind {
     Text {
         text: String,
@@ -263,33 +264,35 @@ impl DomNode {
     /// # Panics
     ///
     /// Panics if the node, the new child, or one of their adjoining nodes is currently borrowed.
-    pub fn append_child(&self, new_child: impl Into<DomNode>) {
-        let new_child = new_child.into();
-        assert!(*self != new_child, "a node cannot be appended to itself");
+    pub fn append_child(&self, new_child: impl Into<IterableNodes>) {
+        let iter: IterableNodes = new_child.into();
+        for c in iter.0 {
+            assert!(*self != c, "a node cannot be appended to itself");
 
-        let mut self_borrow = self.0.borrow_mut();
-        let mut last_child_opt = None;
-        {
-            let mut new_child_borrow = new_child.0.borrow_mut();
-            new_child_borrow.detach();
-            new_child_borrow.parent = Some(Rc::downgrade(&self.0));
-            if let Some(last_child_weak) = self_borrow.last_child.take() {
-                if let Some(last_child_strong) = last_child_weak.upgrade() {
-                    new_child_borrow.previous_sibling = Some(last_child_weak);
-                    last_child_opt = Some(last_child_strong);
+            let mut self_borrow = self.0.borrow_mut();
+            let mut last_child_opt = None;
+            {
+                let mut new_child_borrow = c.0.borrow_mut();
+                new_child_borrow.detach();
+                new_child_borrow.parent = Some(Rc::downgrade(&self.0));
+                if let Some(last_child_weak) = self_borrow.last_child.take() {
+                    if let Some(last_child_strong) = last_child_weak.upgrade() {
+                        new_child_borrow.previous_sibling = Some(last_child_weak);
+                        last_child_opt = Some(last_child_strong);
+                    }
                 }
+                self_borrow.last_child = Some(Rc::downgrade(&c.0));
             }
-            self_borrow.last_child = Some(Rc::downgrade(&new_child.0));
-        }
 
-        if let Some(last_child_strong) = last_child_opt {
-            let mut last_child_borrow = last_child_strong.borrow_mut();
-            debug_assert!(last_child_borrow.next_sibling.is_none());
-            last_child_borrow.next_sibling = Some(new_child.0);
-        } else {
-            // No last child
-            debug_assert!(self_borrow.first_child.is_none());
-            self_borrow.first_child = Some(new_child.0);
+            if let Some(last_child_strong) = last_child_opt {
+                let mut last_child_borrow = last_child_strong.borrow_mut();
+                debug_assert!(last_child_borrow.next_sibling.is_none());
+                last_child_borrow.next_sibling = Some(c.0);
+            } else {
+                // No last child
+                debug_assert!(self_borrow.first_child.is_none());
+                self_borrow.first_child = Some(c.0);
+            }
         }
     }
 
@@ -451,55 +454,6 @@ impl ToString for DomNode {
                 format!("<{tag}{spacing}{}>{}</{tag}>", attributes, content)
             }
         }
-    }
-}
-
-impl From<Html> for DomNode {
-    fn from(value: Html) -> Self {
-        match value {
-            Html::Comment { .. } => panic!("root html can't be comment"),
-            Html::Text { text } => DomNode::create_text(text),
-            Html::Element {
-                tag,
-                attributes,
-                children,
-            } => {
-                let root = DomNode::create_element_with_attributes(tag, attributes);
-                let mut queue: VecDeque<(Html, DomNode)> = VecDeque::from(
-                    children
-                        .into_iter()
-                        .zip(std::iter::repeat(root.clone()))
-                        .collect::<Vec<(Html, DomNode)>>(),
-                );
-                while let Some((c, parent)) = queue.pop_front() {
-                    if let Some(p) = match c {
-                        Html::Text { text } => Some(DomNode::create_text(text)),
-                        Html::Element {
-                            tag,
-                            attributes,
-                            children,
-                        } => {
-                            let p = DomNode::create_element_with_attributes(tag, attributes);
-                            queue.extend(children.into_iter().zip(std::iter::repeat(p.clone())));
-                            Some(p)
-                        }
-                        _ => None,
-                    } {
-                        parent.append_child(p)
-                    }
-                }
-                root
-            }
-        }
-    }
-}
-
-/// check if a html tag is a void tag (it can not have children)
-pub fn is_void_element(tag: &str) -> bool {
-    match tag {
-        "base" | "img" | "br" | "col" | "embed" | "hr" | "area" | "input" | "link" | "meta"
-        | "param" | "source" | "track" | "wbr" => true,
-        _ => false,
     }
 }
 

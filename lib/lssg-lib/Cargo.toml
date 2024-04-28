@@ -22,7 +22,7 @@ toml = "0.8.2"
 serde = { version = "1.0.188", features = ["derive"] }
 
 serde-extensions = { path="../serde-extensions", version = "0.1.1" }
-proc-html = { path="../proc-html" }
+proc-virtual-dom = { path="../proc-virtual-dom" }
 virtual-dom = { path="../virtual-dom" }
 
 reqwest = { version="0.11.22", features = ["blocking"]}

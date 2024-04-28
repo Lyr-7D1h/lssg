@@ -160,6 +160,6 @@ nav.links a {
   text-align: left;
 }
 
-.default__grid {
-  display: flex
+.default__links_grid {
+  display: flex;
 }
