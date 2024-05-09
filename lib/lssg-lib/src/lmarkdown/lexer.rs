@@ -124,6 +124,7 @@ pub enum Token {
         /// The text portion of a link that contains Tokens
         tokens: Vec<Token>,
         href: String,
+        /// https://spec.commonmark.org/0.30/#link-title
         title: Option<String>,
     },
     Text {

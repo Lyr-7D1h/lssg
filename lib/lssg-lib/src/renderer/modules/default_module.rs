@@ -322,9 +322,18 @@ impl RendererModule for DefaultModule {
 
                     match input.readable() {
                         Ok(r) => {
-                            // let svg: DomNode =
-                            //     parse_html(r).unwrap().into_iter().next().unwrap().into();
-                            // svg.parent.append_child(svg);
+                            // get first valid html tag
+                            let html = parse_html(r)
+                                .unwrap()
+                                .into_iter()
+                                .find(|e| match e {
+                                    Html::Comment { .. } | Html::Text { .. } => false,
+                                    Html::Element { .. } => true,
+                                })
+                                .expect("invalid svg, no html elements founds");
+
+                            parent.append_child(html);
+                            return Some(parent);
                         }
                         Err(e) => {
                             error!("failed to read {src}: {e}");
@@ -389,7 +398,7 @@ impl RendererModule for DefaultModule {
                 }
 
                 // if local page return relative path
-                if Page::is_href_to_page(href) {
+                let href = if Page::is_href_to_page(href) {
                     let to_id = context
                         .site_tree
                         .links_from(context.site_id)
@@ -405,19 +414,20 @@ impl RendererModule for DefaultModule {
 
                     if let Some(to_id) = to_id {
                         let rel_path = context.site_tree.path(to_id);
-                        let a = document.create_element_with_attributes(
-                            "a",
-                            to_attributes([("href", rel_path)]),
-                        );
-                        tr.render(document, context, a.clone(), text);
-                        parent.append_child(a.clone());
-                        return Some(a);
+                        rel_path
+                    } else {
+                        warn!("Could not find node where {href:?} points to");
+                        href.to_owned()
                     }
-                    warn!("Could not find node where {href:?} points to");
-                }
+                } else {
+                    href.to_owned()
+                };
 
-                let a =
-                    document.create_element_with_attributes("a", to_attributes([("href", href)]));
+                let mut attributes = to_attributes([("href", href)]);
+                if let Some(title) = title {
+                    attributes.insert("title".to_owned(), title.to_owned());
+                }
+                let a = document.create_element_with_attributes("a", attributes);
                 tr.render(document, context, a.clone(), text);
                 parent.append_child(a);
             }

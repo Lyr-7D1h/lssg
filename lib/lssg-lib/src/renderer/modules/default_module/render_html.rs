@@ -23,14 +23,19 @@ fn links_grid(
     let links: Vec<DomNode> = tokens
         .into_iter()
         .filter_map(|t| {
-            if let Token::Link {
-                tokens,
-                href,
-                title,
-            } = t
-            {
-                let a = tr.render(document, context, parent.clone(), &vec![t.clone()]);
-                a.append_child(dom!(<div class="default__links_grid_card"></div>));
+            if let Token::Link { tokens, href, .. } = t {
+                let a = dom!(<a href="{href}"><div class="default__links_grid_card"></div></a>);
+                if let Some(first) = tokens.first() {
+                    if let Token::Image { .. } = first {
+                        let s = tr.render(
+                            document,
+                            context,
+                            a.first_child().unwrap().clone(),
+                            &vec![first.clone()],
+                        );
+                        println!("{:?} {first:?}", s.first_child().unwrap());
+                    }
+                }
                 Some(a)
             } else {
                 None
@@ -38,7 +43,7 @@ fn links_grid(
         })
         .collect();
     let grid: DomNode = dom!(<div class="default__links_grid">{links}</div>).into();
-    tr.render(document, context, grid.clone(), tokens);
+    // tr.render(document, context, grid.clone(), tokens);
     parent.append_child(grid);
 }
 
@@ -87,7 +92,12 @@ fn links_boxes(
                     }
                 }
 
-                let a: DomNode = dom!(<a href="{href}"><div class="box"></div></a>).into();
+                let a: DomNode = if let Some(title) = title {
+                    dom!(<a href="{href}" title="{title}"><div class="box"></div></a>).into()
+                } else {
+                    dom!(<a href="{href}"><div class="box"></div></a>).into()
+                };
+
                 let div = a.first_child().unwrap();
                 tr.render(document, context, div, tokens);
                 links.append_child(a);
