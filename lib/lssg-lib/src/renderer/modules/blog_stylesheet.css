@@ -3,7 +3,7 @@
   justify-content: center;
 }
 
-.post>.content {
+.post > .content {
   max-width: 680px;
 }
 
@@ -20,9 +20,7 @@
   text-align: left;
 }
 
-
 @media only screen and (max-width: 768px) {
-
   .post-updated-on,
   .content h1,
   .content h2,
@@ -34,7 +32,7 @@
     margin: 10px;
   }
 
-  .post>.content {
+  .post > .content {
     width: 100%;
   }
 }

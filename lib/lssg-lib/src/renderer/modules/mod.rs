@@ -9,6 +9,7 @@ use crate::{
 use virtual_dom::{Document, DomNode};
 
 mod blog_module;
+pub mod util;
 pub use blog_module::*;
 mod default_module;
 pub use default_module::*;

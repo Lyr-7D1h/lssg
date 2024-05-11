@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 
-use log::warn;
+use log::{error, warn};
 
 use proc_virtual_dom::dom;
+use regex::Regex;
 use virtual_dom::{to_attributes, Document, DomNode};
 
 use crate::{
     lmarkdown::Token,
-    renderer::{RenderContext, TokenRenderer},
+    renderer::{util::tokens_to_text, RenderContext, TokenRenderer},
     sitetree::{Page, Relation},
 };
 
@@ -25,17 +26,57 @@ fn links_grid(
         .filter_map(|t| {
             if let Token::Link { tokens, href, .. } = t {
                 let a = dom!(<a href="{href}"><div class="default__links_grid_card"></div></a>);
-                if let Some(first) = tokens.first() {
+                let mut tokens = tokens.iter().peekable();
+                // if link content starts with image use it as cover
+                if let Some(first) = tokens.peek() {
                     if let Token::Image { .. } = first {
-                        let s = tr.render(
-                            document,
-                            context,
-                            a.first_child().unwrap().clone(),
-                            &vec![first.clone()],
-                        );
-                        println!("{:?} {first:?}", s.first_child().unwrap());
+                        let first = tokens.next().unwrap();
+                        let cover = dom!(<div class="default__links_grid_card_cover"></div>);
+                        let s = tr.render(document, context, cover.clone(), &vec![first.clone()]);
+                        // if svg set viewbox to allow scaling
+                        match &mut *s.first_child().unwrap().kind_mut() {
+                            virtual_dom::DomNodeKind::Element { attributes, tag } => {
+                                if tag == "svg" {
+                                    if attributes.get("viewbox").is_none() {
+                                        let re = Regex::new(r"[0-9]*").unwrap();
+                                        let width = if let Some(width) = attributes.get("width") {
+                                            re.captures(width)
+                                                .map(|c| c[0].to_string())
+                                                .unwrap_or(width.clone())
+                                        } else {
+                                            warn!("no width found for svg, using default of 300");
+                                            "300".to_string()
+                                        };
+                                        let height = if let Some(height) = attributes.get("height")
+                                        {
+                                            re.captures(height)
+                                                .map(|c| c[0].to_string())
+                                                .unwrap_or(width.clone())
+                                        } else {
+                                            warn!("no height found for svg, using default of 150");
+                                            "150".to_string()
+                                        };
+                                        attributes.insert(
+                                            "viewbox".into(),
+                                            format!("0 0 {width} {height}"),
+                                        );
+                                    }
+                                    attributes.remove(&"style".to_string());
+                                }
+                                attributes.insert("width".into(), "100%".into());
+                                attributes.insert("height".into(), "auto".into());
+                            }
+                            _ => error!("should be an element"),
+                        }
+                        a.first_child().unwrap().append_child(cover);
                     }
                 }
+                let tokens = Vec::from_iter(tokens.cloned());
+                let title = tokens_to_text(&tokens);
+                a.first_child()
+                    .unwrap()
+                    .append_child(dom!(<h2 class="default__links_grid_card_title">{title}</h2>));
+
                 Some(a)
             } else {
                 None
