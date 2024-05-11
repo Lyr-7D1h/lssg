@@ -4,31 +4,15 @@ Having a creative outlet keeps me sane and motivated. Anything I find worthwhile
 
 <links grid>
 [
-    ![](./art/hello_world/half_circle.svg)
-    Hello World
-](./art/hello_world.md)
+    ![](./art/squiggles/squiggles.png)
+    Squiggles
+](./art/squiggles.md)
+[
+    ![](./art/cca/flow.png)
+    Creative Coding Amsterdam Banner
+](./art/cca.md)
 [
     ![](./art/hello_world/half_circle.svg)
-    Hello World
-](./art/hello_world.md)
-[
-    ![](./art/hello_world/half_circle.svg)
-    Hello World
-](./art/hello_world.md)
-[
-    ![](./art/hello_world/half_circle.svg)
-    Hello World
-](./art/hello_world.md)
-[
-    ![](./art/hello_world/half_circle.svg)
-    Hello World
-](./art/hello_world.md)
-[
-    ![](./art/hello_world/half_circle.svg)
-    Hello World
-](./art/hello_world.md)
-[
-    ![](./art/hello_world/half_circle.svg)
-    Hello World
+    Hello World: Random Graph Circles
 ](./art/hello_world.md)
 </links>
