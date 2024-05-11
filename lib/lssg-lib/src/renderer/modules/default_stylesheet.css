@@ -213,3 +213,31 @@ nav.links a {
     max-width: 100%;
   }
 }
+
+.default__carausel {
+  width: 70vw;
+  display: flex;
+  flex-wrap: wrap;
+  margin: auto;
+  padding-top: 25px;
+  padding-bottom: 25px;
+}
+.default__carausel_main {
+  width: calc(80% - 30px);
+  padding: 15px;
+}
+.default__carausel_other {
+  width: calc(20% - 30px);
+  padding: 15px;
+}
+.default__carausel_main *,
+.default__carausel_other * {
+  width: 100%;
+  height: auto;
+}
+@media only screen and (max-width: 768px) {
+  .default__carausel_other,
+  .default__carausel_main {
+    width: 100%;
+  }
+}

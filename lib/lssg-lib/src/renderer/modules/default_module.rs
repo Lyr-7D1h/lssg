@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use log::{error, warn};
 
 use proc_virtual_dom::dom;
+use regex::Regex;
 use serde_extensions::Overwrite;
 
 use crate::{
@@ -15,7 +16,7 @@ use virtual_dom::{self, parse_html, to_attributes, Document, DomNode, DomNodeKin
 
 use crate::renderer::{RenderContext, RendererModule, TokenRenderer};
 
-use super::util::tokens_to_text;
+use super::util::{process_href, tokens_to_text};
 
 mod render_html;
 
@@ -288,7 +289,7 @@ impl RendererModule for DefaultModule {
             Token::Image { tokens, src, title } => {
                 let mut resource_id = None;
                 // if local page return relative src
-                let src = if src.ends_with(".svg") && Input::is_relative(src) {
+                let src = if Input::is_relative(src) {
                     let to_id = context
                         .site_tree
                         .links_from(context.site_id)
@@ -313,8 +314,8 @@ impl RendererModule for DefaultModule {
                     src.to_owned()
                 };
 
+                // inject svg into html
                 if src.ends_with(".svg") {
-                    println!("{src:?}");
                     let input = if let Some(id) = resource_id {
                         match &context.site_tree[id].kind {
                             SiteNodeKind::Resource(r) => r.input().clone(),
@@ -336,7 +337,7 @@ impl RendererModule for DefaultModule {
                     match input.readable() {
                         Ok(r) => {
                             // get first valid html tag
-                            let html = parse_html(r)
+                            let mut html = parse_html(r)
                                 .unwrap()
                                 .into_iter()
                                 .find(|e| match e {
@@ -345,15 +346,56 @@ impl RendererModule for DefaultModule {
                                 })
                                 .expect("invalid svg, no html elements founds");
 
-                            parent.append_child(html);
-                            return Some(parent);
+                            match &mut html {
+                                Html::Element { attributes, .. } => {
+                                    // set viewbox to allow scaling of svg using width and height
+                                    if attributes.get("viewbox").is_none() {
+                                        let re = Regex::new(r"[0-9]*").unwrap();
+                                        let width = if let Some(width) = attributes.get("width") {
+                                            re.captures(width)
+                                                .map(|c| c[0].to_string())
+                                                .unwrap_or(width.clone())
+                                        } else {
+                                            warn!("no width found for svg, using default of 300");
+                                            "300".to_string()
+                                        };
+                                        let height = if let Some(height) = attributes.get("height")
+                                        {
+                                            re.captures(height)
+                                                .map(|c| c[0].to_string())
+                                                .unwrap_or(width.clone())
+                                        } else {
+                                            warn!("no height found for svg, using default of 150");
+                                            "150".to_string()
+                                        };
+                                        attributes.insert(
+                                            "viewbox".into(),
+                                            format!("0 0 {width} {height}"),
+                                        );
+                                    }
+                                    attributes.remove(&"style".to_string());
+
+                                    parent.append_child(html);
+                                    return Some(parent);
+                                }
+                                _ => error!("svg must be an element"),
+                            }
                         }
+
                         Err(e) => {
                             error!("failed to read {src}: {e}");
                             return Some(parent);
                         }
                     }
                 }
+
+                if src.ends_with(".mp4") {
+                    parent.append_child(
+                        dom!(<video controls><source src="{src}" type="video/mp4"></video>),
+                    );
+                    return Some(parent);
+                }
+
                 let alt = tokens_to_text(tokens);
                 if let Some(title) = title {
                     parent.append_child(dom!(<img src="{src}" alt="{alt}" title={title} />))
@@ -410,6 +452,7 @@ impl RendererModule for DefaultModule {
                     return Some(parent);
                 }
 
+                let href = &process_href(href, context);
                 // if local page return relative path
                 let href = if Page::is_href_to_page(href) {
                     let to_id = context
@@ -460,6 +503,7 @@ impl RendererModule for DefaultModule {
                 }
             }
         };
+        // always renders
         Some(parent)
     }
 
