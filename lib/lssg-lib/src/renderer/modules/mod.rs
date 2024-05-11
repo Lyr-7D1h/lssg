@@ -2,13 +2,14 @@ use log::error;
 use serde_extensions::Overwrite;
 
 use crate::{
-    dom::{DomNode, Document},
     lmarkdown::Token,
     sitetree::{Page, SiteTree},
     LssgError,
 };
+use virtual_dom::{Document, DomNode};
 
 mod blog_module;
+pub mod util;
 pub use blog_module::*;
 mod default_module;
 pub use default_module::*;
@@ -17,7 +18,7 @@ use super::{RenderContext, TokenRenderer};
 
 #[allow(unused)]
 pub trait RendererModule {
-    /// Return a static id
+    /// Return a static identifier for this module
     fn id(&self) -> &'static str;
 
     /// This gets run once just after site_tree has been created

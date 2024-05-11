@@ -1,0 +1,14 @@
+[package]
+name = "proc-virtual-dom"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+virtual-dom = { version = "0.1.0", path = "../virtual-dom" }
+char-reader = { version = "0.1.0", path = "../char-reader" }
+proc-macro2 = { version="1.0.78", features=["span-locations"] }
+quote = "1.0.35"
+syn = { version = "2.0.52", features=["full"] }
+
+[lib]
+proc-macro = true

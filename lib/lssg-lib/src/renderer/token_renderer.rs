@@ -1,12 +1,8 @@
-
-
 use log::warn;
 
 use super::{RenderContext, RendererModule};
-use crate::{
-    dom::{DomNode, DomNodeKind, Document, WeakDomNode},
-    lmarkdown::Token,
-};
+use crate::lmarkdown::Token;
+use virtual_dom::{Document, DomNode};
 
 /// used for recursively rendering
 pub struct TokenRenderer {
@@ -47,7 +43,7 @@ impl<'a> TokenRenderer {
 
     pub fn render(
         &mut self,
-        dom: &mut Document,
+        document: &mut Document,
         context: &RenderContext<'a>,
         mut parent: DomNode,
         tokens: &Vec<Token>,
@@ -55,7 +51,8 @@ impl<'a> TokenRenderer {
         'l: for token in tokens.iter() {
             let modules = unsafe { self.modules.as_mut().unwrap() };
             for module in modules.iter_mut() {
-                if let Some(p) = module.render_body(dom, context, parent.clone(), &token, self) {
+                if let Some(p) = module.render_body(document, context, parent.clone(), &token, self)
+                {
                     parent = p;
                     continue 'l;
                 }
@@ -66,9 +63,8 @@ impl<'a> TokenRenderer {
     }
 
     /// consume self and return a parsed domtree
-    pub fn start_render(mut self, dom: &mut Document, context: &RenderContext) {
-        let body = dom.body();
+    pub fn start_render(mut self, document: &mut Document, context: &RenderContext) {
         let tokens = context.page.tokens();
-        self.render(dom, context, body, tokens);
+        self.render(document, context, document.body.clone(), tokens);
     }
 }

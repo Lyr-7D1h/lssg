@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
-use super::dom_node::{DomNode, DomNodeKind};
+use super::dom_node::DomNode;
 
 /// RefCell based dom tree, tries to mimick Document as seen in browsers (https://developer.mozilla.org/en-US/docs/Web/API/Document)
 ///
 /// using a RC Tree allows for easier manipulation of single nodes and traversing the tree
 pub struct Document {
     root: DomNode,
-    head: DomNode,
-    body: DomNode,
+    pub head: DomNode,
+    pub body: DomNode,
 }
 
 impl Document {
@@ -25,14 +25,6 @@ impl Document {
 
     pub fn root(&self) -> DomNode {
         self.root.clone()
-    }
-
-    pub fn head(&self) -> DomNode {
-        self.head.clone()
-    }
-
-    pub fn body(&self) -> DomNode {
-        self.body.clone()
     }
 
     pub fn sanitize(&mut self) {
@@ -71,15 +63,4 @@ pub fn to_attributes<I: IntoIterator<Item = (impl Into<String>, impl Into<String
     arr: I,
 ) -> HashMap<String, String> {
     arr.into_iter().map(|(k, v)| (k.into(), v.into())).collect()
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_tree() {
-        let mut tree = Document::new();
-        // tree.body().append()
-    }
 }

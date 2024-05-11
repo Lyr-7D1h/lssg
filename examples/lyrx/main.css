@@ -6,9 +6,9 @@
   src: url("./lib/UbuntuMono-Regular.ttf") format("truetype");
 }
 
-/* * { */
-/*   font-family: "Ubuntu Mono"; */
-/* } */
+* {
+  font-family: "Ubuntu Mono";
+}
 html {
   height: 100%;
   display: block;

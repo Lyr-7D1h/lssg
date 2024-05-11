@@ -101,7 +101,7 @@ impl SiteTree {
             input_to_id: HashMap::new(),
             rel_graph: RelationalGraph::new(),
         };
-        tree.add_page_with_root(input, None)?;
+        tree.add_page_under_parent(input, None)?;
         Ok(tree)
     }
 
@@ -238,7 +238,7 @@ impl SiteTree {
                 name: input.filename()?,
                 parent: Some(parent_id),
                 children: vec![],
-                kind: SiteNodeKind::Resource(Resource::from_input(&input)?),
+                kind: SiteNodeKind::Resource(Resource::from_input(input.clone())?),
             })?;
             self.input_to_id.insert(input.clone(), id);
             id
@@ -250,11 +250,11 @@ impl SiteTree {
     /// Add a page node to tree and discover any other new pages
     /// will error if input is not a markdown file
     fn add_page_from_input(&mut self, input: Input, parent: SiteId) -> Result<SiteId, LssgError> {
-        self.add_page_with_root(input, Some(parent))
+        self.add_page_under_parent(input, Some(parent))
     }
 
     /// Add a page node to tree and discover any other new pages with possibility of adding root
-    fn add_page_with_root(
+    fn add_page_under_parent(
         &mut self,
         input: Input,
         mut parent: Option<SiteId>,
@@ -280,15 +280,17 @@ impl SiteTree {
         // register input
         self.input_to_id.insert(input.clone(), id);
 
-        let links: Vec<(bool, String)> = match &self.nodes[id].kind {
-            SiteNodeKind::Page(page) => page
-                .links()
-                .into_iter()
-                .map(|(text, href)| (text.len() == 0, href.clone()))
-                .collect(),
+        let page = match &self.nodes[id].kind {
+            SiteNodeKind::Page(page) => page,
             _ => panic!("has to be page"),
         };
 
+        // add other pages
+        let links: Vec<(bool, String)> = page
+            .links()
+            .into_iter()
+            .map(|(text, href, ..)| (text.len() == 0, href.clone()))
+            .collect();
         for (is_empty, href) in links {
             // if link has no text add whatever is in it
             if is_empty {
@@ -305,6 +307,24 @@ impl SiteTree {
                 self.rel_graph
                     .add(id, child_id, Relation::Discovered { raw_path: href });
                 continue;
+            }
+        }
+
+        let page = match &self.nodes[id].kind {
+            SiteNodeKind::Page(page) => page,
+            _ => panic!("has to be page"),
+        };
+        let images: Vec<String> = page
+            .images()
+            .into_iter()
+            .map(|(_tokens, src, _title)| src.clone())
+            .collect();
+        for src in images {
+            if Input::is_relative(&src) {
+                let input = input.new(&src);
+                let child_id = self.add_from_input(input?, parent.unwrap_or(self.root))?;
+                self.rel_graph
+                    .add(id, child_id, Relation::Discovered { raw_path: src });
             }
         }
 
@@ -343,7 +363,7 @@ impl SiteTree {
                 name: input.filename()?,
                 parent: Some(parent),
                 children: vec![],
-                kind: SiteNodeKind::Resource(Resource::from_input(&input)?),
+                kind: SiteNodeKind::Resource(Resource::from_input(input.clone())?),
             })?;
             self.rel_graph.add(
                 stylesheet_id,

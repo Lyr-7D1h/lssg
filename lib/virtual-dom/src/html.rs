@@ -1,25 +1,11 @@
-use std::{
-    collections::{HashMap, VecDeque},
-    io::Read,
-};
+use std::{collections::HashMap, io, io::Read};
 
-use crate::{char_reader::CharReader, parse_error::ParseError};
+use char_reader::CharReader;
 
-use super::DomNode;
+use crate::DomNode;
 
-#[macro_export]
-macro_rules! html {
-    ($x:tt) => {
-        $crate::dom::parse_html(format!($x).as_bytes())
-            .map(|html| match html.into_iter().next() {
-                Some(i) => i,
-                None => panic!("has to contain valid html"),
-            })
-            .expect("should contain valid html")
-    };
-}
-
-pub fn parse_html(input: impl Read) -> Result<Vec<Html>, ParseError> {
+// TODO: return DomNode directly instead of parsing to intermediary representation
+pub fn parse_html(input: impl Read) -> Result<Vec<Html>, io::Error> {
     let mut reader = CharReader::new(input);
 
     let mut tokens = vec![];
@@ -46,7 +32,9 @@ pub fn parse_html(input: impl Read) -> Result<Vec<Html>, ParseError> {
     Ok(reduced_tokens)
 }
 
-fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, ParseError> {
+fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, io::Error> {
+    // remove whitespace before and after text
+    let start_tag_content = start_tag_content.trim();
     let chars: Vec<char> = start_tag_content.chars().collect();
     let mut attributes = HashMap::new();
     let mut key = String::new();
@@ -91,9 +79,9 @@ fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, ParseE
 /// parse html from start to end and return (tag, attributes, innerHtml)
 ///
 /// seperated to make logic more reusable
-pub fn element(
+fn element(
     reader: &mut CharReader<impl Read>,
-) -> Result<Option<(String, HashMap<String, String>, String)>, ParseError> {
+) -> Result<Option<(String, HashMap<String, String>, Option<String>)>, io::Error> {
     if let Some('<') = reader.peek_char(0)? {
         if let Some(start_tag) = reader.peek_until_exclusive_from(1, |c| c == '>')? {
             // get html tag
@@ -104,6 +92,13 @@ pub fn element(
                     '\n' => break,
                     _ => tag.push(c),
                 }
+            }
+
+            if start_tag.ends_with("/") && is_void_element(&tag) {
+                // <{start_tag}/>
+                reader.consume(start_tag.len() + 2)?;
+                let attributes = attributes(&start_tag[tag.len()..start_tag.len() - 1])?;
+                return Ok(Some((tag, attributes, None)));
             }
 
             let end_tag = format!("</{tag}>");
@@ -118,14 +113,14 @@ pub fn element(
                 let content = reader.consume_string(html_block.len())?;
                 reader.consume(end_tag.len())?;
 
-                return Ok(Some((tag, attributes, content)));
+                return Ok(Some((tag, attributes, Some(content))));
             }
         }
     }
-    return Ok(None);
+    Ok(None)
 }
 
-pub fn comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, ParseError> {
+fn comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io::Error> {
     if "<!--" == reader.peek_string(4)? {
         if let Some(text) = reader.peek_until_match_exclusive_from(4, "-->")? {
             reader.consume(4)?; // skip start
@@ -135,48 +130,62 @@ pub fn comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, Parse
         }
     }
 
-    return Ok(None);
+    Ok(None)
+}
+
+/// check if a html tag is a void tag (it can not have children)
+pub fn is_void_element(tag: &str) -> bool {
+    match tag {
+        "base" | "img" | "br" | "col" | "embed" | "hr" | "area" | "input" | "link" | "meta"
+        | "param" | "source" | "track" | "wbr" => true,
+        _ => false,
+    }
 }
 
 /// A "simple" streaming html parser function. This is a fairly simplified way of parsing html
 /// ignoring a lot of edge cases and validation normally seen when parsing html.
 ///
 /// **NOTE: Might return multiple Text tokens one after another.**
-pub fn read_token(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, ParseError> {
-    match reader.peek_char(0)? {
-        None => return Ok(None),
-        Some(c) => {
-            if c == '<' {
-                if let Some(comment) = comment(reader)? {
-                    return Ok(Some(comment));
-                }
+fn read_token(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io::Error> {
+    while let Some(c) = reader.peek_char(0)? {
+        if c == '<' {
+            if let Some(comment) = comment(reader)? {
+                return Ok(Some(comment));
+            }
 
-                if let Some((tag, attributes, content)) = element(reader)? {
-                    let mut children = vec![];
+            if let Some((tag, attributes, content)) = element(reader)? {
+                let mut children = vec![];
+                if let Some(content) = content {
                     let mut reader = CharReader::new(content.as_bytes());
                     while let Some(html) = read_token(&mut reader)? {
                         children.push(html);
                     }
-                    return Ok(Some(Html::Element {
-                        tag,
-                        attributes,
-                        children,
-                    }));
                 }
-
-                // non html opening
-                reader.consume(1)?;
-                let mut text = "<".to_string();
-                text.push_str(&reader.consume_until_exclusive(|c| c == '<')?);
-                return Ok(Some(Html::Text { text }));
+                return Ok(Some(Html::Element {
+                    tag,
+                    attributes,
+                    children,
+                }));
             }
 
-            let text = reader.consume_until_exclusive(|c| c == '<')?;
+            // non html opening
+            reader.consume(1)?;
+            let mut text = "<".to_string();
+            text.push_str(&reader.consume_until_exclusive(|c| c == '<')?);
+            return Ok(Some(Html::Text { text }));
+        }
+
+        let text = reader.consume_until_exclusive(|c| c == '<')?;
+        // only valid text if it contains a non whitespace character
+        if text.chars().any(|c| c != ' ' && c != '\n') {
             return Ok(Some(Html::Text { text }));
         }
     }
+
+    Ok(None)
 }
 
+/// Simple parsed html representation with recursively added children
 #[derive(Debug, Clone, PartialEq)]
 pub enum Html {
     Comment {
@@ -192,41 +201,17 @@ pub enum Html {
     },
 }
 
-impl Into<DomNode> for Html {
-    fn into(self) -> DomNode {
-        match self {
-            Html::Comment { .. } => panic!("root html can't be comment"),
-            Html::Text { text } => DomNode::create_text(text),
-            Html::Element {
-                tag,
-                attributes,
-                children,
-            } => {
-                let root = DomNode::create_element_with_attributes(tag, attributes);
-                let mut queue: VecDeque<(Html, DomNode)> = VecDeque::from(
-                    children
-                        .into_iter()
-                        .zip(std::iter::repeat(root.clone()))
-                        .collect::<Vec<(Html, DomNode)>>(),
-                );
-                while let Some((c, parent)) = queue.pop_front() {
-                    if let Some(p) = match c {
-                        Html::Text { text } => Some(DomNode::create_text(text)),
-                        Html::Element {
-                            tag,
-                            attributes,
-                            children,
-                        } => {
-                            let p = DomNode::create_element_with_attributes(tag, attributes);
-                            queue.extend(children.into_iter().zip(std::iter::repeat(p.clone())));
-                            Some(p)
-                        }
-                        _ => None,
-                    } {
-                        parent.append_child(p)
-                    }
+impl From<DomNode> for Html {
+    fn from(value: DomNode) -> Self {
+        match &*value.kind() {
+            crate::DomNodeKind::Text { text } => Html::Text { text: text.clone() },
+            crate::DomNodeKind::Element { tag, attributes } => {
+                let children = value.children().into_iter().map(|c| c.into()).collect();
+                Html::Element {
+                    tag: tag.clone(),
+                    attributes: attributes.clone(),
+                    children,
                 }
-                root
             }
         }
     }
@@ -234,11 +219,14 @@ impl Into<DomNode> for Html {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
-
-    use crate::dom::to_attributes;
-
     use super::*;
+
+    /// Utility function to convert iteratables into attributes hashmap
+    pub fn to_attributes<I: IntoIterator<Item = (impl Into<String>, impl Into<String>)>>(
+        arr: I,
+    ) -> HashMap<String, String> {
+        arr.into_iter().map(|(k, v)| (k.into(), v.into())).collect()
+    }
 
     #[test]
     fn test_html() {
@@ -259,7 +247,6 @@ mod tests {
                     },
                 ],
             },
-            Html::Text { text: "\n".into() },
             Html::Element {
                 tag: "button".into(),
                 attributes: to_attributes([("disabled", "")]),
@@ -267,8 +254,7 @@ mod tests {
             },
         ];
 
-        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
-        let tokens = parse_html(reader).unwrap();
+        let tokens = parse_html(input.as_bytes()).unwrap();
         assert_eq!(expected, tokens);
 
         let input = r#"<div>
@@ -277,20 +263,15 @@ mod tests {
         let expected = vec![Html::Element {
             tag: "div".into(),
             attributes: HashMap::new(),
-            children: vec![
-                Html::Text { text: "\n".into() },
-                Html::Element {
-                    tag: "a".into(),
-                    attributes: to_attributes([("href", "link.com")]),
-                    children: vec![Html::Text {
-                        text: "[other](other.com)".into(),
-                    }],
-                },
-                Html::Text { text: "\n".into() },
-            ],
+            children: vec![Html::Element {
+                tag: "a".into(),
+                attributes: to_attributes([("href", "link.com")]),
+                children: vec![Html::Text {
+                    text: "[other](other.com)".into(),
+                }],
+            }],
         }];
-        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
-        let tokens = parse_html(reader).unwrap();
+        let tokens = parse_html(input.as_bytes()).unwrap();
         assert_eq!(expected, tokens);
     }
 
@@ -312,8 +293,7 @@ This should be text
             .into(),
         }];
 
-        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
-        let tokens = parse_html(reader).unwrap();
+        let tokens = parse_html(input.as_bytes()).unwrap();
         assert_eq!(expected, tokens);
     }
 }

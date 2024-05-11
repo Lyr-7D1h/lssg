@@ -154,3 +154,62 @@ nav.links a {
 .box:hover {
   box-shadow: 8px 8px 8px 8px rgba(0, 0, 0, 0.2);
 }
+
+.breadcrumbs {
+  padding: 20px;
+  text-align: left;
+}
+
+.default__links_grid {
+  display: flex;
+  flex-wrap: wrap;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 50%;
+  margin-top: 50px;
+  margin-bottom: 50px;
+}
+.default__links_grid a {
+  text-decoration: none;
+  color: black;
+  flex-basis: calc(33.3% - 20px);
+  margin: 10px;
+}
+.default__links_grid_card {
+  padding: 1rem;
+}
+.default__links_grid_card:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+  transition: linear 700ms;
+  border-radius: 10px;
+}
+.default__links_grid_card_title {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0;
+}
+.default__links_grid_card_cover {
+  padding: 20px;
+}
+.default__links_grid_card_cover:hover img,
+.default__links_grid_card_cover:hover svg {
+  transform: scale(1.05);
+  transition: transform 150ms;
+}
+.default__links_grid_card_cover * {
+  object-fit: contain;
+}
+@media only screen and (max-width: 1100px) {
+  .default__links_grid a {
+    flex-basis: calc(50% - 20px);
+  }
+}
+@media only screen and (max-width: 768px) {
+  .default__links_grid a {
+    flex-basis: 100%;
+  }
+  .default__links_grid {
+    max-width: 100%;
+  }
+}
