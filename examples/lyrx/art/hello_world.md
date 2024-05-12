@@ -6,10 +6,10 @@ My first generative art experiments. I use polar coordinates to get uniform (and
 
 <!-- TODO: look into https://photoswipe.com/ -->
 <carousel>
-![](./hello_world/half_circle.svg)
-![](./hello_world/circle_10_neighbors.svg)
-![](./hello_world/circle_6_neighbors.svg)
-![](./hello_world/circle.svg)
+![](./hello_world/half_circle.png)
+![](./hello_world/circle_10_neighbors.png)
+![](./hello_world/circle_6_neighbors.png)
+![](./hello_world/circle.png)
 ![](./hello_world/result.png)
 ![](./hello_world/process.mp4)
 </carousel>

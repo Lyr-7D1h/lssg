@@ -238,7 +238,7 @@ impl SiteTree {
                 name: input.filename()?,
                 parent: Some(parent_id),
                 children: vec![],
-                kind: SiteNodeKind::Resource(Resource::from_input(input.clone())?),
+                kind: SiteNodeKind::Resource(Resource::new_fetched(input.clone())?),
             })?;
             self.input_to_id.insert(input.clone(), id);
             id
@@ -363,7 +363,7 @@ impl SiteTree {
                 name: input.filename()?,
                 parent: Some(parent),
                 children: vec![],
-                kind: SiteNodeKind::Resource(Resource::from_input(input.clone())?),
+                kind: SiteNodeKind::Resource(Resource::new_fetched(input.clone())?),
             })?;
             self.rel_graph.add(
                 stylesheet_id,

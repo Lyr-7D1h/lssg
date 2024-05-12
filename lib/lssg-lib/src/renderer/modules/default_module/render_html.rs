@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use log::{error, warn};
 
 use proc_virtual_dom::dom;
-use regex::Regex;
 use virtual_dom::{to_attributes, Document, DomNode};
 
 use crate::{
@@ -152,19 +151,27 @@ fn carousel(
 
     let main = dom!(<div class="default__carausel_main"></div>);
     let mut tokens = tokens.into_iter();
+
+    let item = || dom!(<div class="default__carausel_item" ></div>);
     match tokens.next() {
         Some(t) => {
-            tr.render(document, context, main.clone(), &vec![t.clone()]);
+            let item = item();
+            tr.render(document, context, item.clone(), &vec![t.clone()]);
+            main.append_child(item);
         }
         None => return,
     }
     carousel.append_child(main);
 
-    let tokens: Vec<Token> = tokens.cloned().collect();
     if tokens.len() > 0 {
-        let other = dom!(<div class="default__carausel_other"></div>);
-        tr.render(document, context, other.clone(), &tokens);
-        carousel.append_child(other)
+        let items: Vec<DomNode> = tokens
+            .map(|t| {
+                let item = item();
+                tr.render(document, context, item.clone(), &vec![t.clone()]);
+                item
+            })
+            .collect();
+        carousel.append_child(dom!(<div class="default__carausel_other">{items}</div>))
     }
 
     parent.append_child(carousel);

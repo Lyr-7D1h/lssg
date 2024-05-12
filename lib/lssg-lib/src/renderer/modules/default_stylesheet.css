@@ -230,14 +230,65 @@ nav.links a {
   width: calc(20% - 30px);
   padding: 15px;
 }
-.default__carausel_main *,
-.default__carausel_other * {
+.default__carausel_item * {
+  width: 100%;
+}
+.default__carausel_item {
   width: 100%;
   height: auto;
+  cursor: pointer;
 }
 @media only screen and (max-width: 768px) {
   .default__carausel_other,
   .default__carausel_main {
+    width: 100%;
+  }
+}
+
+/** https://www.w3schools.com/howto/howto_css_modal_images.asp */
+#default__modal {
+  position: fixed;
+  z-index: 1;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background-color: rgb(0, 0, 0);
+  background-color: rgba(255, 255, 255, 0.9);
+}
+#default__modal_image {
+  display: block;
+  width: auto;
+  margin: 5vh auto auto auto;
+  max-height: 90vh;
+}
+#default__modal_caption {
+  position: absolute;
+  top: 10vh;
+  right: 10vw;
+  width: 30vw;
+  max-width: 700px;
+  text-align: center;
+  color: black;
+  padding: 10px 0;
+  height: 150px;
+}
+#default__modal_close {
+  position: absolute;
+  top: 15px;
+  right: 35px;
+  color: #3b3b3b;
+  font-size: 40px;
+  font-weight: bold;
+  transition: 0.3s;
+}
+#default__modal_close:hover {
+  color: #bbb;
+  cursor: pointer;
+}
+@media only screen and (max-width: 700px) {
+  #default__modal_content {
     width: 100%;
   }
 }

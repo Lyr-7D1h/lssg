@@ -179,4 +179,12 @@ impl SiteNode {
             kind: SiteNodeKind::Stylesheet(stylesheet),
         }
     }
+    pub fn resource(name: impl Into<String>, parent: usize, resource: Resource) -> SiteNode {
+        SiteNode {
+            name: name.into(),
+            parent: Some(parent),
+            children: vec![],
+            kind: SiteNodeKind::Resource(resource),
+        }
+    }
 }

@@ -12,7 +12,7 @@ Having a creative outlet keeps me sane and motivated. Anything I find worthwhile
     Creative Coding Amsterdam Banner
 ](./art/cca.md)
 [
-    ![](./art/hello_world/half_circle.svg)
+    ![](./art/hello_world/half_circle.png)
     Hello World: Random Graph Circles
 ](./art/hello_world.md)
 </links>
