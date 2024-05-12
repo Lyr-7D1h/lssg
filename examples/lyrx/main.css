@@ -7,8 +7,9 @@
 }
 
 * {
-  font-family: "Ubuntu Mono" !important;
+  font-family: "Ubuntu Mono";
 }
+
 html {
   height: 100%;
   display: block;
