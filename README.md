@@ -120,6 +120,8 @@ if page => use modular HtmlRenderer to turn lmarkdown tokens into html, and writ
 - Support for relative base website.com/blog/index.html
     - See `<base href="http://yourdomain.com/">`
 - Update documentation
+- Make async
+    - reqwest calls async
 - Add recovery and logging instead of panicking
     - panic on broken link
 - Download and install links to external resources (fonts, CSS, enc.)

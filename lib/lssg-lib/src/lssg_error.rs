@@ -1,6 +1,8 @@
 use core::fmt;
 use std::io;
 
+use zip::result::ZipError;
+
 use crate::parse_error::ParseError;
 
 #[derive(Debug)]
@@ -8,6 +10,7 @@ pub enum LssgErrorKind {
     ParseError,
     /// Render error
     Render,
+    Request,
     /// Error with the sitetree
     SiteTree,
     Io,
@@ -55,7 +58,16 @@ impl From<io::Error> for LssgError {
         Self::new(&error.to_string(), LssgErrorKind::Io)
     }
 }
-
+impl From<reqwest::Error> for LssgError {
+    fn from(error: reqwest::Error) -> Self {
+        Self::new(&error.to_string(), LssgErrorKind::Request)
+    }
+}
+impl From<ZipError> for LssgError {
+    fn from(error: ZipError) -> Self {
+        Self::new(&error.to_string(), LssgErrorKind::Io)
+    }
+}
 impl std::error::Error for LssgError {}
 
 impl fmt::Display for LssgError {

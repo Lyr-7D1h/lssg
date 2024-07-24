@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::rc::{Rc, Weak};
 
-use crate::{is_void_element, IterableNodes};
+use crate::{is_void_element, Html, IterableNodes};
 
 /// Strong link
 type Link = Rc<RefCell<DomNodeData>>;
@@ -410,6 +410,26 @@ impl DomNode {
                     let mut parent_borrow = parent_strong.borrow_mut();
                     parent_borrow.first_child = Some(new_sibling.0);
                 }
+            }
+        }
+    }
+
+    pub fn from_html(html: Html) -> Option<Self> {
+        match html {
+            Html::Comment { .. } => None,
+            Html::Text { text } => Some(DomNode::create_text(text)),
+            Html::Element {
+                tag,
+                attributes,
+                children,
+            } => {
+                let node = DomNode::create_element_with_attributes(tag, attributes);
+                for c in children {
+                    if let Some(n) = DomNode::from_html(c) {
+                        node.append_child(n);
+                    }
+                }
+                Some(node)
             }
         }
     }

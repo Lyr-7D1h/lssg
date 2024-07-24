@@ -1,7 +1,10 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, error::Error, io::Read, str::FromStr};
+
+use crate::{parse_html, Html};
 
 use super::dom_node::DomNode;
 
+#[derive(Debug, Clone)]
 /// RefCell based dom tree, tries to mimick Document as seen in browsers (https://developer.mozilla.org/en-US/docs/Web/API/Document)
 ///
 /// using a RC Tree allows for easier manipulation of single nodes and traversing the tree
@@ -12,6 +15,16 @@ pub struct Document {
 }
 
 impl Document {
+    pub fn from_html(html: Vec<Html>) -> Result<Self, Box<dyn Error>> {
+        let root = html.into_iter().nth(1).ok_or("root not found")?;
+        let root: DomNode = DomNode::from_html(root).ok_or("invalid root html")?;
+        let mut children = root.children();
+        let head = children.next().ok_or("head not found")?;
+        let body = children.next().ok_or("body not found")?;
+
+        return Ok(Document { root, head, body });
+    }
+
     pub fn new() -> Document {
         let root = DomNode::create_element("html");
         let head = DomNode::create_element("head");

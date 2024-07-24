@@ -108,12 +108,12 @@ impl RendererModule for DefaultModule {
             "default.js",
             site_tree.root(),
             Resource::new_static(DEFAULT_JS.to_owned()),
-        ))?;
+        ));
         let default_stylesheet = site_tree.add(SiteNode::stylesheet(
             "default.css",
             site_tree.root(),
             Stylesheet::from_readable(DEFAULT_STYLESHEET)?,
-        ))?;
+        ));
 
         // propegate relations to stylesheets and favicon from parent to child
         for id in pages {

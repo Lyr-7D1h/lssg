@@ -63,7 +63,7 @@ impl RendererModule for BlogModule {
             "blog.css",
             site_tree.root(),
             Stylesheet::from_readable(BLOG_STYLESHEET)?,
-        ))?;
+        ));
 
         let pages: Vec<usize> = DFS::new(site_tree)
             .filter(|id| site_tree[*id].kind.is_page())

@@ -5,11 +5,16 @@ use crate::{
 
 use super::Input;
 
+/// A SiteTree node representing a page made by a markdown file
 #[derive(Debug)]
 pub struct Page {
     tokens: Vec<Token>,
 }
 impl Page {
+    pub fn empty() -> Page {
+        Page { tokens: vec![] }
+    }
+
     pub fn from_input(input: &Input) -> Result<Page, LssgError> {
         let tokens = parse_lmarkdown(input.readable()?)?;
         Ok(Page { tokens })

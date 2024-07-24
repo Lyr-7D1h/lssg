@@ -8,11 +8,13 @@ use crate::{
 };
 use virtual_dom::{Document, DomNode};
 
+mod external_module;
+pub use external_module::*;
 mod blog_module;
-pub mod util;
 pub use blog_module::*;
 mod default_module;
 pub use default_module::*;
+pub mod util;
 
 use super::{RenderContext, TokenRenderer};
 

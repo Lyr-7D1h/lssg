@@ -193,12 +193,12 @@ impl SiteTree {
     }
 
     /// Utility function to add a node, create a id and add to parent children
-    pub fn add(&mut self, node: SiteNode) -> Result<SiteId, LssgError> {
+    pub fn add(&mut self, node: SiteNode) -> SiteId {
         // check for name collisions
         if let Some(parent) = node.parent {
             if let Some(id) = self.get_by_name(&node.name, parent) {
                 warn!("{} already exists at {id}", node.name);
-                return Ok(*id);
+                return *id;
             }
         }
 
@@ -209,7 +209,7 @@ impl SiteTree {
         }
         self.nodes.push(node);
 
-        Ok(id)
+        id
     }
 
     /// add from Input, will figure out what node to add from input and will register input not to
@@ -239,7 +239,7 @@ impl SiteTree {
                 parent: Some(parent_id),
                 children: vec![],
                 kind: SiteNodeKind::Resource(Resource::new_fetched(input.clone())?),
-            })?;
+            });
             self.input_to_id.insert(input.clone(), id);
             id
         };
@@ -275,7 +275,7 @@ impl SiteTree {
             parent,
             children: vec![],
             kind: SiteNodeKind::Page(page),
-        })?;
+        });
 
         // register input
         self.input_to_id.insert(input.clone(), id);
@@ -354,7 +354,7 @@ impl SiteTree {
             parent: Some(parent),
             children: vec![],
             kind: SiteNodeKind::Stylesheet(stylesheet),
-        })?;
+        });
 
         for link in stylesheet_links {
             let input = input.new(&link)?;
@@ -364,7 +364,7 @@ impl SiteTree {
                 parent: Some(parent),
                 children: vec![],
                 kind: SiteNodeKind::Resource(Resource::new_fetched(input.clone())?),
-            })?;
+            });
             self.rel_graph.add(
                 stylesheet_id,
                 resource_id,
@@ -409,7 +409,7 @@ impl SiteTree {
                         parent: Some(parent),
                         children: vec![],
                         kind: SiteNodeKind::Folder,
-                    })?;
+                    });
                 }
             }
         }
