@@ -59,24 +59,30 @@ impl RendererModule for ExternalModule {
                         let file = zip.by_index(i)?;
                         if let Some(name) = file.enclosed_name() {
                             let file_name = name.file_name().unwrap().to_str().unwrap();
-                            if "index.html" == file_name {
-                                let ancestors: Vec<&Path> = name.ancestors().skip(1).collect();
-                                let mut parent_id = None;
-                                for i in 0..ancestors.len().saturating_sub(3) {
-                                    parent_id = Some(site_tree.add(SiteNode::folder(
-                                        ancestors[i].file_name().unwrap().to_str().unwrap(),
-                                        site_tree[id].parent.unwrap_or(id),
-                                    )));
-                                }
 
-                                let page_id = match parent_id {
-                                    Some(id) => {
-                                        site_tree.add(SiteNode::page(file_name, id, Page::empty()))
-                                    }
-                                    // if not ancestor then root of page
-                                    None => id,
+                            let ancestors: Vec<&Path> = name.ancestors().skip(1).collect();
+                            let mut parent_id = id;
+                            let has_ancestors = ancestors.len() >= 2;
+                            for i in 0..ancestors.len().saturating_sub(2) {
+                                println!("ancestors: {:?}", ancestors[i]);
+                                parent_id = site_tree.add(SiteNode::folder(
+                                    ancestors[i].file_name().unwrap().to_str().unwrap(),
+                                    parent_id,
+                                ));
+                            }
+
+                            // TODO add resources
+
+                            if "index.html" == file_name {
+                                let page_id = if has_ancestors {
+                                    site_tree.add(SiteNode::page(
+                                        file_name,
+                                        parent_id,
+                                        Page::empty(),
+                                    ))
+                                } else {
+                                    parent_id
                                 };
-                                println!("file_name: {:?}", name);
                                 let document =
                                     Document::from_html(parse_html(file)?).map_err(|e| {
                                         LssgError::new(
