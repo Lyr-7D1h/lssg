@@ -1,10 +1,10 @@
 use log::LevelFilter;
-use std::{fs, path::PathBuf};
+use std::path::PathBuf;
 
 use clap::Parser;
 use lssg_lib::{
     lmarkdown::parse_lmarkdown,
-    renderer::{BlogModule, DefaultModule, Renderer},
+    renderer::{BlogModule, DefaultModule, ExternalModule, Renderer},
     sitetree::{Input, SiteTree},
     Lssg,
 };
@@ -55,6 +55,7 @@ fn main() {
             SiteTree::from_input(input.clone()).expect("Failed to generate site tree");
 
         let mut renderer = Renderer::new();
+        renderer.add_module(ExternalModule::new());
         renderer.add_module(BlogModule::new());
         renderer.add_module(DefaultModule::new());
         renderer.init(&mut site_tree);
@@ -75,6 +76,7 @@ fn main() {
     }
 
     let mut lssg = Lssg::new(input, args.output);
+    lssg.add_module(ExternalModule::new());
     lssg.add_module(BlogModule::new());
     lssg.add_module(DefaultModule::new());
     lssg.render().unwrap()

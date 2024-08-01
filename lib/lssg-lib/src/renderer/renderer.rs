@@ -85,12 +85,14 @@ impl Renderer {
         // initialize modules
         for module in &mut self.modules {
             debug!("running render_page on {}", module.id());
-            module.render_page(&mut dom, &context);
+            if let Some(page) = module.render_page(&mut dom, &context) {
+                return Ok(page);
+            }
         }
 
         debug!("running render_body on modules");
-        let tr = TokenRenderer::new(&mut self.modules);
-        tr.start_render(&mut dom, &context);
+        let token_renderer = TokenRenderer::new(&mut self.modules);
+        token_renderer.start_render(&mut dom, &context);
 
         for module in &mut self.modules {
             debug!("running after_render on {}", module.id());

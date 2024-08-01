@@ -8,11 +8,13 @@ use crate::{
 };
 use virtual_dom::{Document, DomNode};
 
+mod external_module;
+pub use external_module::*;
 mod blog_module;
-pub mod util;
 pub use blog_module::*;
 mod default_module;
 pub use default_module::*;
+pub mod util;
 
 use super::{RenderContext, TokenRenderer};
 
@@ -32,7 +34,14 @@ pub trait RendererModule {
     }
 
     /// Modify DomTree before rendering page
-    fn render_page<'n>(&mut self, dom: &mut Document, context: &RenderContext<'n>) {}
+    /// return Some(String) if you want to render the page yourself and ignore renderer for this page
+    fn render_page<'n>(
+        &mut self,
+        dom: &mut Document,
+        context: &RenderContext<'n>,
+    ) -> Option<String> {
+        None
+    }
 
     /// Render a token before default token renderer returns parent id for following tokens if it parsed this token otherwise None
     fn render_body<'n>(

@@ -114,8 +114,7 @@ impl Input {
                 Ok(Box::new(file))
             }
             Input::External { url } => {
-                // FIXME unwrap
-                let response = reqwest::blocking::get(url.clone()).unwrap();
+                let response = reqwest::blocking::get(url.clone())?;
                 let content = Cursor::new(response.bytes().unwrap());
                 Ok(Box::new(content))
             }
@@ -185,6 +184,22 @@ impl SiteNode {
             parent: Some(parent),
             children: vec![],
             kind: SiteNodeKind::Resource(resource),
+        }
+    }
+    pub fn folder(name: impl Into<String>, parent: usize) -> SiteNode {
+        SiteNode {
+            name: name.into(),
+            parent: Some(parent),
+            children: vec![],
+            kind: SiteNodeKind::Folder,
+        }
+    }
+    pub fn page(name: impl Into<String>, parent: usize, page: Page) -> SiteNode {
+        SiteNode {
+            name: name.into(),
+            parent: Some(parent),
+            children: vec![],
+            kind: SiteNodeKind::Page(page),
         }
     }
 }
