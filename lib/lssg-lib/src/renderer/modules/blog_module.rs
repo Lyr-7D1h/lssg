@@ -10,7 +10,7 @@ use crate::{
     lssg_error::LssgError,
     renderer::RenderContext,
     sitetree::{Input, SiteNode, SiteNodeKind, Stylesheet},
-    tree::{Tree, DFS},
+    tree::DFS,
 };
 use virtual_dom::{to_attributes, Document, DomNode};
 
@@ -96,15 +96,21 @@ impl RendererModule for BlogModule {
         Ok(())
     }
 
-    fn render_page<'n>(&mut self, document: &mut Document, context: &RenderContext<'n>) {
+    fn render_page<'n>(
+        &mut self,
+        _document: &mut Document,
+        context: &RenderContext<'n>,
+    ) -> Option<String> {
         let site_id = context.site_id;
 
         if !self.post_site_ids.contains(&site_id) && !self.root_site_ids.contains(&site_id) {
-            return;
+            return None;
         }
 
         // reset state
         self.has_inserted_date = false;
+
+        None
     }
 
     fn render_body<'n>(

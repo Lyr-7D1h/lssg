@@ -445,7 +445,7 @@ pub fn heading(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, Pars
         Ok(Some(Token::Heading {
             depth,
             text,
-            tokens: vec![],
+            tokens,
         }))
     } else {
         Ok(None)
@@ -487,9 +487,9 @@ mod tests {
 
     use super::*;
 
-    fn text(text: &str) -> Token {
-        Token::Text { text: text.into() }
-    }
+    // fn text(text: &str) -> Token {
+    //     Token::Text { text: text.into() }
+    // }
 
     fn p(text: &str) -> Token {
         Token::Paragraph {

@@ -1,6 +1,6 @@
-use std::{collections::HashMap, error::Error, io::Read, str::FromStr};
+use std::{collections::HashMap, error::Error};
 
-use crate::{parse_html, Html};
+use crate::Html;
 
 use super::dom_node::DomNode;
 

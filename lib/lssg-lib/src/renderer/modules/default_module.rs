@@ -423,6 +423,7 @@ impl RendererModule for DefaultModule {
                 }
 
                 let alt = tokens_to_text(tokens);
+                #[allow(unused_variables)]
                 if let Some(title) = title {
                     parent.append_child(dom!(<img src="{src}" alt="{alt}" title={title} />))
                 } else {

@@ -19,7 +19,7 @@ fn links_grid(
     context: &RenderContext,
     parent: &DomNode,
     tr: &mut TokenRenderer,
-    attributes: &HashMap<String, String>,
+    _attributes: &HashMap<String, String>,
     tokens: &Vec<Token>,
 ) {
     let links: Vec<DomNode> = tokens
@@ -67,7 +67,7 @@ fn links_boxes(
     context: &RenderContext,
     parent: &DomNode,
     tr: &mut TokenRenderer,
-    attributes: &HashMap<String, String>,
+    _attributes: &HashMap<String, String>,
     tokens: &Vec<Token>,
 ) {
     let links: DomNode = dom!(<nav class="links"></nav>).into();
@@ -144,7 +144,7 @@ fn carousel(
     context: &RenderContext,
     parent: &DomNode,
     tr: &mut TokenRenderer,
-    attributes: &HashMap<String, String>,
+    _attributes: &HashMap<String, String>,
     tokens: &Vec<Token>,
 ) {
     let carousel = dom!(<div class="default__carausel"></div>);

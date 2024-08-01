@@ -6,7 +6,7 @@ use virtual_dom::{parse_html, Document};
 use crate::{
     lssg_error::LssgError,
     renderer::RenderContext,
-    sitetree::{Page, SiteId, SiteNode, SiteNodeKind},
+    sitetree::{Page, Resource, SiteId, SiteNode, SiteNodeKind, Stylesheet},
     tree::DFS,
 };
 
@@ -57,32 +57,32 @@ impl RendererModule for ExternalModule {
                     let mut zip = zip::ZipArchive::new(cursor)?;
                     for i in 0..zip.len() {
                         let file = zip.by_index(i)?;
+                        if file.is_dir() {
+                            continue;
+                        }
                         if let Some(name) = file.enclosed_name() {
                             let file_name = name.file_name().unwrap().to_str().unwrap();
+                            let path = Path::new(file_name);
 
                             let ancestors: Vec<&Path> = name.ancestors().skip(1).collect();
                             let mut parent_id = id;
-                            let has_ancestors = ancestors.len() >= 2;
                             for i in 0..ancestors.len().saturating_sub(2) {
-                                println!("ancestors: {:?}", ancestors[i]);
-                                parent_id = site_tree.add(SiteNode::folder(
-                                    ancestors[i].file_name().unwrap().to_str().unwrap(),
-                                    parent_id,
-                                ));
+                                let folder_name =
+                                    ancestors[i].file_name().unwrap().to_str().unwrap();
+                                // only add if not already present
+                                parent_id = match site_tree.get_by_name(folder_name, parent_id) {
+                                    Some(id) => *id,
+                                    None => site_tree.add(SiteNode::folder(folder_name, parent_id)),
+                                }
                             }
 
-                            // TODO add resources
-
+                            if let Some(Some("css")) = path.extension().map(|s| s.to_str()) {
+                                let sheet = Stylesheet::from_readable(file)?;
+                                site_tree.add(SiteNode::stylesheet(file_name, parent_id, sheet));
+                                continue;
+                            }
                             if "index.html" == file_name {
-                                let page_id = if has_ancestors {
-                                    site_tree.add(SiteNode::page(
-                                        file_name,
-                                        parent_id,
-                                        Page::empty(),
-                                    ))
-                                } else {
-                                    parent_id
-                                };
+                                site_tree[parent_id].kind = SiteNodeKind::Page(Page::empty());
                                 let document =
                                     Document::from_html(parse_html(file)?).map_err(|e| {
                                         LssgError::new(
@@ -90,8 +90,12 @@ impl RendererModule for ExternalModule {
                                             crate::lssg_error::LssgErrorKind::ParseError,
                                         )
                                     })?;
-                                self.external_pages.insert(page_id, document);
+                                self.external_pages.insert(parent_id, document);
+                                continue;
                             }
+
+                            let resource = Resource::from_readable(file)?;
+                            site_tree.add(SiteNode::resource(file_name, parent_id, resource));
                         }
                     }
                 }
@@ -101,9 +105,14 @@ impl RendererModule for ExternalModule {
         Ok(())
     }
 
-    fn render_page<'n>(&mut self, document: &mut Document, context: &RenderContext<'n>) {
+    fn render_page<'n>(
+        &mut self,
+        _document: &mut Document,
+        context: &RenderContext<'n>,
+    ) -> Option<String> {
         if let Some(doc) = self.external_pages.get(&context.site_id) {
-            *document = doc.clone();
+            return Some(doc.to_string());
         }
+        None
     }
 }

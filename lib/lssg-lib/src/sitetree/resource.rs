@@ -11,7 +11,7 @@ use crate::lssg_error::LssgError;
 use super::Input;
 
 pub enum Resource {
-    Static { content: String },
+    Static { content: Vec<u8> },
     Fetched { input: Input },
 }
 
@@ -26,13 +26,21 @@ impl Resource {
         Ok(Resource::Fetched { input })
     }
 
+    pub fn from_readable(mut content: impl Read) -> Result<Resource, LssgError> {
+        let mut buf = Vec::new();
+        content.read_to_end(&mut buf)?;
+        Ok(Resource::Static { content: buf })
+    }
+
     pub fn new_static(content: String) -> Resource {
-        Resource::Static { content }
+        Resource::Static {
+            content: content.into_bytes(),
+        }
     }
 
     pub fn readable(&self) -> Result<Box<dyn Read>, LssgError> {
         match self {
-            Resource::Static { content } => Ok(Box::new(Cursor::new(content.clone().into_bytes()))),
+            Resource::Static { content } => Ok(Box::new(Cursor::new(content.clone()))),
             Resource::Fetched { input } => input.readable(),
         }
     }

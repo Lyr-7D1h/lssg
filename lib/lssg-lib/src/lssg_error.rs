@@ -20,6 +20,7 @@ pub enum LssgErrorKind {
 pub struct LssgError {
     message: String,
     context: Option<String>,
+    #[allow(dead_code)]
     kind: LssgErrorKind,
 }
 impl LssgError {
