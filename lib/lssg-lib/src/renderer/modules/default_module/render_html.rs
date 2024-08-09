@@ -12,6 +12,7 @@ use crate::{
         RenderContext, TokenRenderer,
     },
     sitetree::{Page, Relation},
+    tree::Node,
 };
 
 fn links_grid(
@@ -177,6 +178,45 @@ fn carousel(
     parent.append_child(carousel);
 }
 
+pub fn sitetree(context: &RenderContext, parent: &DomNode, attributes: &HashMap<String, String>) {
+    let ignore_list = attributes
+        .get("ignore")
+        .map(|s| s.split(',').collect())
+        .unwrap_or(vec![]);
+
+    let sitetree = dom!(<div class="default__sitetree"></div>);
+    for c in context.site_tree[context.site_tree.root()].children() {
+        if let Some(child) = sitetree_recurs(*c, context, &ignore_list) {
+            sitetree.append_child(child)
+        }
+    }
+    parent.append_child(sitetree);
+}
+
+fn sitetree_recurs(id: usize, context: &RenderContext, ignore_list: &Vec<&str>) -> Option<DomNode> {
+    let node = &context.site_tree[id];
+    let name = &node.name;
+    if ignore_list.contains(&name.as_str()) {
+        return None;
+    }
+    let children: Vec<DomNode> = context.site_tree[id]
+        .children()
+        .into_iter()
+        .filter_map(|c| sitetree_recurs(*c, context, ignore_list))
+        .collect();
+    let n = match &node.kind {
+        crate::sitetree::SiteNodeKind::Page(_) => {
+            println!("page {id}");
+            let slash = if children.len() > 0 { "/" } else { "" };
+            let name = format!("{}{slash}", &node.name);
+            let path = context.site_tree.path(id);
+            dom!(<div class="default__sitetree_page"><a href="{path}">{name}</a>{children}</div>)
+        }
+        _ => return None,
+    };
+    return Some(n);
+}
+
 pub fn render_html(
     document: &mut Document,
     context: &RenderContext,
@@ -196,6 +236,7 @@ pub fn render_html(
             parent.append_child(centered);
         }
         "links" => links(document, context, parent, tr, attributes, tokens),
+        "sitetree" => sitetree(context, parent, attributes),
         "carousel" => carousel(document, context, parent, tr, attributes, tokens),
         _ => {
             let element = document.create_element_with_attributes(tag, attributes.clone());

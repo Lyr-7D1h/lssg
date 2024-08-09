@@ -522,11 +522,10 @@ impl RendererModule for DefaultModule {
                 attributes,
                 tokens,
             } => {
-                let p = render_html::render_html(
+                if let Some(parent) = render_html::render_html(
                     document, context, &parent, tr, tag, attributes, tokens,
-                );
-                if p.is_some() {
-                    return p;
+                ) {
+                    return Some(parent);
                 }
             }
         };

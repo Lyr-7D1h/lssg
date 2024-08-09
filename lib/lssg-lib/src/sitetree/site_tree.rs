@@ -92,6 +92,10 @@ pub struct SiteTree {
 }
 
 impl SiteTree {
+    pub fn len(&self) -> usize {
+        return self.nodes.len();
+    }
+
     /// `input` is a markdown input file from where to start discovering resources and pages
     pub fn from_input(input: Input) -> Result<SiteTree, LssgError> {
         let mut tree = SiteTree {
