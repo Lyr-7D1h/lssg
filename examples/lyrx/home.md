@@ -8,6 +8,7 @@ keywords="blog,art,portfolio,technology,projects,software"
 subject="technology"
 image="https://lyrx.dev/icon.png"
 -->
+[](./icon.png)
 <!-- add favicon -->
 [](./favicon.ico)
 <!-- stylesheets -->
