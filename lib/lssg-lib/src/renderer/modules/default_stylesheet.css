@@ -52,6 +52,7 @@ li {
 
 .default__sitetree,
 ul,
+ol,
 h1,
 h2,
 h3,
@@ -64,6 +65,8 @@ blockquote {
 }
 @media only screen and (max-width: 1100px) {
   .default__sitetree,
+  ul,
+  ol,
   h1,
   h2,
   h3,
@@ -77,6 +80,8 @@ blockquote {
 }
 @media only screen and (max-width: 768px) {
   .default__sitetree,
+  ul,
+  ol,
   h1,
   h2,
   h3,
