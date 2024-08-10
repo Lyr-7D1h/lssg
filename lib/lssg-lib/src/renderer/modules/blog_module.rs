@@ -73,7 +73,14 @@ impl RendererModule for BlogModule {
 
         // if parent contains blog key than all children also belong to blog
         for site_id in pages {
-            match &site_tree[site_id].kind {
+            // if parent is a blog post than this is also a blog post
+            if let Some(parent) = site_tree.page_parent(site_id) {
+                if self.post_site_ids.contains(&parent) || self.root_site_ids.contains(&parent) {
+                    self.post_site_ids.insert(site_id);
+                }
+            }
+
+            match &mut site_tree[site_id].kind {
                 SiteNodeKind::Page(page) => {
                     let options: BlogOptions = self.options(page);
 
@@ -81,14 +88,6 @@ impl RendererModule for BlogModule {
                         self.root_site_ids.insert(site_id);
                         site_tree.add_link(site_id, default_stylesheet);
                         continue;
-                    }
-
-                    if let Some(parent) = site_tree.page_parent(site_id) {
-                        if self.post_site_ids.contains(&parent)
-                            || self.root_site_ids.contains(&parent)
-                        {
-                            self.post_site_ids.insert(site_id);
-                        }
                     }
                 }
                 _ => {}

@@ -1,3 +1,4 @@
+<!--art.created_on="2024-8-10"-->
 # Living Space
 
 A simulation of a small ecosystem where creatures (pixels) interact with each other and their environment. Each creature has a unique personality based on the Big Five personality traits that influences how they walk and interact with other creatures. For example a very caring creature gets very attracted to other creatures or a more introverted creature will avoid other creatures and stay more in place.

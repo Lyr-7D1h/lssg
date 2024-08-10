@@ -80,12 +80,30 @@ fn create_options_map(
 /// Render everything meant to go into <head>
 fn head(document: &mut Document, context: &RenderContext, options: &PropegatedOptions) {
     let RenderContext {
-        site_id, site_tree, ..
+        site_id,
+        site_tree,
+        page,
+        ..
     } = context;
     let site_id = *site_id;
 
     let head = &document.head;
-    let title = options.title.clone();
+    let mut title = options.title.clone();
+    if let Some(header) = page
+        .tokens()
+        .iter()
+        .find(|t| {
+            if let Token::Heading { depth, .. } = t {
+                return *depth == 1;
+            }
+            false
+        })
+        .cloned()
+    {
+        let header = tokens_to_text(&vec![header]);
+        title = format!("{header} - {title}");
+    }
+
     head.append_child(dom!(<title>{title}</title>));
     let title = options.title.clone();
     head.append_child(dom!(<meta property="og:title" content="{title}" />));

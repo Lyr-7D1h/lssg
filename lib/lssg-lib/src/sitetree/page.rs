@@ -69,6 +69,14 @@ impl Page {
         }
     }
 
+    pub fn attributes_mut(&mut self) -> Option<&mut toml::Table> {
+        if let Some(Token::Attributes { table }) = self.tokens_mut().first_mut() {
+            Some(table)
+        } else {
+            None
+        }
+    }
+
     // only support relative links to markdown files for now
     // because this will allow absolute links to markdown files links to for
     // example https://github.com/Lyr-7D1h/airap/blob/master/README.md
@@ -79,5 +87,8 @@ impl Page {
 
     pub fn tokens(&self) -> &Vec<Token> {
         &self.tokens
+    }
+    pub fn tokens_mut(&mut self) -> &mut Vec<Token> {
+        &mut self.tokens
     }
 }
