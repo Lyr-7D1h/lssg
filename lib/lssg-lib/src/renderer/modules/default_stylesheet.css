@@ -1,6 +1,5 @@
 * {
   font-family: monospace;
-  text-align: center;
 }
 
 body,
@@ -17,7 +16,6 @@ h4,
 h5,
 h6 {
   padding: 25px 0 15px 0;
-  text-align: left;
 }
 h1 a {
   text-decoration: none;
@@ -29,9 +27,11 @@ h1 {
 h2 {
   font-size: 24px;
 }
+li {
+  font-size: 20px;
+}
 p {
   padding: 25px 0 25px 0;
-  text-align: left;
   font-size: 20px;
 }
 blockquote {
@@ -46,7 +46,12 @@ code {
   white-space: pre-wrap;
 }
 
+li {
+  text-align: left;
+}
+
 .default__sitetree,
+ul,
 h1,
 h2,
 h3,

@@ -16,8 +16,8 @@ subject="technology"
 <!-- add pages without showing text -->
 [](./404.md)
 [](./blog.md)
-[](./art.md)
 [](./living_space.md)
+[](./art.md)
 
 <centered>
 # LyrX

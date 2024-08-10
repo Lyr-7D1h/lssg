@@ -4,6 +4,10 @@ Having a creative outlet keeps me sane and motivated. Anything I find worthwhile
 
 <links grid>
 [
+    ![](./art/living_space/qr.png)
+    Living Space
+](./art/living_space.md)
+[
     ![](./art/squiggles/squiggles.png)
     Squiggles
 ](./art/squiggles.md)

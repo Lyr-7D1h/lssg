@@ -292,7 +292,17 @@ impl RendererModule for DefaultModule {
                 for tokens in items {
                     let li = document.create_element("li");
                     ol.append_child(li.clone());
-                    tr.render(document, context, li, tokens);
+                    // don't render paragraphs inside of lists
+                    let tokens = tokens
+                        .into_iter()
+                        .flat_map(|t| {
+                            if let Token::Paragraph { tokens, .. } = t {
+                                return tokens.clone();
+                            }
+                            vec![t.clone()]
+                        })
+                        .collect();
+                    tr.render(document, context, li, &tokens);
                 }
                 parent.append_child(ol);
             }
@@ -301,7 +311,17 @@ impl RendererModule for DefaultModule {
                 for tokens in items {
                     let li = document.create_element("li");
                     ul.append_child(li.clone());
-                    tr.render(document, context, li, tokens);
+                    // don't render paragraphs inside of lists
+                    let tokens = tokens
+                        .into_iter()
+                        .flat_map(|t| {
+                            if let Token::Paragraph { tokens, .. } = t {
+                                return tokens.clone();
+                            }
+                            vec![t.clone()]
+                        })
+                        .collect();
+                    tr.render(document, context, li, &tokens);
                 }
                 parent.append_child(ul);
             }
