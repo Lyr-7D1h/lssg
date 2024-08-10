@@ -23,12 +23,14 @@ pub struct BlogOptions {
     root: bool,
     /// When has an article been changed (%Y-%m-%d)
     modified_on: Option<String>,
+    tags: Option<Vec<String>>,
 }
 impl Default for BlogOptions {
     fn default() -> Self {
         Self {
             root: false,
             modified_on: None,
+            tags: None,
         }
     }
 }
@@ -98,13 +100,21 @@ impl RendererModule for BlogModule {
 
     fn render_page<'n>(
         &mut self,
-        _document: &mut Document,
+        document: &mut Document,
         context: &RenderContext<'n>,
     ) -> Option<String> {
         let site_id = context.site_id;
 
         if !self.post_site_ids.contains(&site_id) && !self.root_site_ids.contains(&site_id) {
             return None;
+        }
+
+        // add article meta data
+        let options: BlogOptions = self.options(context.page);
+        if let Some(date) = options.modified_on {
+            document
+                .head
+                .append_child(dom!(<meta property="article:modified_time" content="{date}"/>));
         }
 
         // reset state

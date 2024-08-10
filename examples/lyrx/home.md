@@ -2,9 +2,11 @@
 title="Lyrx"
 [meta]
 description="Lyr's little space of the internet"
+
 author="Lyr, lyr-7d1h@pm.me"
-keywords="blog,portfolio,technology,projects,software"
+keywords="blog,art,portfolio,technology,projects,software"
 subject="technology"
+image="https://lyrx.dev/icon.png"
 -->
 <!-- add favicon -->
 [](./favicon.ico)

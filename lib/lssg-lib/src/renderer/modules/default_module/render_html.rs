@@ -206,7 +206,6 @@ fn sitetree_recurs(id: usize, context: &RenderContext, ignore_list: &Vec<&str>) 
         .collect();
     let n = match &node.kind {
         crate::sitetree::SiteNodeKind::Page(_) => {
-            println!("page {id}");
             let slash = if children.len() > 0 { "/" } else { "" };
             let name = format!("{}{slash}", &node.name);
             let path = context.site_tree.path(id);

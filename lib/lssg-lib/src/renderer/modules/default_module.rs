@@ -77,6 +77,103 @@ fn create_options_map(
     Ok(options_map)
 }
 
+/// Render everything meant to go into <head>
+fn head(document: &mut Document, context: &RenderContext, options: &PropegatedOptions) {
+    let RenderContext {
+        site_id, site_tree, ..
+    } = context;
+    let site_id = *site_id;
+
+    let head = &document.head;
+    let title = options.title.clone();
+    head.append_child(dom!(<title>{title}</title>));
+    let title = options.title.clone();
+    head.append_child(dom!(<meta property="og:title" content="{title}" />));
+    let title = options.title.clone();
+    head.append_child(dom!(<meta name="twitter:title" content="{title}" />));
+
+    // add stylesheet and favicon
+    for link in site_tree.links_from(site_id) {
+        match link.relation {
+            Relation::External | Relation::Discovered { .. } => match site_tree[link.to].kind {
+                SiteNodeKind::Resource { .. } if site_tree[link.to].name == "favicon.ico" => {
+                    head.append_child(document.create_element_with_attributes(
+                        "link",
+                        to_attributes([
+                            ("rel", "icon"),
+                            ("type", "image/x-icon"),
+                            ("href", &site_tree.rel_path(site_id, link.to)),
+                        ]),
+                    ));
+                }
+                SiteNodeKind::Resource { .. } if site_tree[link.to].name.ends_with("js") => {
+                    let path = &site_tree.rel_path(site_id, link.to);
+                    document
+                        .body
+                        .append_child(dom!(<script src="{path}"></script>));
+                }
+                SiteNodeKind::Stylesheet { .. } => {
+                    head.append_child(document.create_element_with_attributes(
+                        "link",
+                        to_attributes([
+                            ("rel", "stylesheet"),
+                            ("href", &site_tree.rel_path(site_id, link.to)),
+                        ]),
+                    ));
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+    }
+
+    // meta tags
+    head.append_child(document.create_element_with_attributes(
+        "meta",
+        to_attributes([
+            ("name", "viewport"),
+            ("content", r#"width=device-width, initial-scale=1"#),
+        ]),
+    ));
+    head.append_child(
+        document.create_element_with_attributes("meta", to_attributes([("charset", "utf-8")])),
+    );
+    for (key, value) in &options.meta {
+        if key == "description" {
+            head.append_child(document.create_element_with_attributes(
+                "meta",
+                to_attributes([("name", key), ("content", value)]),
+            ));
+        }
+        match key.as_str() {
+            "description" | "image" => {
+                head.append_child(document.create_element_with_attributes(
+                    "meta",
+                    to_attributes([("property", &format!("og:{}", key)), ("content", value)]),
+                ));
+                head.append_child(document.create_element_with_attributes(
+                    "meta",
+                    to_attributes([("name", &format!("twitter:{}", key)), ("content", value)]),
+                ));
+                continue;
+            }
+            _ => {}
+        }
+        // Open Graph (https://ogp.me/) uses property instead of name
+        if key.starts_with("og:") {
+            head.append_child(document.create_element_with_attributes(
+                "meta",
+                to_attributes([("property", key), ("content", value)]),
+            ));
+        } else {
+            head.append_child(document.create_element_with_attributes(
+                "meta",
+                to_attributes([("name", key), ("content", value)]),
+            ));
+        }
+    }
+}
+
 /// Implements all basic default behavior, like rendering all tokens and adding meta tags and title to head
 pub struct DefaultModule {
     /// Map of all site pages to options. Considers options from parents.
@@ -223,59 +320,7 @@ impl RendererModule for DefaultModule {
         }
 
         // fill head
-        let head = &document.head;
-        let title = document.create_element("title");
-        title.append_child(document.create_text_node(options.title.clone()));
-        head.append_child(title);
-        for link in site_tree.links_from(site_id) {
-            match link.relation {
-                Relation::External | Relation::Discovered { .. } => match site_tree[link.to].kind {
-                    SiteNodeKind::Resource { .. } if site_tree[link.to].name == "favicon.ico" => {
-                        head.append_child(document.create_element_with_attributes(
-                            "link",
-                            to_attributes([
-                                ("rel", "icon"),
-                                ("type", "image/x-icon"),
-                                ("href", &site_tree.rel_path(site_id, link.to)),
-                            ]),
-                        ));
-                    }
-                    SiteNodeKind::Resource { .. } if site_tree[link.to].name.ends_with("js") => {
-                        let path = &site_tree.rel_path(site_id, link.to);
-                        document
-                            .body
-                            .append_child(dom!(<script src="{path}"></script>));
-                    }
-                    SiteNodeKind::Stylesheet { .. } => {
-                        head.append_child(document.create_element_with_attributes(
-                            "link",
-                            to_attributes([
-                                ("rel", "stylesheet"),
-                                ("href", &site_tree.rel_path(site_id, link.to)),
-                            ]),
-                        ));
-                    }
-                    _ => {}
-                },
-                _ => {}
-            }
-        }
-        head.append_child(document.create_element_with_attributes(
-            "meta",
-            to_attributes([
-                ("name", "viewport"),
-                ("content", r#"width=device-width, initial-scale=1"#),
-            ]),
-        ));
-        head.append_child(
-            document.create_element_with_attributes("meta", to_attributes([("charset", "utf-8")])),
-        );
-        for (key, value) in &options.meta {
-            head.append_child(document.create_element_with_attributes(
-                "meta",
-                to_attributes([("name", key), ("content", value)]),
-            ));
-        }
+        head(document, context, options);
     }
 
     fn render_body<'n>(
