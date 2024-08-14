@@ -216,17 +216,33 @@ impl DomNode {
     pub fn sanitize_children(&mut self) {
         for mut c in self.children() {
             c.sanitize_children();
-            // can't remove while borrowing in c.kind() so getting remove flag instead
-            let should_remove = match &*c.kind() {
-                DomNodeKind::Text { text } if text.len() == 0 => true,
-                // remove paragraph if no children
-                DomNodeKind::Element { tag, .. } if tag == "p" && c.first_child().is_none() => true,
-                _ => false,
-            };
-            if should_remove {
-                c.detach()
-            }
         }
+
+        // can't remove while borrowing in c.kind() so getting remove flag instead
+        let should_remove = match &*self.kind() {
+            DomNodeKind::Text { text } if text.len() == 0 => true,
+            // remove paragraph if no children
+            DomNodeKind::Element { tag, .. } if tag == "p" && self.first_child().is_none() => true,
+            // remove paragraph if text children are only whitespace
+            DomNodeKind::Element { tag, .. } if tag == "p" => self.children().all(|c| {
+                if let DomNodeKind::Text { text } = &*c.kind() {
+                    text.chars().all(|c| c == ' ')
+                } else {
+                    false
+                }
+            }),
+            _ => false,
+        };
+        if should_remove {
+            self.detach();
+            return;
+        }
+
+        match &mut *self.kind_mut() {
+            // only single whitespace as text
+            DomNodeKind::Text { text } if text.chars().all(|c| c == ' ') => *text = " ".into(),
+            _ => {}
+        };
     }
 
     pub fn get_elements_by_tag_name(&self, tag: &str) -> Vec<DomNode> {
