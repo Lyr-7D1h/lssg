@@ -1,0 +1,111 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in library 'char_reader'",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib", "--package=char-reader"],
+        "filter": {
+          "name": "char_reader",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in library 'lssg_lib'",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib", "--package=lssg-lib"],
+        "filter": {
+          "name": "lssg_lib",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug integration test 'proc_test'",
+      "cargo": {
+        "args": [
+          "test",
+          "--no-run",
+          "--test=proc_test",
+          "--package=proc-virtual-dom"
+        ],
+        "filter": {
+          "name": "proc_test",
+          "kind": "test"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in library 'virtual_dom'",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib", "--package=virtual-dom"],
+        "filter": {
+          "name": "virtual_dom",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in library 'serde_extensions'",
+      "cargo": {
+        "args": ["test", "--no-run", "--lib", "--package=serde-extensions"],
+        "filter": {
+          "name": "serde_extensions",
+          "kind": "lib"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'lssg'",
+      "cargo": {
+        "args": ["build", "--bin=lssg", "--package=lssg"],
+        "filter": {
+          "name": "lssg",
+          "kind": "bin"
+        }
+      },
+      "args": ["examples/lyrx/home.md", "build/"],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in executable 'lssg'",
+      "cargo": {
+        "args": ["test", "--no-run", "--bin=lssg", "--package=lssg"],
+        "filter": {
+          "name": "lssg",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

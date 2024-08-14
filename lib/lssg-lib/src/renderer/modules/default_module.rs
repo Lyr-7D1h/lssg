@@ -553,12 +553,12 @@ impl RendererModule for DefaultModule {
                 parent.append_child(code_html)
             }
             Token::Link {
-                tokens: text,
+                tokens,
                 href,
                 title,
             } => {
                 // ignore link if there is no text
-                if text.len() == 0 {
+                if tokens.len() == 0 {
                     return Some(parent);
                 }
 
@@ -594,7 +594,7 @@ impl RendererModule for DefaultModule {
                     attributes.insert("title".to_owned(), title.to_owned());
                 }
                 let a = document.create_element_with_attributes("a", attributes);
-                tr.render(document, context, a.clone(), text);
+                tr.render(document, context, a.clone(), tokens);
                 parent.append_child(a);
             }
             Token::Text { text } => {

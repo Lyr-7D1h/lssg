@@ -215,25 +215,17 @@ impl DomNode {
     /// Remove empty tags or invalid html in a way that makes sense
     pub fn sanitize_children(&mut self) {
         for mut c in self.children() {
-            match &*c.kind() {
-                DomNodeKind::Text { text } => {
-                    if text.len() == 0 {
-                        self.detach();
-                        continue;
-                    }
-                }
-                DomNodeKind::Element { tag, .. } => match tag.as_str() {
-                    "p" => {
-                        // remove paragraph if no children
-                        if let None = self.first_child() {
-                            self.detach();
-                            continue;
-                        }
-                    }
-                    _ => {}
-                },
+            c.sanitize_children();
+            // can't remove while borrowing in c.kind() so getting remove flag instead
+            let should_remove = match &*c.kind() {
+                DomNodeKind::Text { text } if text.len() == 0 => true,
+                // remove paragraph if no children
+                DomNodeKind::Element { tag, .. } if tag == "p" && c.first_child().is_none() => true,
+                _ => false,
+            };
+            if should_remove {
+                c.detach()
             }
-            c.sanitize_children()
         }
     }
 
