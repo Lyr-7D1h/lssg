@@ -20,6 +20,18 @@
   text-align: left;
 }
 
+.content h1 {
+  line-height: 40px;
+}
+.content h2 {
+  padding-bottom: 0;
+}
+.content p {
+  letter-spacing: -0.003em;
+  margin-bottom: 2.14em;
+  line-height: 28px;
+}
+
 @media only screen and (max-width: 768px) {
   .post-updated-on,
   .content h1,
@@ -29,11 +41,19 @@
   .content h5,
   .content h6,
   .content p {
-    margin: 10px;
+    margin-left: 24px;
+    margin-right: 24px;
   }
 
   .post > .content {
     width: 100%;
+  }
+
+  .content p {
+    line-height: 22px;
+  }
+  .content h1 {
+    line-height: 38px;
   }
 }
 
