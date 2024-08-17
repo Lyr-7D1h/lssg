@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use log::{error, warn};
 
@@ -110,8 +110,9 @@ fn head(document: &mut Document, context: &RenderContext, options: &PropegatedOp
     let title = options.title.clone();
     head.append_child(dom!(<meta name="twitter:title" content="{title}" />));
 
-    // add stylesheet and favicon
-    for link in site_tree.links_from(site_id) {
+    // add stylesheets and favicon
+    // reverse the order of insertion because latest css is applied last
+    for link in site_tree.links_from(site_id).into_iter().rev() {
         match link.relation {
             Relation::External | Relation::Discovered { .. } => match site_tree[link.to].kind {
                 SiteNodeKind::Resource { .. } if site_tree[link.to].name == "favicon.ico" => {
@@ -213,8 +214,6 @@ impl RendererModule for DefaultModule {
 
     /// Add all resources from ResourceOptions to SiteTree
     fn init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
-        let mut relation_map = HashMap::new();
-
         let pages: Vec<usize> = DFS::new(site_tree)
             .filter(|id| site_tree[*id].kind.is_page())
             .collect();
@@ -224,12 +223,16 @@ impl RendererModule for DefaultModule {
             site_tree.root(),
             Resource::new_static(DEFAULT_JS.to_owned()),
         ));
+        site_tree.add_link(site_tree.root(), default_js);
+
         let default_stylesheet = site_tree.add(SiteNode::stylesheet(
             "default.css",
             site_tree.root(),
             Stylesheet::from_readable(DEFAULT_STYLESHEET)?,
         ));
+        site_tree.add_link(site_tree.root(), default_stylesheet);
 
+        let mut relation_map: HashMap<usize, Vec<usize>> = HashMap::new();
         // propegate relations to stylesheets and favicon from parent to child
         for id in pages {
             // skip page if disabled
@@ -240,12 +243,8 @@ impl RendererModule for DefaultModule {
                 }
             }
 
-            // add default stylesheet to all pages
-            site_tree.add_link(id, default_stylesheet);
-            site_tree.add_link(id, default_js);
-
             // get the set of links to favicon and stylesheets
-            let mut set: HashSet<usize> = site_tree
+            let mut set: Vec<usize> = site_tree
                 .links_from(id)
                 .into_iter()
                 .filter_map(|link| match link.relation {
@@ -266,11 +265,18 @@ impl RendererModule for DefaultModule {
             // update set with parent and add any links from parent
             if let Some(parent) = site_tree.page_parent(id) {
                 if let Some(parent_set) = relation_map.get(&parent) {
+                    // 0 [28, 29, 32, 35, 37, 49]
                     // add links from parent_set without the ones it already has
-                    for to in (parent_set - &set).iter() {
+                    let mut new_links: Vec<usize> = parent_set
+                        .into_iter()
+                        .filter(|id| !set.contains(id))
+                        .cloned()
+                        .collect();
+                    for to in new_links.iter() {
                         site_tree.add_link(id, *to);
                     }
-                    set = set.union(parent_set).cloned().collect();
+                    new_links.extend(set.iter());
+                    set = new_links;
                 }
             }
             relation_map.insert(id, set);

@@ -1,15 +1,13 @@
-use std::{
-    ops::{Index, IndexMut},
-};
+use std::ops::{Index, IndexMut};
 
 #[derive(Debug, Clone)]
 pub enum Relation {
-    /// from parent to child
+    /// Parent-child relationship
     Family,
+    /// Relation set by module logic
     External,
-    Discovered {
-        raw_path: String,
-    },
+    /// Found relation by parsing a file
+    Discovered { raw_path: String },
 }
 
 #[derive(Debug, Clone)]

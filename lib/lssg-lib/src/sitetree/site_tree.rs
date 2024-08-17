@@ -185,7 +185,7 @@ impl SiteTree {
         (0..self.nodes.len() - 1).collect()
     }
 
-    /// add a link between two site nodes
+    /// add an external relation between two site nodes
     /// This will help create resources necessary for `from`
     pub fn add_link(&mut self, from: SiteId, to: SiteId) {
         self.rel_graph.add(from, to, Relation::External);
