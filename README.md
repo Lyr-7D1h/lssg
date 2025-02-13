@@ -99,7 +99,7 @@ Sitetree: Recursively find links to resources in parsed pages and stylesheets (s
 Sitetree: Add these resources as nodes into Sitetree
     |
 Go through all nodes in tree
-if resources 
+if resource 
     Copy resource
 if page => use modular HtmlRenderer to turn lmarkdown tokens into html, and write to file
     HtmlRenderer: Create Domtree 
@@ -130,6 +130,14 @@ if page => use modular HtmlRenderer to turn lmarkdown tokens into html, and writ
 - Don't load all files into memory, might cause issues for large resource files or big sites
 - Add file minification for CSS
 - Documentation module
+- Improve blog module
+    - RSS functionality
+    - tags
+    - Better index page
+        - Show and sort by date
+        - Small blog post summary
+- Statistics module
+    - Fetch github statistics
 - Multi platform support
     - Make releases for other platforms
 ~~- Custom styling support~~
