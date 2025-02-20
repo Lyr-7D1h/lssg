@@ -21,7 +21,10 @@ image="https://lyrx.dev/icon.png"
 [](./blog.md)
 [](./living_space.md)
 [](./art.md)
-
+<!-- TOOD: add learning resources -->
+<!-- [](./learning) -->
+<!-- TODO: add my learning schedule -->
+<!-- [](./learning_schedule) -->
 <centered>
 # LyrX
 
