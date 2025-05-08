@@ -1,4 +1,4 @@
-<!--art.created_on="2024-4-9"-->
+<!--blog.created_on="2024-4-9"-->
 
 # Squiggles
 

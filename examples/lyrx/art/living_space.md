@@ -1,4 +1,4 @@
-<!--art.created_on="2024-8-10"-->
+<!--blog.created_on="2024-8-10"-->
 # Living Space
 
 A simulation of a small ecosystem where creatures (pixels) interact with each other and their environment. Each creature has a unique personality based on the Big Five personality traits that influences how they walk and interact with other creatures. For example a very caring creature gets very attracted to other creatures or a more introverted creature will avoid other creatures and stay more in place.
@@ -6,7 +6,6 @@ A simulation of a small ecosystem where creatures (pixels) interact with each ot
 The idea is that over time you will have a living colorful ecosystem that will change and adapt over time all based on the initial creatures you create. Resembling the way our society works and interacts with each other. 
 
 **You can create your own canvas here:**
-
 <!-- TODO: add query params to local links  -->
 - [With QR](../living_space.md)
 - [Without QR](https://lyrx.dev/living_space/?QR=false)

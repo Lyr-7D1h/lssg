@@ -1,4 +1,10 @@
-<!--blog.root = true-->
+<!--
+[blog]
+root = true
+[blog.rss]
+enabled = true
+footer = true
+-->
 
 # Blog
 

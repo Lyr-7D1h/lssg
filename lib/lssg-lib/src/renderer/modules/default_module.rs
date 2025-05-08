@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use constants::{DEFAULT_JS, DEFAULT_STYLESHEET};
 use log::{error, warn};
 
 use proc_virtual_dom::dom;
@@ -20,10 +21,8 @@ use crate::renderer::{RenderContext, RendererModule, TokenRenderer};
 
 use super::util::{process_href, tokens_to_text};
 
+mod constants;
 mod render_html;
-
-const DEFAULT_STYLESHEET: &[u8] = include_bytes!("./default_stylesheet.css");
-const DEFAULT_JS: &str = include_str!("./default.js");
 
 const PRISM_CSS: &[u8] = include_bytes!("./default_module/prism.css");
 const PRISM_JS: &str = include_str!("./default_module/prism.js");

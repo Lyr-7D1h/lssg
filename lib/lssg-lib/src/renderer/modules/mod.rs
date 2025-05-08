@@ -20,6 +20,7 @@ pub mod util;
 
 use super::{RenderContext, TokenRenderer};
 
+/// Implement a custom RendererModule
 #[allow(unused)]
 pub trait RendererModule {
     /// Return a static identifier for this module

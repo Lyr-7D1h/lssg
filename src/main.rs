@@ -42,8 +42,8 @@ struct Args {
     log: Option<LevelFilter>,
 
     /// Enable media optimization (images and videos)
-    #[clap(long, short, default_value = "true")]
-    media_optimization: bool,
+    #[clap(long, short, default_value = "false")]
+    no_media_optimization: bool,
 }
 
 fn main() {
@@ -54,7 +54,6 @@ fn main() {
         .unwrap();
 
     let input = args.input;
-
     if args.single_page {
         let mut site_tree =
             SiteTree::from_input(input.clone()).expect("Failed to generate site tree");
@@ -62,7 +61,7 @@ fn main() {
         let mut renderer = Renderer::new();
         renderer.add_module(ExternalModule::new());
         renderer.add_module(BlogModule::new());
-        if args.media_optimization {
+        if !args.no_media_optimization {
             renderer.add_module(MediaModule::new());
         }
         renderer.add_module(DefaultModule::new());
@@ -87,7 +86,7 @@ fn main() {
     let mut lssg = Lssg::new(input, output);
     lssg.add_module(ExternalModule::new());
     lssg.add_module(BlogModule::new());
-    if args.media_optimization {
+    if !args.no_media_optimization {
         lssg.add_module(MediaModule::new());
     }
     lssg.add_module(DefaultModule::new());
