@@ -34,7 +34,7 @@ pub fn parse_lmarkdown(input: impl Read) -> Result<Vec<Token>, ParseError> {
 mod tests {
     use std::{collections::HashMap, io::Cursor, io::Read};
 
-    use toml::Table;
+    use toml::{Table, Value};
 
     use super::{parse_lmarkdown, Token};
 
@@ -424,6 +424,20 @@ baz"#;
         let input = r#"<!--<test></test>-->"#;
         let expected = vec![Token::Comment {
             raw: "<test></test>".into(),
+        }];
+        let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_html_in_attributes() {
+        let input = r#"<!--
+test='<test></test>'
+-->"#;
+        let expected = vec![Token::Attributes {
+            table: [("test".to_string(), Value::String("<test></test>".into()))]
+                .into_iter()
+                .collect(),
         }];
         let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
         assert_eq!(tokens, expected);

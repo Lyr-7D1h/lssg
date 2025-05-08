@@ -55,7 +55,7 @@ fn from_reader(
                 if let Some(comment) = reader.peek_until_match_inclusive("-->")? {
                     match toml::from_str(&comment[4..comment.len() - 3]) {
                         Ok(toml::Value::Table(table)) => {
-                            reader.consume_until_inclusive(|c| c == '>')?;
+                            reader.consume(comment.len())?;
                             return Ok(Some(Token::Attributes { table }));
                         }
                         Ok(_) => warn!("Attributes is not a table"),
