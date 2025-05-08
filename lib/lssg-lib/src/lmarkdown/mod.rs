@@ -266,7 +266,7 @@ Foo *bar*
         assert_eq!(expected, tokens);
     }
 
-    #[test]
+    // #[test]
     //     fn test_bullet_list_indented() {
     //         let input = r#"- one
 
@@ -417,5 +417,15 @@ baz"#;
         let reader: Box<dyn Read> = Box::new(Cursor::new(input));
         let tokens = parse_lmarkdown(reader).unwrap();
         assert_eq!(expected, tokens);
+    }
+
+    #[test]
+    fn test_html_in_comments() {
+        let input = r#"<!--<test></test>-->"#;
+        let expected = vec![Token::Comment {
+            raw: "<test></test>".into(),
+        }];
+        let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+        assert_eq!(tokens, expected);
     }
 }
