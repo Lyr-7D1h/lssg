@@ -26,7 +26,8 @@ struct Args {
     input: Input,
 
     /// path to put the static files into, any needed parent folders are automatically created
-    output: PathBuf,
+    #[clap(required_unless_present_any = ["single_page", "ast"])]
+    output: Option<PathBuf>,
 
     /// Print output of a single page
     #[clap(long, short, global = true)]
@@ -64,7 +65,6 @@ fn main() {
             .render(&site_tree, site_tree.root())
             .expect("failed to render");
         println!("{html}");
-        // fs::write(args.output, html).expect("failed to write to file");
         return;
     }
 
@@ -75,7 +75,9 @@ fn main() {
         return;
     }
 
-    let mut lssg = Lssg::new(input, args.output);
+    // At this point we know output is Some(_) because of required_unless_present_any
+    let output = args.output.unwrap();
+    let mut lssg = Lssg::new(input, output);
     lssg.add_module(ExternalModule::new());
     lssg.add_module(BlogModule::new());
     lssg.add_module(DefaultModule::new());
