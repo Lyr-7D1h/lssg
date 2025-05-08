@@ -32,6 +32,10 @@ impl LssgError {
         }
     }
 
+    pub fn parse<S: Into<String>>(message: S) -> LssgError {
+        Self::new(message, LssgErrorKind::ParseError)
+    }
+
     pub fn sitetree<S: Into<String>>(message: S) -> LssgError {
         Self::new(message, LssgErrorKind::SiteTree)
     }
@@ -52,6 +56,14 @@ impl LssgError {
 impl From<ParseError> for LssgError {
     fn from(error: ParseError) -> Self {
         Self::new(&error.to_string(), LssgErrorKind::ParseError)
+    }
+}
+impl From<chrono::ParseError> for LssgError {
+    fn from(value: chrono::ParseError) -> Self {
+        Self::new(
+            format!("Failed to parse date: {}", value.to_string()),
+            LssgErrorKind::ParseError,
+        )
     }
 }
 impl From<io::Error> for LssgError {

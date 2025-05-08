@@ -1,3 +1,20 @@
+//! Lyr's Static Site Generator
+//!
+//! This is a static site generator I wrote mostly for personal use but can also be fitted to work for anyone else.
+//!
+//!
+//! # Examples on how to use this crate
+//! ```rs
+//! let input = Input::from_string("./test.md")
+//! let output = Input::from_string("./build")
+//! let mut lssg = Lssg::new(input, output);
+//! // Add modules
+//! lssg.add_module(ExternalModule::new());
+//! lssg.add_module(BlogModule::new());
+//! lssg.add_module(DefaultModule::new());
+//! // Render code to the folder
+//! lssg.render().unwrap()
+//! ```
 pub mod char_reader;
 pub mod lmarkdown;
 pub mod parse_error;

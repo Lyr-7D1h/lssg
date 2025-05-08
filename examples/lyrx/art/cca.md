@@ -1,4 +1,4 @@
-<!--art.created_on="2024-3-30"-->
+<!--blog.created_on="2024-3-30"-->
 
 # Creative Coding Amsterdam Banner
 
