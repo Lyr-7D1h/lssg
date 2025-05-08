@@ -12,7 +12,9 @@ use crate::{
     sitetree::{Input, Page, Relation, Resource, SiteNode, SiteNodeKind, SiteTree, Stylesheet},
     tree::DFS,
 };
-use virtual_dom::{self, parse_html, to_attributes, Document, DomNode, DomNodeKind, Html};
+use virtual_dom::{
+    self, parse_html, parse_html_from_string, to_attributes, Document, DomNode, DomNodeKind, Html,
+};
 
 use crate::renderer::{RenderContext, RendererModule, TokenRenderer};
 
@@ -29,8 +31,10 @@ struct PropegatedOptions {
     pub title: String,
     /// Translates to meta tags <https://www.w3schools.com/tags/tag_meta.asp>
     pub meta: HashMap<String, String>,
-    /// Lang attribute ("en") <https://www.w3schools.com/tags/ref_language_codes.asp>
+    /// Lang attribute ("en" by default) <https://www.w3schools.com/tags/ref_language_codes.asp>
     pub language: String,
+    /// Any other custom html that you want to put in the script
+    pub head: Vec<String>,
 }
 impl Default for PropegatedOptions {
     fn default() -> Self {
@@ -38,6 +42,7 @@ impl Default for PropegatedOptions {
             meta: HashMap::new(),
             title: String::new(),
             language: "en".into(),
+            head: vec![],
         }
     }
 }
@@ -157,6 +162,27 @@ fn head(document: &mut Document, context: &RenderContext, options: &PropegatedOp
     head.append_child(
         document.create_element_with_attributes("meta", to_attributes([("charset", "utf-8")])),
     );
+
+    for input in &options.head {
+        let html = match parse_html_from_string(&input) {
+            Ok(html) => {
+                if html.len() > 2 {
+                    warn!("{html:?} has more than two html elements");
+                }
+                let Some(html) = html.into_iter().next() else {
+                    warn!("{input:?} did not contain a single html element");
+                    continue;
+                };
+                html
+            }
+            Err(e) => {
+                warn!("Error while parsing html {e}");
+                continue;
+            }
+        };
+        head.append_child(html);
+    }
+
     for (key, value) in &options.meta {
         if key == "description" {
             head.append_child(document.create_element_with_attributes(

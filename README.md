@@ -31,8 +31,7 @@ lssg {PATH_TO_INDEX_MARKDOWN_FILE} {PATH_TO_OUTPUT_FOLDER}
 This is how you would generate lyrx from its content
 
 ```bash
-cd examples/lyrx
-lssg ./content/home.md ./build
+lssg ./examples/lyrx/home.md ./build
 ```
 
 You can use a simple html live reload server to view changes as you develop like [live-server](https://github.com/tapio/live-server)
@@ -44,7 +43,7 @@ lssg https://raw.githubusercontent.com/Lyr-7D1h/lssg/master/examples/lyrx/home.m
 ```
 
 > [!NOTE]
-> Any links from the input markdown file to other markdown files have to be contained within the parent folder of your input markdown file
+> Any local links from the input markdown file to other markdown files have to be contained within the parent folder of your input markdown file
 
 ## LMarkdown (Lyr's Markdown)
 
@@ -118,6 +117,7 @@ if page => use modular HtmlRenderer to turn lmarkdown tokens into html, and writ
 - [Footnote support](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#footnotes)
 - [Alert support](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts)
 - Code highlighting support
+- Use [Shadow dom](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM) for encapsulating imported html pages to prevent conflicting js and css
 - Support for relative base website.com/blog/index.html
     - See `<base href="http://yourdomain.com/">`
 - Update documentation

@@ -7,7 +7,7 @@ use std::{collections::VecDeque, iter};
 pub use document::*;
 pub use dom_node::*;
 use html::*;
-pub use html::{parse_html, Html};
+pub use html::{parse_html, parse_html_from_string, Html};
 
 /// Used in dom-proc for converting braced variables into domnode and to allow any kind of dom element to be appended
 #[derive(Debug, PartialEq)]

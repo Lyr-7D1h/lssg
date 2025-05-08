@@ -1,6 +1,7 @@
 pub use serde_extensions_derive::*;
 
 pub trait Overwrite {
+    /// Overwrite existing fields in a struct
     fn overwrite<'de, D>(&mut self, d: D) -> Result<(), D::Error>
     where
         D: serde::Deserializer<'de>;

@@ -57,11 +57,14 @@ fn impl_optional_macro(ast: &syn::DeriveInput) -> TokenStream {
         .collect();
 
     let gen = quote! {
+        // make an optional version of this struct
         #[derive(serde::Deserialize)]
         struct #optional_name {
             #( #field_names: Option<#field_types>, )*
         }
 
+        // parse `d` to optional struct and check for each field if it has a value
+        // if yes then overwrite `$field_name` of `#name`
         impl Overwrite for #name {
             /// Overwrite self with a serde object
             fn overwrite<'de, D>(&mut self, d: D) -> Result<(), D::Error>

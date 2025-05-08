@@ -1,5 +1,8 @@
 <!--
 title="Lyrx"
+head=[
+  '<script defer src="https://analytics.lyrx.dev/script.js" data-website-id="5839ff14-81d0-4a0e-a9b4-2ca9fc44839b"></script>'
+]
 [meta]
 description="Lyr's little space of the internet"
 

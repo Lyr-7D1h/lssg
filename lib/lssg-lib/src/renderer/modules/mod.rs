@@ -23,7 +23,7 @@ pub trait RendererModule {
     /// Return a static identifier for this module
     fn id(&self) -> &'static str;
 
-    /// This gets run once just after site_tree has been created
+    /// This gets run once just after the site_tree has been created
     fn init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
         Ok(())
     }

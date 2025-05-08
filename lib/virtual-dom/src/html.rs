@@ -4,6 +4,10 @@ use char_reader::CharReader;
 
 use crate::DomNode;
 
+pub fn parse_html_from_string(input: &String) -> Result<Vec<Html>, io::Error> {
+    return parse_html(input.as_bytes());
+}
+
 // TODO: return DomNode directly instead of parsing to intermediary representation
 pub fn parse_html(input: impl Read) -> Result<Vec<Html>, io::Error> {
     let mut reader = CharReader::new(input);
