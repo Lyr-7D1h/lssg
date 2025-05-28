@@ -88,9 +88,16 @@ impl DomNode {
         Self::new(DomNodeKind::Text { text: text.into() })
     }
 
-    pub fn set_attribute(&mut self, key: String, value: String) {
+    pub fn get_attribute(&self, attribute: &str) -> Option<String> {
+        match &*self.kind() {
+            DomNodeKind::Text { .. } => None,
+            DomNodeKind::Element { attributes, .. } => attributes.get(attribute).cloned(),
+        }
+    }
+
+    pub fn set_attribute(&mut self, key: &str, value: &str) {
         if let DomNodeKind::Element { attributes, .. } = &mut *self.kind_mut() {
-            attributes.insert(key, value);
+            attributes.insert(key.into(), value.into());
         }
     }
 
