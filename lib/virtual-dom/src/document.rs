@@ -48,6 +48,12 @@ impl Document {
         self.root.get_elements_by_tag_name(tag)
     }
 
+    pub fn get_element_by_id(&self, id: &str) -> Option<DomNode> {
+        self.root
+            .descendants()
+            .find(|e| e.get_attribute("id").map(|a| a == id).unwrap_or(false))
+    }
+
     pub fn create_element(&self, tag: impl Into<String>) -> DomNode {
         DomNode::create_element(tag)
     }

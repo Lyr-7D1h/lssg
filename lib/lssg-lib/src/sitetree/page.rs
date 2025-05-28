@@ -61,9 +61,9 @@ impl Page {
         return srcs;
     }
 
-    pub fn attributes(&self) -> Option<&toml::Table> {
+    pub fn attributes(&self) -> Option<toml::Table> {
         if let Some(Token::Attributes { table }) = self.tokens().first() {
-            Some(table)
+            Some(table.clone())
         } else {
             None
         }
