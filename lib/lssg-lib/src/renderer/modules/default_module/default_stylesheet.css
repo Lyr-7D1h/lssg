@@ -116,7 +116,7 @@ blockquote {
   /* Standard */
   min-height: calc(100vh - 30px);
 }
-#watermark {
+#default__footer {
   text-align: center;
   height: 30px;
   margin: 0;

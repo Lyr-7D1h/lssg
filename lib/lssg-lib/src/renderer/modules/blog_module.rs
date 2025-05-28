@@ -1,17 +1,17 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 
-use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use constants::BLOG_STYLESHEET;
-use log::warn;
+use dates::Dates;
+use log::{error, warn};
 use proc_virtual_dom::dom;
 use rss::RssOptions;
+use serde::Deserialize;
 use serde_extensions::Overwrite;
 
 use crate::{
     lmarkdown::Token,
-    lssg_error::LssgError,
     renderer::RenderContext,
-    sitetree::{Input, SiteNode, SiteNodeKind, Stylesheet},
+    sitetree::{SiteId, SiteNode, SiteNodeKind, SiteTree, Stylesheet},
     tree::DFS,
 };
 use virtual_dom::{to_attributes, Document, DomNode};
@@ -19,29 +19,90 @@ use virtual_dom::{to_attributes, Document, DomNode};
 use super::{RendererModule, TokenRenderer};
 
 mod constants;
+mod dates;
 mod rss;
 
-#[derive(Overwrite, Debug)]
-pub struct BlogOptions {
+#[derive(Clone)]
+/// Describes the content of a blog post
+struct Contents {
+    title: Option<String>,
+    link: Option<String>,
+    description: Option<String>,
+}
+impl Contents {
+    fn empty() -> Self {
+        Self {
+            title: None,
+            link: None,
+            description: None,
+        }
+    }
+}
+
+#[derive(Overwrite, Clone, Debug, Deserialize)]
+pub struct BlogRootOptions {
     rss: RssOptions,
-    /// When has an article been changed (%Y-%m-%d)
+    /// Use dates from file system to create updated on and modified on tags
+    use_fs_dates: bool,
+}
+impl Default for BlogRootOptions {
+    fn default() -> Self {
+        Self {
+            rss: RssOptions::default(),
+            use_fs_dates: true,
+        }
+    }
+}
+#[derive(Overwrite, Clone, Debug, Deserialize)]
+pub struct BlogPostOptions {
+    /// Use blog rendering for this page, if false it will still index this page
+    render: bool,
+    /// When has an article been changed (any iso date string or %Y-%m-%d)
     modified_on: Option<String>,
     created_on: Option<String>,
     tags: Option<Vec<String>>,
 }
-impl Default for BlogOptions {
+impl Default for BlogPostOptions {
     fn default() -> Self {
         Self {
+            render: true,
             modified_on: None,
             created_on: None,
-            rss: RssOptions::default(),
             tags: None,
         }
     }
 }
 
+#[derive(Clone)]
+struct PostPage {
+    post_options: BlogPostOptions,
+    /// Relevant dates given by metadata
+    dates: Dates,
+    /// Contents of the page that gets filled in during render
+    contents: Contents,
+}
+
+/// Represent a page active in the blog module
+struct BlogPage {
+    /// Global blog settings applied to all children
+    root_options: BlogRootOptions,
+    /// Blog Post settings
+    post_page: Option<PostPage>,
+}
+
+impl BlogPage {
+    /// don't render if not a post page or render disabled
+    fn should_render(&self) -> Option<&PostPage> {
+        let page = self.post_page.as_ref()?;
+        if page.post_options.render == false {
+            return None;
+        }
+        Some(page)
+    }
+}
+
 pub struct BlogModule {
-    site_ids: HashSet<usize>,
+    blog_pages: HashMap<SiteId, BlogPage>,
     /// Local variable to keep track if date has been inserted
     has_inserted_date: bool,
 }
@@ -49,9 +110,36 @@ pub struct BlogModule {
 impl BlogModule {
     pub fn new() -> Self {
         Self {
-            site_ids: HashSet::new(),
+            blog_pages: HashMap::new(),
             has_inserted_date: false,
         }
+    }
+
+    /// Get blog page for render
+    fn blog_page(&self, site_id: SiteId) -> Option<&PostPage> {
+        let page = self.blog_pages.get(&site_id)?;
+        let page = page.post_page.as_ref()?;
+        if page.post_options.render == false {
+            return None;
+        }
+        Some(page)
+    }
+
+    /// Get blog root options
+    fn blog_root_options<'n>(
+        &self,
+        site_tree: &SiteTree,
+        site_id: SiteId,
+    ) -> Option<&BlogRootOptions> {
+        let mut site_id = Some(site_id);
+        while let Some(id) = site_id {
+            if let Some(page) = self.blog_pages.get(&id) {
+                return Some(&page.root_options);
+            }
+
+            site_id = site_tree.page_parent(id);
+        }
+        None
     }
 }
 
@@ -78,11 +166,58 @@ impl RendererModule for BlogModule {
         for site_id in pages {
             match &mut site_tree[site_id].kind {
                 SiteNodeKind::Page(page) => {
-                    if let Some(attributes) = page.attributes() {
-                        if attributes.contains_key(self.id()) {
-                            self.site_ids.insert(site_id);
-                            site_tree.add_link(site_id, default_stylesheet);
-                        }
+                    if let Some(Some(table)) = page.attributes().map(|a| a.get(self.id()).cloned())
+                    {
+                        let root_options = {
+                            match table.get("root") {
+                                Some(v) => {
+                                    let mut o = BlogRootOptions::default();
+                                    if let Err(e) = o.overwrite(v.clone()) {
+                                        error!(
+                                            "Failed to parse options for '{}' module: {e}",
+                                            self.id()
+                                        )
+                                    }
+                                    o
+                                }
+                                None => match self.blog_root_options(site_tree, site_id) {
+                                    Some(o) => o.clone(),
+                                    // if no blog root parent ignore
+                                    None => continue,
+                                },
+                            }
+                        };
+                        let post_page = table.get("post").map(|v| {
+                            let mut post_options = BlogPostOptions::default();
+                            if let Err(e) = post_options.overwrite(v.clone()) {
+                                error!("Failed to parse options for '{}' module: {e}", self.id())
+                            }
+
+                            let input = if root_options.use_fs_dates {
+                                site_tree.get_input(site_id).cloned()
+                            } else {
+                                None
+                            };
+                            let dates = Dates::from_post_options(&post_options, &input)
+                                .inspect_err(|e| warn!("Failed to parse dates: {e}"))
+                                .ok()
+                                .unwrap_or_default();
+
+                            PostPage {
+                                post_options,
+                                dates,
+                                contents: Contents::empty(),
+                            }
+                        });
+
+                        self.blog_pages.insert(
+                            site_id,
+                            BlogPage {
+                                root_options,
+                                post_page,
+                            },
+                        );
+                        site_tree.add_link(site_id, default_stylesheet);
                     }
                 }
                 _ => {}
@@ -100,18 +235,19 @@ impl RendererModule for BlogModule {
         let site_id = context.site_id;
 
         // if not a blog page
-        if !self.site_ids.contains(&site_id) {
+        let Some(blog_page) = self.blog_page(site_id) else {
             return None;
-        }
+        };
 
         // add article meta data
-        let options: BlogOptions = self.options(context.page);
-        if let Some(date) = options.modified_on {
+        if let Some(date) = &blog_page.dates.modified_on {
+            let date = date.date.to_rfc3339();
             document
                 .head
                 .append_child(dom!(<meta property="article:modified_time" content="{date}"/>));
         }
-        if let Some(date) = options.created_on {
+        if let Some(date) = &blog_page.dates.created_on {
+            let date = date.date.to_rfc3339();
             document.head.append_child(dom!(
                 <meta property="article:published_time" content="{date}"/>
             ));
@@ -132,20 +268,14 @@ impl RendererModule for BlogModule {
         tr: &mut TokenRenderer,
     ) -> Option<DomNode> {
         let site_id = context.site_id;
-        if !self.site_ids.contains(&site_id) {
+
+        // if not a blog page
+        let Some(blog_page) = self.blog_page(site_id).cloned() else {
             return None;
-        }
+        };
 
         match token {
             Token::Heading { depth, .. } if *depth == 1 && !self.has_inserted_date => {
-                let options: BlogOptions = self.options(context.page);
-                let dates = match Dates::from_options(&options, context) {
-                    Ok(dates) => dates,
-                    Err(e) => {
-                        warn!("Failed to get dates: {e}");
-                        return None;
-                    }
-                };
                 self.has_inserted_date = true;
                 let post = document
                     .create_element_with_attributes("div", to_attributes([("class", "post")]));
@@ -155,7 +285,7 @@ impl RendererModule for BlogModule {
                 parent.append_child(post);
                 // render heading
                 tr.render(document, context, content.clone(), &vec![token.clone()]);
-                if let Some(date) = dates.to_pretty_string() {
+                if let Some(date) = blog_page.dates.to_pretty_string() {
                     content.append_child(dom!(<div class="blog__date">{date}</div>));
                 }
 
@@ -199,89 +329,4 @@ impl RendererModule for BlogModule {
 
 pub fn is_href_external(href: &str) -> bool {
     return href.starts_with("http") || href.starts_with("mailto:");
-}
-
-struct Dates {
-    modified_on: Option<DateTime<Utc>>,
-    created_on: Option<DateTime<Utc>>,
-}
-impl Dates {
-    fn from_options(options: &BlogOptions, context: &RenderContext) -> Result<Self, LssgError> {
-        let created_on = match options
-            .created_on
-            .as_ref()
-            .map(|s| {
-                parse_date_string(&s)
-                    .inspect_err(|e| {
-                        warn!("Failed to parse created on '{s}': {e}");
-                    })
-                    .ok()
-            })
-            .flatten()
-        {
-            Some(date) => Some(date),
-            None => match context.input {
-                Some(Input::Local { path }) => Some(path.metadata()?.created()?.into()),
-                _ => None,
-            },
-        };
-        let modified_on = match options
-            .modified_on
-            .as_ref()
-            .map(|s| {
-                parse_date_string(s)
-                    .inspect_err(|e| {
-                        warn!("Failed to parse modified on '{s}': {e}");
-                    })
-                    .ok()
-            })
-            .flatten()
-        {
-            Some(date) => Some(date),
-            None => match context.input {
-                Some(Input::Local { path }) => Some(path.metadata()?.modified()?.into()),
-                _ => None,
-            },
-        };
-
-        Ok(Self {
-            created_on,
-            modified_on,
-        })
-    }
-
-    fn to_pretty_string(&self) -> Option<String> {
-        if let Some(date) = self.modified_on {
-            return Some(date.format("Updated on %B %d, %Y").to_string());
-        }
-        if let Some(date) = self.created_on {
-            return Some(date.format("Created on %B %d, %Y").to_string());
-        }
-        None
-    }
-}
-fn parse_date_string(input: &String) -> Result<DateTime<Utc>, LssgError> {
-    // Try RFC 3339 first (includes timezone): "2025-05-08T14:30:00+02:00"
-    if let Ok(dt_fixed) = DateTime::parse_from_rfc3339(input) {
-        return Ok(dt_fixed.with_timezone(&Utc));
-    }
-
-    // Try full datetime without timezone: "2025-05-08T14:30:00"
-    if let Ok(naive_dt) = NaiveDateTime::parse_from_str(input, "%Y-%m-%dT%H:%M:%S") {
-        return Ok(Utc.from_utc_datetime(&naive_dt));
-    }
-
-    // Try date-only formats
-    for format in ["%Y-%m-%e", "%Y-%m-%d"] {
-        if let Ok(naive_date) = NaiveDate::parse_from_str(input, format) {
-            // Use modern chrono method for creating time
-            let naive_time = chrono::NaiveTime::from_hms_opt(0, 0, 0)
-                .ok_or_else(|| LssgError::parse(format!("Date out of range: {input}")))?;
-            let naive_dt = naive_date.and_time(naive_time);
-            return Ok(Utc.from_utc_datetime(&naive_dt));
-        }
-    }
-
-    // If none match, return an error
-    Err(LssgError::parse(format!("Unknown date format: {input}")))
 }
