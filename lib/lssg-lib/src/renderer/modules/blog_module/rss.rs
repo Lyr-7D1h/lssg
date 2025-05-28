@@ -1,10 +1,12 @@
 use serde::Deserialize;
 use serde_extensions::Overwrite;
 
-#[derive(Overwrite, Debug, Deserialize)]
+#[derive(Overwrite, Clone, Debug, Deserialize)]
 pub struct RssOptions {
-    enabled: bool,
-    footer: bool,
+    /// Rss is enabled for this page and all of its children
+    pub enabled: bool,
+    /// This footer is applied to this page and all of its children
+    pub footer: bool,
 }
 impl Default for RssOptions {
     fn default() -> Self {

@@ -10,6 +10,12 @@ author="Lyr, lyr-7d1h@pm.me"
 keywords="blog,art,portfolio,technology,projects,software"
 subject="technology"
 image="https://lyrx.dev/icon.png"
+[footer]
+items = [
+"Made with <3"
+]
+
+[blog.root]
 -->
 [](./icon.png)
 <!-- add favicon -->

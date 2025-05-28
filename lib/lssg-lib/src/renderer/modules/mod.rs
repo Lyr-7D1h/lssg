@@ -1,4 +1,5 @@
 use log::error;
+use serde::Serialize;
 use serde_extensions::Overwrite;
 
 use crate::{
@@ -27,6 +28,8 @@ pub trait RendererModule {
     fn id(&self) -> &'static str;
 
     /// This gets run once just after the site_tree has been created
+    ///
+    /// Its mostly useful for modifying the site tree (adding new pages, modifying resources, etc.)
     fn init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
         Ok(())
     }
