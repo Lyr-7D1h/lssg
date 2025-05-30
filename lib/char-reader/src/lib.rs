@@ -101,11 +101,14 @@ impl<R: Read> CharReader<R> {
         return Ok(result);
     }
     /// returns None if EOF is reached, to prevent false positives
-    pub fn peek_until_exclusive_from(
+    pub fn peek_until_exclusive_from<F>(
         &mut self,
         pos: usize,
-        op: fn(char) -> bool,
-    ) -> Result<Option<String>, io::Error> {
+        op: F,
+    ) -> Result<Option<String>, io::Error>
+    where
+        F: Fn(char) -> bool,
+    {
         let mut i = pos;
         loop {
             match self.peek_char(i)? {
@@ -124,19 +127,22 @@ impl<R: Read> CharReader<R> {
     }
 
     /// returns None if EOF is reached, to prevent false positives
-    pub fn peek_until_inclusive(
-        &mut self,
-        op: fn(char) -> bool,
-    ) -> Result<Option<String>, io::Error> {
+    pub fn peek_until_inclusive<F>(&mut self, op: F) -> Result<Option<String>, io::Error>
+    where
+        F: Fn(char) -> bool,
+    {
         return self.peek_until_inclusive_from(0, op);
     }
 
     /// returns None if EOF is reached, to prevent false positives
-    pub fn peek_until_inclusive_from(
+    pub fn peek_until_inclusive_from<F>(
         &mut self,
         pos: usize,
-        op: fn(char) -> bool,
-    ) -> Result<Option<String>, io::Error> {
+        op: F,
+    ) -> Result<Option<String>, io::Error>
+    where
+        F: Fn(char) -> bool,
+    {
         let mut i = pos;
         loop {
             match self.peek_char(i)? {
@@ -252,7 +258,10 @@ impl<R: Read> CharReader<R> {
     }
 
     /// Will read until eof or `op` is true including the true match
-    pub fn consume_until_inclusive(&mut self, op: fn(char) -> bool) -> Result<String, io::Error> {
+    pub fn consume_until_inclusive<F>(&mut self, op: F) -> Result<String, io::Error>
+    where
+        F: Fn(char) -> bool,
+    {
         self.has_read = true;
         let mut result = String::new();
         loop {
@@ -272,7 +281,10 @@ impl<R: Read> CharReader<R> {
     }
 
     /// will read until eof or `op` is true excluding the character that matched
-    pub fn consume_until_exclusive(&mut self, op: fn(char) -> bool) -> Result<String, io::Error> {
+    pub fn consume_until_exclusive<F>(&mut self, op: F) -> Result<String, io::Error>
+    where
+        F: Fn(char) -> bool,
+    {
         self.has_read = true;
         let mut i = 0;
         loop {
@@ -397,4 +409,3 @@ Very important test"
         assert_eq!(reader.consume_string(8).unwrap(), "ing".to_string());
     }
 }
-
