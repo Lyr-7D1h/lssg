@@ -45,6 +45,7 @@ Hi! My name is Ivo. I go by Lyr online. Welcome to my online space! I like to th
 [<i class="fa-solid fa-envelope"></i>Email](mailto:lyr-7d1h@pm.me)
 [<i class="fa-brands fa-github"></i>Github](https://github.com/Lyr-7D1h)
 [<i class="fa-brands fa-linkedin"></i>Linkedin](https://www.linkedin.com/in/ivo-velthoven/)
+[<i class="fa-brands fa-instagram"></i>Instagram](https://www.instagram.com/ivovelt)
 [<i class="fa-solid fa-cube"></i>Thingiverse](https://www.thingiverse.com/lyr_7d1h/designs)
 [<i class="fa-solid fa-graduation-cap"></i>Learning](https://lyrx.notion.site/d8f006e42b04415bbb72b3998b40e969)
 </p>
