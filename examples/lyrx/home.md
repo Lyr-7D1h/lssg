@@ -24,6 +24,7 @@ image="https://lyrx.dev/icon.png"
 [](./blog.md)
 [](./living_space.md)
 [](./art.md)
+[](./projects.md)
 <!-- TOOD: add learning resources -->
 <!-- [](./learning) -->
 <!-- TODO: add my learning schedule -->
@@ -38,6 +39,7 @@ Hi! My name is Ivo. I go by Lyr online. Welcome to my online space! I like to th
 
 <sitetree ignore="404">
 </sitetree>
+
 
 <p style="text-align: left">
 [<i class="fa-solid fa-envelope"></i>Email](mailto:lyr-7d1h@pm.me)
