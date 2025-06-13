@@ -62,7 +62,7 @@ fn parse_block_token_text(block_token: &mut Token) -> Result<(), ParseError> {
             let mut reader = CharReader::new(text.as_bytes());
             *tokens = read_inline_tokens(&mut reader)?;
         }
-        Token::Code { .. } | Token::Attributes { .. } | Token::Comment { .. } => {}
+        Token::CodeBlock { .. } | Token::Attributes { .. } | Token::Comment { .. } => {}
         _ => {
             return Err(ParseError::invalid(
                 "inline token found when parsing block tokens",
@@ -104,6 +104,9 @@ pub enum Token {
         tokens: Vec<Token>,
     },
     Code {
+        text: String,
+    },
+    CodeBlock {
         info: Option<String>,
         text: String,
     },
@@ -186,7 +189,7 @@ impl Token {
             | Token::Html { .. }
             | Token::Paragraph { .. }
             | Token::BlockQuote { .. }
-            | Token::Code { .. } => true,
+            | Token::CodeBlock { .. } => true,
             _ => false,
         }
     }

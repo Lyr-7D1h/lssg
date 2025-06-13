@@ -215,6 +215,23 @@ another comment
     }
 
     #[test]
+    fn test_inline_in_heading() {
+        let input = r#"# foo *bar*"#;
+        let expected = vec![Token::Heading {
+            text: "foo *bar*".into(),
+            tokens: vec![
+                Token::Text {
+                    text: "foo ".into(),
+                },
+                Token::Emphasis { text: "bar".into() },
+            ],
+            depth: 1,
+        }];
+        let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
     fn test_setext_heading() {
         let input = r#"Foo *bar*
 ===
@@ -322,7 +339,7 @@ Foo *bar*
 aaa
 ~~~
 ```"#;
-        let expected = vec![Token::Code {
+        let expected = vec![Token::CodeBlock {
             info: Some("markdown".into()),
             text: "aaa\n~~~\n".into(),
         }];
@@ -336,7 +353,7 @@ aaa
     fn test_indented_code() {
         let input = r#"    a simple
     indented code block"#;
-        let expected = vec![Token::Code {
+        let expected = vec![Token::CodeBlock {
             text: "a simple
 indented code block"
                 .into(),
@@ -356,19 +373,14 @@ indented code block"
         let expected = vec![Token::Paragraph {
             text: "`foo`\n` `` `\n`` foo ` bar ``".into(),
             tokens: vec![
-                Token::Code {
-                    text: "foo".into(),
-                    info: None,
-                },
+                Token::Code { text: "foo".into() },
                 Token::SoftBreak,
                 Token::Code {
                     text: " `` ".into(),
-                    info: None,
                 },
                 Token::SoftBreak,
                 Token::Code {
                     text: "foo ` bar".into(),
-                    info: None,
                 },
             ],
         }];

@@ -167,7 +167,7 @@ pub fn indented_code(
         return Ok(None);
     }
 
-    return Ok(Some(Token::Code { info: None, text }));
+    return Ok(Some(Token::CodeBlock { info: None, text }));
 }
 
 /// https://spec.commonmark.org/0.30/#fenced-code-blocks
@@ -187,9 +187,17 @@ pub fn fenced_code(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, 
             return Ok(None);
         }
 
-        let info = reader.consume_until_inclusive(|c| c == '\n')?;
-        let info = &info[indent + count_backticks..info.len()];
+        let Some(info) =
+            reader.peek_until_inclusive_from(indent + count_backticks, |c| c == '\n')?
+        else {
+            return Ok(None);
+        };
         let info = sanitize_text(info.to_string());
+        // info can not contain close fence types
+        if info.contains(fence_type) {
+            return Ok(None);
+        }
+        reader.consume(indent + count_backticks + info.len() + 1)?;
 
         let mut text = String::new();
         // add all content
@@ -229,7 +237,7 @@ pub fn fenced_code(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, 
             text += &line[pos..line.len()];
         }
 
-        return Ok(Some(Token::Code {
+        return Ok(Some(Token::CodeBlock {
             info: Some(info),
             text,
         }));
@@ -440,12 +448,11 @@ pub fn heading(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, Pars
                 .skip(depth as usize + 1)
                 .collect(),
         );
-        let tokens = read_block_tokens(&mut CharReader::new(text.as_bytes()))?;
 
         Ok(Some(Token::Heading {
             depth,
             text,
-            tokens,
+            tokens: vec![],
         }))
     } else {
         Ok(None)

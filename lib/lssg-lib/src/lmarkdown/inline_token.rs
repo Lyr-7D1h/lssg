@@ -94,7 +94,7 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
                                 }
                             }
                             reader.consume(backtick_count)?;
-                            tokens.push(Token::Code { info: None, text });
+                            tokens.push(Token::Code { text });
                             continue 'outer;
                         }
                     }
@@ -215,6 +215,7 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
         if c == '*' {
             if let Some('*') = reader.peek_char(1)? {
                 if let Some(text) = reader.peek_until_match_inclusive_from(2, "**")? {
+                    println!("{text}");
                     reader.consume(2)?;
                     let text = reader.consume_string(text.len() - 2)?;
                     reader.consume(2)?;

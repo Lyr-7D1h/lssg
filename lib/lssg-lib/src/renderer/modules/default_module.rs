@@ -576,13 +576,20 @@ impl RendererModule for DefaultModule {
                 e.append_child(document.create_text_node(text));
                 parent.append_child(e)
             }
-            Token::Code {
+            Token::Code { text: code } => {
+                let code_html = document.create_element("code");
+                code_html.append_child(document.create_text_node(code));
+                parent.append_child(code_html)
+            }
+            Token::CodeBlock {
                 text: code,
                 info: _,
             } => {
                 let code_html = document.create_element("code");
                 code_html.append_child(document.create_text_node(code));
-                parent.append_child(code_html)
+                let pre = document.create_element("pre");
+                pre.append_child(code_html);
+                parent.append_child(pre)
             }
             Token::Link {
                 tokens,
