@@ -25,6 +25,11 @@ mod render_html;
 const DEFAULT_STYLESHEET: &[u8] = include_bytes!("./default_stylesheet.css");
 const DEFAULT_JS: &str = include_str!("./default.js");
 
+const PRISM_CSS: &[u8] = include_bytes!("./default_module/prism.css");
+const PRISM_JS: &str = include_str!("./default_module/prism.js");
+
+const SUPPORTED_VIDEO_FORMATS: [&str; 6] = ["mp4", "webm", "ogg", "ogv", "mov", "avi"];
+
 #[derive(Debug, Clone, Overwrite)]
 struct PropegatedOptions {
     /// Add extra resources
@@ -244,6 +249,19 @@ impl RendererModule for DefaultModule {
             .filter(|id| site_tree[*id].kind.is_page())
             .collect();
 
+        let prism_js = site_tree.add(SiteNode::resource(
+            "prism.js",
+            site_tree.root(),
+            Resource::new_static(PRISM_JS.to_owned()),
+        ));
+        site_tree.add_link(site_tree.root(), prism_js);
+        let default_js = site_tree.add(SiteNode::stylesheet(
+            "prism.css",
+            site_tree.root(),
+            Stylesheet::from_readable(PRISM_CSS)?,
+        ));
+        site_tree.add_link(site_tree.root(), default_js);
+
         let default_js = site_tree.add(SiteNode::resource(
             "default.js",
             site_tree.root(),
@@ -278,7 +296,11 @@ impl RendererModule for DefaultModule {
                         let node = &site_tree[link.to];
                         match node.kind {
                             SiteNodeKind::Stylesheet { .. } => Some(link.to),
-                            SiteNodeKind::Resource { .. } if node.name == "favicon.ico" => {
+                            SiteNodeKind::Resource { .. }
+                                if node.name == "favicon.ico"
+                                    || node.name == "default.js"
+                                    || node.name == "prism.js" =>
+                            {
                                 Some(link.to)
                             }
                             _ => None,
@@ -533,9 +555,13 @@ impl RendererModule for DefaultModule {
                     }
                 }
 
-                if src.ends_with(".mp4") {
+                if let Some(format) = SUPPORTED_VIDEO_FORMATS
+                    .iter()
+                    .find(|format| src.ends_with(&format!(".{format}")))
+                {
+                    let format = format.to_string();
                     parent.append_child(
-                        dom!(<video controls><source src="{src}" type="video/mp4"></video>),
+                        dom!(<video controls><source src="{src}" type="video/{format}"></video>),
                     );
                     return Some(parent);
                 }
@@ -584,11 +610,11 @@ impl RendererModule for DefaultModule {
                 code_html.append_child(document.create_text_node(code));
                 parent.append_child(code_html)
             }
-            Token::CodeBlock {
-                text: code,
-                info: _,
-            } => {
-                let code_html = document.create_element("code");
+            Token::CodeBlock { text: code, info } => {
+                let mut code_html = document.create_element("code");
+                if let Some(info) = info {
+                    code_html.set_attribute("class".into(), format!("language-{info}"));
+                }
                 code_html.append_child(document.create_text_node(code));
                 let pre = document.create_element("pre");
                 pre.append_child(code_html);

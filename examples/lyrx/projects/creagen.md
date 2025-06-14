@@ -30,7 +30,7 @@ To add a library `Go to the arrow in the top left corner` > `Settings` > `Genera
 
 1. Select the [creagen](https://www.npmjs.com/package/creagen) with version `0.0.12` in settings
 
-2. Add 
+2. Copy and paste 
 ```ts
 // Particle Vector field
 // https://anvaka.github.io/fieldplay/?cx=0.0034000000000000696&cy=0&w=8.5466&h=8.5466&dt=0.01&fo=0.998&dp=0.009&cm=1
@@ -94,3 +94,5 @@ draw(() => {
 3. Press `Ctrl+Shift+Enter`
 
 4. Result
+
+![](./creagen/example.webm)
