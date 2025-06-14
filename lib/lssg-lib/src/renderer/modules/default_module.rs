@@ -382,8 +382,11 @@ impl RendererModule for DefaultModule {
         tr: &mut TokenRenderer,
     ) -> Option<DomNode> {
         match token {
-            Token::OrderedList { items, .. } => {
-                let ol = document.create_element("ol");
+            Token::OrderedList { items, start, .. } => {
+                let mut ol = document.create_element("ol");
+                if *start != 0 && *start != 1 {
+                    ol.set_attribute("start".into(), start.to_string());
+                }
                 for tokens in items {
                     let li = document.create_element("li");
                     ol.append_child(li.clone());

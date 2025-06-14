@@ -84,6 +84,7 @@ pub enum Token {
     },
     OrderedList {
         items: Vec<Vec<Token>>,
+        start: u32,
     },
     Heading {
         text: String,

@@ -313,6 +313,7 @@ Foo *bar*
 
     > A block quote."#;
         let expected = vec![Token::OrderedList {
+            start: 1,
             items: vec![vec![
                 Token::Paragraph {
                     tokens: vec![

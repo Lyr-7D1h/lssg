@@ -47,7 +47,7 @@ impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Error while parsing remarkable file {}. {}",
+            "Error while parsing file {}. {}",
             self.message,
             format!("\n{}", self.context)
         )

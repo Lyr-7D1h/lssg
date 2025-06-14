@@ -371,7 +371,9 @@ pub fn bullet_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, 
 /// https://spec.commonmark.org/0.30/#list-items
 pub fn ordered_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
     let mut items = vec![];
+    let mut start = 0;
     while let Some(mut pos) = detect_char_with_ident(reader, |c| c.is_ascii_digit())? {
+        let mut closing_char = false;
         for i in 1..10 {
             // not more than 9 digits allowed
             if i == 10 {
@@ -382,10 +384,22 @@ pub fn ordered_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>,
                 Some(c) if c.is_ascii_digit() => {}
                 Some('.') | Some(')') => {
                     pos = i + pos;
+                    closing_char = true;
                     break;
                 }
                 Some(_) | None => return Ok(None),
             }
+        }
+        if start == 0 {
+            start = if closing_char {
+                reader.peek_string(pos)?.parse::<u32>().map_err(|e| {
+                    ParseError::invalid(format!("Failed to parse start as number: {e}"))
+                })?
+            } else {
+                reader.peek_string(pos + 1)?.parse::<u32>().map_err(|e| {
+                    ParseError::invalid(format!("Failed to parse start as number: {e}"))
+                })?
+            };
         }
 
         // by default n=1
@@ -411,7 +425,7 @@ pub fn ordered_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>,
         return Ok(None);
     }
 
-    return Ok(Some(Token::OrderedList { items }));
+    return Ok(Some(Token::OrderedList { items, start }));
 }
 
 /// ignore up to 4 space idententations returns at which position the match begins
