@@ -26,14 +26,13 @@ To add a library `Go to the arrow in the top left corner` > `Settings` > `Genera
 - `Ctrl+F11`            to only show the canvas
 
 
-## Particle Vector Field Example
+## Example: Particle Vector Field 
 
 1. Select the [creagen](https://www.npmjs.com/package/creagen) with version `0.0.12` in settings
 
 2. Copy and paste 
 ```ts
 // Particle Vector field
-// https://anvaka.github.io/fieldplay/?cx=0.0034000000000000696&cy=0&w=8.5466&h=8.5466&dt=0.01&fo=0.998&dp=0.009&cm=1
 import { Canvas, Vector, load, vec, draw, Random, Color } from "creagen";
 
 const SPEED = 0.1;
