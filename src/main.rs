@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use lssg_lib::{
     lmarkdown::parse_lmarkdown,
-    renderer::{BlogModule, DefaultModule, ExternalModule, Renderer},
+    renderer::{BlogModule, DefaultModule, ExternalModule, MediaModule, Renderer},
     sitetree::{Input, SiteTree},
     Lssg,
 };
@@ -40,6 +40,10 @@ struct Args {
     /// "TRACE", "DEBUG", "INFO", "WARN", "ERROR"
     #[clap(long, short)]
     log: Option<LevelFilter>,
+
+    /// Enable media optimization (images and videos)
+    #[clap(long, short, default_value = "true")]
+    media_optimization: bool,
 }
 
 fn main() {
@@ -58,6 +62,9 @@ fn main() {
         let mut renderer = Renderer::new();
         renderer.add_module(ExternalModule::new());
         renderer.add_module(BlogModule::new());
+        if args.media_optimization {
+            renderer.add_module(MediaModule::new());
+        }
         renderer.add_module(DefaultModule::new());
         renderer.init(&mut site_tree);
         renderer.after_init(&site_tree);
@@ -80,6 +87,9 @@ fn main() {
     let mut lssg = Lssg::new(input, output);
     lssg.add_module(ExternalModule::new());
     lssg.add_module(BlogModule::new());
+    if args.media_optimization {
+        lssg.add_module(MediaModule::new());
+    }
     lssg.add_module(DefaultModule::new());
     lssg.render().unwrap()
 }

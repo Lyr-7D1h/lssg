@@ -14,6 +14,8 @@ mod blog_module;
 pub use blog_module::*;
 mod default_module;
 pub use default_module::*;
+mod media_module;
+pub use media_module::*;
 pub mod util;
 
 use super::{RenderContext, TokenRenderer};

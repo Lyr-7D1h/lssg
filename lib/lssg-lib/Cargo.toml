@@ -15,16 +15,20 @@ log = "0.4.18"
 regex = "1.8.4"
 
 # Parsing SystemTime
-chrono = {version = "0.4.26",features = ["unstable-locales"]}
+chrono = { version = "0.4.26", features = ["unstable-locales"] }
 chrono-english = "0.1.7"
 
 toml = "0.8.2"
 serde = { version = "1.0.188", features = ["derive"] }
 
-serde-extensions = { path="../serde-extensions", version = "0.1.1" }
-proc-virtual-dom = { path="../proc-virtual-dom" }
-virtual-dom = { path="../virtual-dom" }
+serde-extensions = { path = "../serde-extensions", version = "0.1.1" }
+proc-virtual-dom = { path = "../proc-virtual-dom" }
+virtual-dom = { path = "../virtual-dom" }
 
-reqwest = { version="0.11.22", features = ["blocking"]}
+reqwest = { version = "0.11.22", features = ["blocking"] }
 pathdiff = "0.2.1"
 zip = "2.1.5"
+
+# Media optimization dependencies
+image = "0.25"
+webp = "0.2"

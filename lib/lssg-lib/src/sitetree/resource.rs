@@ -45,6 +45,13 @@ impl Resource {
         }
     }
 
+    pub fn data(&self) -> Result<Vec<u8>, LssgError> {
+        let mut readable = self.readable()?;
+        let mut buf = Vec::new();
+        std::io::Read::read_to_end(&mut readable, &mut buf)?;
+        Ok(buf)
+    }
+
     pub fn write(&mut self, path: &Path) -> Result<(), LssgError> {
         info!("Writing resource {path:?}",);
         let mut file = File::create(path)?;
