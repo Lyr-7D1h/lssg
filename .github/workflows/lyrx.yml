@@ -25,7 +25,8 @@ jobs:
 
       - name: Build static files
         run: |
-          cargo run -- examples/lyrx/home.md build/
+          cargo build --release
+          target/release/lssg examples/lyrx/home.md build/
           # FIXME temporary hack to support 404 pages, change when you can keep the name
           mv build/404/index.html build/404.html
           rm -r build/404
