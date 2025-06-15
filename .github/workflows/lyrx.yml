@@ -3,9 +3,9 @@ name: Lyrx Deployment
 on:
   workflow_dispatch:
   push:
-    branches: [ "master" ]
+    branches: ["master"]
     paths:
-        - examples/lyrx/**
+      - examples/lyrx/**
 
 env:
   CARGO_TERM_COLOR: always
@@ -16,22 +16,27 @@ jobs:
     runs-on: ubuntu-latest
     environment: lyrx
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Build static files
-      run: |
-        cargo run -- examples/lyrx/home.md build/
-        # FIXME temporary hack to support 404 pages, change when you can keep the name
-        mv build/404/index.html build/404.html
-        rm -r build/404
-      
-    - name: Deploy to external repository
-      uses: cpina/github-action-push-to-another-repository@main
-      env:
-        API_TOKEN_GITHUB: ${{ secrets.EXTERNAL_REPOSITORY_PERSONAL_ACCESS_TOKEN }}
-      with:
-        source-directory: build/
-        destination-github-username: lyr-7d1h
-        destination-repository-name: lyrx
-        user-email: lyr-7d1h@pm.me
-        target-branch: master
+      - uses: actions/checkout@v3
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Build static files
+        run: |
+          cargo run -- examples/lyrx/home.md build/
+          # FIXME temporary hack to support 404 pages, change when you can keep the name
+          mv build/404/index.html build/404.html
+          rm -r build/404
+
+      - name: Deploy to external repository
+        uses: cpina/github-action-push-to-another-repository@main
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.EXTERNAL_REPOSITORY_PERSONAL_ACCESS_TOKEN }}
+        with:
+          source-directory: build/
+          destination-github-username: lyr-7d1h
+          destination-repository-name: lyrx
+          user-email: lyr-7d1h@pm.me
+          target-branch: master
