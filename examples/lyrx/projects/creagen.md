@@ -28,7 +28,7 @@ To add a library `Go to the arrow in the top left corner` > `Settings` > `Genera
 
 ## Example: Particle Vector Field 
 
-1. Select the [creagen](https://www.npmjs.com/package/creagen) with version `0.0.12` in settings
+1. Select the [creagen](https://www.npmjs.com/package/creagen) package with version `0.0.12` in settings
 
 2. Copy and paste 
 ```ts
