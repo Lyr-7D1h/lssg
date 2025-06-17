@@ -290,7 +290,7 @@ impl RendererModule for DefaultModule {
         site_tree.add_link(site_tree.root(), default_stylesheet);
 
         let mut relation_map: HashMap<usize, Vec<usize>> = HashMap::new();
-        // propegate relations to stylesheets and favicon from parent to child
+        // propegate relations to stylesheets, favicon and js from parent to child
         for id in pages {
             // skip page if disabled
             if let SiteNodeKind::Page(page) = &site_tree[id].kind {
@@ -309,7 +309,9 @@ impl RendererModule for DefaultModule {
                         let node = &site_tree[link.to];
                         match node.kind {
                             SiteNodeKind::Stylesheet { .. } => Some(link.to),
-                            SiteNodeKind::Resource { .. } if node.name == "favicon.ico" => {
+                            SiteNodeKind::Resource { .. }
+                                if node.name == "favicon.ico" || node.name.ends_with(".js") =>
+                            {
                                 Some(link.to)
                             }
                             _ => None,
