@@ -153,7 +153,8 @@ fn carousel(
     let main = dom!(<div class="default__carausel_main"></div>);
     let mut tokens = tokens.into_iter();
 
-    let item = || dom!(<div class="default__carausel_item" ></div>);
+    let item =
+        || dom!(<div class="default__carausel_item" onclick="default__toggleModal(event)"></div>);
     match tokens.next() {
         Some(t) => {
             let item = item();

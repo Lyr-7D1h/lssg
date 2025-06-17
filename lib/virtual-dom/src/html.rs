@@ -47,7 +47,7 @@ fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, io::Er
     let mut i = 0;
     while i < chars.len() {
         match chars[i] {
-            ' ' if in_value == false => {
+            ' ' | '\n' if in_value == false => {
                 if key.len() > 0 {
                     attributes.insert(key, value);
                     key = String::new();
@@ -80,6 +80,43 @@ fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, io::Er
     Ok(attributes)
 }
 
+/// Get the start tag with its attributes starts after the opening tag '<'
+fn element_start_tag(
+    reader: &mut CharReader<impl Read>,
+) -> Result<Option<(String, HashMap<String, String>, usize, bool)>, io::Error> {
+    let mut inside_single_quotes = false;
+    let mut inside_double_quotes = false;
+    let mut i = 1;
+    while let Some(c) = reader.peek_char(i)? {
+        match c {
+            '>' if inside_double_quotes == false && inside_double_quotes == false => {
+                let tag_content = reader.peek_string(i + 1)?;
+
+                let mut tag = String::new();
+                for c in tag_content.chars().skip(1) {
+                    match c {
+                        ' ' | '\n' | '>' | '/' => break,
+                        _ => tag.push(c),
+                    }
+                }
+
+                let void_element = reader.peek_char(i - 1)? == Some('/') && is_void_element(&tag);
+                // if it is void it is one character less
+                let attributes_end = if void_element { i } else { i + 1 };
+
+                let attributes = attributes(&tag_content[tag.len() + 1..attributes_end - 1])?;
+
+                return Ok(Some((tag, attributes, i + 1, void_element)));
+            }
+            '"' => inside_double_quotes = !inside_double_quotes,
+            '\'' => inside_single_quotes = !inside_single_quotes,
+            _ => {}
+        }
+        i += 1;
+    }
+    Ok(None)
+}
+
 /// parse html from start to end and return (tag, attributes, innerHtml)
 ///
 /// seperated to make logic more reusable
@@ -87,33 +124,21 @@ fn element(
     reader: &mut CharReader<impl Read>,
 ) -> Result<Option<(String, HashMap<String, String>, Option<String>)>, io::Error> {
     if let Some('<') = reader.peek_char(0)? {
-        if let Some(start_tag) = reader.peek_until_exclusive_from(1, |c| c == '>')? {
-            // get html tag
-            let mut tag = String::new();
-            for c in start_tag.chars() {
-                match c {
-                    ' ' => break,
-                    '\n' => break,
-                    _ => tag.push(c),
-                }
-            }
-
-            if start_tag.ends_with("/") && is_void_element(&tag) {
-                // <{start_tag}/>
-                reader.consume(start_tag.len() + 2)?;
-                let attributes = attributes(&start_tag[tag.len()..start_tag.len() - 1])?;
+        if let Some((tag, attributes, tag_content_length, void_element)) =
+            element_start_tag(reader)?
+        {
+            // <{start_tag}/>
+            if void_element {
+                reader.consume(tag_content_length)?;
                 return Ok(Some((tag, attributes, None)));
             }
 
+            // <{start_tag}></{start_tag}>
             let end_tag = format!("</{tag}>");
             if let Some(html_block) =
-                reader.peek_until_match_exclusive_from(2 + start_tag.len(), &end_tag)?
+                reader.peek_until_match_exclusive_from(tag_content_length, &end_tag)?
             {
-                // <{start_tag}>
-                reader.consume(start_tag.len() + 2)?;
-
-                let attributes = attributes(&start_tag[tag.len()..start_tag.len()])?;
-
+                reader.consume(tag_content_length)?;
                 let content = reader.consume_string(html_block.len())?;
                 reader.consume(end_tag.len())?;
 
@@ -297,6 +322,19 @@ This should be text
             .into(),
         }];
 
+        let tokens = parse_html(input.as_bytes()).unwrap();
+        assert_eq!(expected, tokens);
+    }
+
+    #[test]
+    fn test_js_in_attribute() {
+        let input = r#"<div onclick="() => test()"></div>"#;
+
+        let expected = vec![Html::Element {
+            tag: "div".into(),
+            attributes: to_attributes([("onclick", "() => test()")]),
+            children: vec![],
+        }];
         let tokens = parse_html(input.as_bytes()).unwrap();
         assert_eq!(expected, tokens);
     }

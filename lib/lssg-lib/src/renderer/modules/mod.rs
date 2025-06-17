@@ -1,5 +1,4 @@
 use log::error;
-use serde::Serialize;
 use serde_extensions::Overwrite;
 
 use crate::{

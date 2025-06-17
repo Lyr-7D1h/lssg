@@ -111,6 +111,19 @@ fn html_interpolating_html_works() {
 }
 
 #[test]
+fn void_meta_interpolations_works() {
+    let title = "asdf";
+    let input = dom!(<meta property="og:title" content="{title}"/>);
+    let expected = Html::Element {
+        tag: "meta".into(),
+        attributes: to_attributes([("property", "og:title"), ("content", "asdf")]),
+        children: vec![],
+    };
+
+    assert_eq!(expected, input.into())
+}
+
+#[test]
 fn html_interpolation_works_for_self_closing() {
     let alt = String::from("Alt");
     let src = "Src";
@@ -121,4 +134,20 @@ fn html_interpolation_works_for_self_closing() {
         children: vec![],
     };
     assert_eq!(expected, input.into());
+}
+
+#[test]
+fn html_with_js_works() {
+    let input =
+        dom!(<div class="default__carausel_item" onclick="default__toggleModal(event)"></div>);
+    let expected = Html::Element {
+        tag: "div".into(),
+        attributes: to_attributes([
+            ("class", "default__carausel_item"),
+            ("onclick", "default__toggleModal(event)"),
+        ]),
+        children: vec![],
+    };
+
+    assert_eq!(expected, input.into())
 }

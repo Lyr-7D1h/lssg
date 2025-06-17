@@ -308,7 +308,7 @@ impl RendererModule for DefaultModule {
         site_tree.add_link(site_tree.root(), default_stylesheet);
 
         let mut relation_map: HashMap<usize, Vec<usize>> = HashMap::new();
-        // propegate relations to stylesheets and favicon from parent to child
+        // propegate relations to stylesheets, favicon and js from parent to child
         for id in pages {
             // skip page if disabled
             if let SiteNodeKind::Page(page) = &site_tree[id].kind {
@@ -328,9 +328,7 @@ impl RendererModule for DefaultModule {
                         match node.kind {
                             SiteNodeKind::Stylesheet { .. } => Some(link.to),
                             SiteNodeKind::Resource { .. }
-                                if node.name == "favicon.ico"
-                                    || node.name == "default.js"
-                                    || node.name == "prism.js" =>
+                                if node.name == "favicon.ico" || node.name.ends_with(".js") =>
                             {
                                 Some(link.to)
                             }
@@ -460,7 +458,7 @@ impl RendererModule for DefaultModule {
             Token::OrderedList { items, start, .. } => {
                 let mut ol = document.create_element("ol");
                 if *start != 0 && *start != 1 {
-                    ol.set_attribute("start".into(), start.to_string());
+                    ol.set_attribute("start".into(), &start.to_string());
                 }
                 for tokens in items {
                     let li = document.create_element("li");
@@ -666,7 +664,7 @@ impl RendererModule for DefaultModule {
             Token::CodeBlock { text: code, info } => {
                 let mut code_html = document.create_element("code");
                 if let Some(info) = info {
-                    code_html.set_attribute("class".into(), format!("language-{info}"));
+                    code_html.set_attribute("class".into(), &format!("language-{info}"));
                 }
                 code_html.append_child(document.create_text_node(code));
                 let pre = document.create_element("pre");
