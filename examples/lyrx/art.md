@@ -1,6 +1,6 @@
 # Art
 
-Having a creative outlet keeps me sane and motivated. Anything I find worthwhile to show I'll put here. This will be mostly generative art.
+Having a creative outlet keeps me sane and motivated. Anything I find worthwhile to show I'll put here. This will be mostly algorithmic art.
 
 <links grid>
 [
