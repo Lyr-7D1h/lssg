@@ -51,7 +51,7 @@ impl Default for Footer {
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Overwrite)]
 #[serde(default)]
 struct PropegatedOptions {
     /// Add extra resources
@@ -89,29 +89,25 @@ impl Default for SinglePageOptions {
 }
 
 fn create_options_map(
-    module: &DefaultModule,
     site_tree: &SiteTree,
 ) -> Result<HashMap<usize, PropegatedOptions>, LssgError> {
     let mut options_map: HashMap<usize, PropegatedOptions> = HashMap::new();
     for id in DFS::new(site_tree) {
         if let SiteNodeKind::Page(page) = &site_tree[id].kind {
-            let parent_options = || {
-                if let Some(parent) = site_tree.page_parent(id) {
-                    if let Some(parent_options) = options_map.get(&parent) {
-                        return Some(parent_options.clone());
-                    }
-                }
-                None
-            };
-            let options: PropegatedOptions = page
-                .attributes()
-                .map(|a| {
-                    a.try_into::<PropegatedOptions>()
-                        .inspect_err(|e| error!("Failed to parse options: {e}"))
-                        .ok()
-                })
+            let mut options = if let Some(parent_options) = site_tree
+                .page_parent(id)
+                .map(|id| options_map.get(&id))
                 .flatten()
-                .unwrap_or_default();
+            {
+                parent_options.clone()
+            } else {
+                PropegatedOptions::default()
+            };
+            if let Some(attributes) = page.attributes() {
+                options
+                    .overwrite(attributes)
+                    .map_err(|e| LssgError::parse(format!("Failed to parse options: {e}")))?;
+            }
             options_map.insert(id, options.clone());
         }
     }
@@ -368,7 +364,7 @@ impl RendererModule for DefaultModule {
 
     fn after_init(&mut self, site_tree: &SiteTree) -> Result<(), LssgError> {
         // save options map after site tree has been created to get all pages
-        self.options_map = create_options_map(&self, site_tree)?;
+        self.options_map = create_options_map(site_tree)?;
         Ok(())
     }
 

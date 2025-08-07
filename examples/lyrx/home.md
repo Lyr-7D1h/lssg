@@ -3,16 +3,17 @@ title="Lyrx"
 head=[
   '<script defer src="https://analytics.lyrx.dev/script.js" data-website-id="5839ff14-81d0-4a0e-a9b4-2ca9fc44839b"></script>'
 ]
+
 [meta]
 description="Lyr's little space of the internet"
-
 author="Lyr, lyr-7d1h@pm.me"
 keywords="blog,art,portfolio,technology,projects,software"
 subject="technology"
 image="https://lyrx.dev/icon.png"
+
 [footer]
 items = [
-"Made with <3"
+  "Made with <3"
 ]
 
 [blog.root]
