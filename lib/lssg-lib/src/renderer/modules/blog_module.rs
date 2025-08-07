@@ -43,13 +43,14 @@ impl Contents {
 pub struct BlogRootOptions {
     rss: RssOptions,
     /// Use dates from file system to create updated on and modified on tags
+    /// by default false
     use_fs_dates: bool,
 }
 impl Default for BlogRootOptions {
     fn default() -> Self {
         Self {
             rss: RssOptions::default(),
-            use_fs_dates: true,
+            use_fs_dates: false,
         }
     }
 }
@@ -88,17 +89,6 @@ struct BlogPage {
     root_options: BlogRootOptions,
     /// Blog Post settings
     post_page: Option<PostPage>,
-}
-
-impl BlogPage {
-    /// don't render if not a post page or render disabled
-    fn should_render(&self) -> Option<&PostPage> {
-        let page = self.post_page.as_ref()?;
-        if page.post_options.render == false {
-            return None;
-        }
-        Some(page)
-    }
 }
 
 pub struct BlogModule {
@@ -241,13 +231,13 @@ impl RendererModule for BlogModule {
 
         // add article meta data
         if let Some(date) = &blog_page.dates.modified_on {
-            let date = date.date.to_rfc3339();
+            let date = date.to_rfc3339();
             document
                 .head
                 .append_child(dom!(<meta property="article:modified_time" content="{date}"/>));
         }
         if let Some(date) = &blog_page.dates.created_on {
-            let date = date.date.to_rfc3339();
+            let date = date.to_rfc3339();
             document.head.append_child(dom!(
                 <meta property="article:published_time" content="{date}"/>
             ));

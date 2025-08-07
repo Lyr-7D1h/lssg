@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use lssg_lib::{
     lmarkdown::parse_lmarkdown,
-    renderer::{BlogModule, DefaultModule, ExternalModule, MediaModule, Renderer},
+    renderer::{BlogModule, DefaultModule, ExternalModule, MediaModule, Renderer, RendererModule},
     sitetree::{Input, SiteTree},
     Lssg,
 };
@@ -54,13 +54,21 @@ fn main() {
         .unwrap();
 
     let input = args.input;
+    if args.ast {
+        let read = input.readable().expect("failed to fetch input");
+        let out = parse_lmarkdown(read).expect("failed to parse input");
+        println!("{out:#?}");
+        return;
+    }
+
     if args.single_page {
         let mut site_tree =
             SiteTree::from_input(input.clone()).expect("Failed to generate site tree");
 
         let mut renderer = Renderer::new();
         renderer.add_module(ExternalModule::new());
-        renderer.add_module(BlogModule::new());
+        let blog = BlogModule::new();
+        renderer.add_module(blog);
         if !args.no_media_optimization {
             renderer.add_module(MediaModule::new());
         }
@@ -71,13 +79,6 @@ fn main() {
             .render(&site_tree, site_tree.root())
             .expect("failed to render");
         println!("{html}");
-        return;
-    }
-
-    if args.ast {
-        let read = input.readable().expect("failed to fetch input");
-        let out = parse_lmarkdown(read).expect("failed to parse input");
-        println!("{out:#?}");
         return;
     }
 

@@ -6,19 +6,9 @@ use crate::{lssg_error::LssgError, sitetree::Input};
 use super::BlogPostOptions;
 
 #[derive(Clone)]
-enum BlogDateSource {
-    Input,
-    Options,
-}
-#[derive(Clone)]
-pub struct BlogDate {
-    pub date: DateTime<Utc>,
-    pub source: BlogDateSource,
-}
-#[derive(Clone)]
 pub struct Dates {
-    pub modified_on: Option<BlogDate>,
-    pub created_on: Option<BlogDate>,
+    pub modified_on: Option<DateTime<Utc>>,
+    pub created_on: Option<DateTime<Utc>>,
 }
 impl Default for Dates {
     fn default() -> Self {
@@ -29,12 +19,6 @@ impl Default for Dates {
     }
 }
 impl Dates {
-    pub fn empty() -> Self {
-        Self {
-            modified_on: None,
-            created_on: None,
-        }
-    }
     pub fn from_post_options(
         post_options: &BlogPostOptions,
         input: &Option<Input>,
@@ -51,15 +35,9 @@ impl Dates {
             })
             .flatten()
         {
-            Some(date) => Some(BlogDate {
-                date,
-                source: BlogDateSource::Options,
-            }),
+            Some(date) => Some(date),
             None => match input {
-                Some(Input::Local { path }) => Some(BlogDate {
-                    date: path.metadata()?.modified()?.into(),
-                    source: BlogDateSource::Input,
-                }),
+                Some(Input::Local { path }) => Some(path.metadata()?.modified()?.into()),
                 _ => None,
             },
         };
@@ -76,15 +54,9 @@ impl Dates {
             })
             .flatten()
         {
-            Some(date) => Some(BlogDate {
-                date,
-                source: BlogDateSource::Options,
-            }),
+            Some(date) => Some(date),
             None => match input {
-                Some(Input::Local { path }) => Some(BlogDate {
-                    date: path.metadata()?.modified()?.into(),
-                    source: BlogDateSource::Input,
-                }),
+                Some(Input::Local { path }) => Some(path.metadata()?.modified()?.into()),
                 _ => None,
             },
         };
@@ -97,10 +69,10 @@ impl Dates {
 
     pub fn to_pretty_string(&self) -> Option<String> {
         if let Some(date) = &self.modified_on {
-            return Some(date.date.format("Updated on %B %d, %Y").to_string());
+            return Some(date.format("Updated on %B %d, %Y").to_string());
         }
         if let Some(date) = &self.created_on {
-            return Some(date.date.format("Created on %B %d, %Y").to_string());
+            return Some(date.format("Created on %B %d, %Y").to_string());
         }
         None
     }

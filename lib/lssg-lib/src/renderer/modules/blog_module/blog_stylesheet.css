@@ -7,7 +7,8 @@
   max-width: 680px;
 }
 
-.post-updated-on,
+.blog__date,
+.content ul,
 .content h1,
 .content h2,
 .content h3,
@@ -33,7 +34,8 @@
 }
 
 @media only screen and (max-width: 768px) {
-  .post-updated-on,
+  .blog__date,
+  .content ul,
   .content h1,
   .content h2,
   .content h3,
