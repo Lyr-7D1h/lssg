@@ -55,7 +55,7 @@ impl Default for Footer {
 #[serde(default)]
 struct PropegatedOptions {
     /// Add extra resources
-    pub title: String,
+    pub title: Option<String>,
     /// Translates to meta tags <https://www.w3schools.com/tags/tag_meta.asp>
     pub meta: HashMap<String, String>,
     /// Lang attribute ("en" by default) <https://www.w3schools.com/tags/ref_language_codes.asp>
@@ -69,7 +69,7 @@ impl Default for PropegatedOptions {
     fn default() -> Self {
         Self {
             meta: HashMap::new(),
-            title: String::new(),
+            title: None,
             language: "en".into(),
             head: vec![],
             footer: Footer::default(),
@@ -142,14 +142,18 @@ fn head(document: &mut Document, context: &RenderContext, options: &PropegatedOp
         .cloned()
     {
         let header = tokens_to_text(&vec![header]);
-        title = format!("{header} - {title}");
+        title = Some(format!(
+            "{header}{}",
+            title.map_or("".into(), |t| format!(" | {t}"))
+        ));
     }
 
-    head.append_child(dom!(<title>{title}</title>));
-    let title = options.title.clone();
-    head.append_child(dom!(<meta property="og:title" content="{title}" />));
-    let title = options.title.clone();
-    head.append_child(dom!(<meta name="twitter:title" content="{title}" />));
+    if let Some(title) = title {
+        let t = title.clone();
+        head.append_child(dom!(<title>{t}</title>));
+        head.append_child(dom!(<meta property="og:title" content="{title}" />));
+        head.append_child(dom!(<meta name="twitter:title" content="{title}" />));
+    }
 
     // add stylesheets and favicon
     // reverse the order of insertion because latest css is applied last
