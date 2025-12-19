@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{path_extension::PathExtension, tree::Node, LssgError};
+use crate::{path_extension::PathExtension, sitetree::SiteId, tree::Node, LssgError};
 use pathdiff::diff_paths;
 use reqwest::Url;
 
@@ -160,17 +160,17 @@ impl ToString for SiteNodeKind {
 pub struct SiteNode {
     /// Unique name within children of node
     pub name: String,
-    pub parent: Option<usize>,
-    pub children: Vec<usize>,
+    pub parent: Option<SiteId>,
+    pub children: Vec<SiteId>,
     pub kind: SiteNodeKind,
 }
-impl Node for SiteNode {
-    fn children(&self) -> &Vec<usize> {
+impl Node<SiteId> for SiteNode {
+    fn children(&self) -> &Vec<SiteId> {
         &self.children
     }
 }
 impl SiteNode {
-    pub fn stylesheet(name: impl Into<String>, parent: usize, stylesheet: Stylesheet) -> SiteNode {
+    pub fn stylesheet(name: impl Into<String>, parent: SiteId, stylesheet: Stylesheet) -> SiteNode {
         SiteNode {
             name: name.into(),
             parent: Some(parent),
@@ -178,7 +178,7 @@ impl SiteNode {
             kind: SiteNodeKind::Stylesheet(stylesheet),
         }
     }
-    pub fn resource(name: impl Into<String>, parent: usize, resource: Resource) -> SiteNode {
+    pub fn resource(name: impl Into<String>, parent: SiteId, resource: Resource) -> SiteNode {
         SiteNode {
             name: name.into(),
             parent: Some(parent),
@@ -186,7 +186,7 @@ impl SiteNode {
             kind: SiteNodeKind::Resource(resource),
         }
     }
-    pub fn folder(name: impl Into<String>, parent: usize) -> SiteNode {
+    pub fn folder(name: impl Into<String>, parent: SiteId) -> SiteNode {
         SiteNode {
             name: name.into(),
             parent: Some(parent),
@@ -194,7 +194,7 @@ impl SiteNode {
             kind: SiteNodeKind::Folder,
         }
     }
-    pub fn page(name: impl Into<String>, parent: usize, page: Page) -> SiteNode {
+    pub fn page(name: impl Into<String>, parent: SiteId, page: Page) -> SiteNode {
         SiteNode {
             name: name.into(),
             parent: Some(parent),

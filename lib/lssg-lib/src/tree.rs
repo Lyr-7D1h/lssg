@@ -1,21 +1,21 @@
 /// Implement this trait to get generic functionality over tree structures
-pub trait Node {
-    fn children(&self) -> &Vec<usize>;
+pub trait Node<Id = usize> {
+    fn children(&self) -> &Vec<Id>;
 }
 
 /// Implement this trait to get generic functionality over tree structures
-pub trait Tree {
-    type Node: Node;
-    fn root(&self) -> usize;
-    fn get(&self, id: usize) -> &Self::Node;
+pub trait Tree<Id = usize> {
+    type Node: Node<Id>;
+    fn root(&self) -> Id;
+    fn get(&self, id: Id) -> &Self::Node;
 }
 
-pub struct DFS<'n, T: Tree> {
-    stack: Vec<usize>,
+pub struct DFS<'n, Id, T: Tree<Id>> {
+    stack: Vec<Id>,
     tree: &'n T,
 }
 
-impl<'n, T: Tree> DFS<'n, T> {
+impl<'n, Id, T: Tree<Id>> DFS<'n, Id, T> {
     pub fn new(tree: &'n T) -> Self {
         let mut stack = Vec::new();
         stack.push(tree.root());
@@ -23,8 +23,8 @@ impl<'n, T: Tree> DFS<'n, T> {
     }
 }
 
-impl<'n, T: Tree> Iterator for DFS<'n, T> {
-    type Item = usize;
+impl<'n, Id: Copy, T: Tree<Id>> Iterator for DFS<'n, Id, T> {
+    type Item = Id;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(id) = self.stack.pop() {

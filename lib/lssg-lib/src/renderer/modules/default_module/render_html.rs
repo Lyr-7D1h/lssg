@@ -11,7 +11,7 @@ use crate::{
         util::{process_href, tokens_to_text},
         RenderContext, TokenRenderer,
     },
-    sitetree::{Page, Relation},
+    sitetree::{Page, Relation, SiteId},
     tree::Node,
 };
 
@@ -194,7 +194,11 @@ pub fn sitetree(context: &RenderContext, parent: &DomNode, attributes: &HashMap<
     parent.append_child(sitetree);
 }
 
-fn sitetree_recurs(id: usize, context: &RenderContext, ignore_list: &Vec<&str>) -> Option<DomNode> {
+fn sitetree_recurs(
+    id: SiteId,
+    context: &RenderContext,
+    ignore_list: &Vec<&str>,
+) -> Option<DomNode> {
     let node = &context.site_tree[id];
     let name = &node.name;
     if ignore_list.contains(&name.as_str()) {

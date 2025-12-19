@@ -37,7 +37,7 @@ use sitetree::Input;
 
 use crate::{
     path_extension::PathExtension,
-    sitetree::{Relation, SiteNodeKind, SiteTree},
+    sitetree::{Relation, SiteId, SiteNodeKind, SiteTree},
 };
 
 pub struct Lssg {
@@ -84,7 +84,7 @@ impl Lssg {
         );
         create_dir_all(&self.output_directory)?;
 
-        let mut queue: Vec<usize> = vec![site_tree.root()];
+        let mut queue: Vec<SiteId> = vec![site_tree.root()];
         while let Some(site_id) = queue.pop() {
             queue.append(&mut site_tree[site_id].children.clone());
             let rel_path = site_tree.rel_path(site_tree.root(), site_id);

@@ -1,7 +1,7 @@
 use log::{debug, error};
 
 use crate::{
-    sitetree::{SiteNodeKind, SiteTree},
+    sitetree::{SiteId, SiteNodeKind, SiteTree},
     LssgError,
 };
 use virtual_dom::Document;
@@ -65,7 +65,7 @@ impl Renderer {
     }
 
     /// Transform site id into a html page
-    pub fn render(&mut self, site_tree: &SiteTree, site_id: usize) -> Result<String, LssgError> {
+    pub fn render(&mut self, site_tree: &SiteTree, site_id: SiteId) -> Result<String, LssgError> {
         // get the site node
         let site_node = site_tree.get(site_id)?;
         let page = match &site_node.kind {

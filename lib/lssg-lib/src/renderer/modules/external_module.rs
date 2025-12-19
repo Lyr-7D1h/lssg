@@ -44,7 +44,7 @@ impl RendererModule for ExternalModule {
         &mut self,
         site_tree: &mut crate::sitetree::SiteTree,
     ) -> Result<(), crate::lssg_error::LssgError> {
-        let pages: Vec<usize> = DFS::new(site_tree)
+        let pages: Vec<SiteId> = DFS::new(site_tree)
             .filter(|id| site_tree[*id].kind.is_page())
             .collect();
         for id in pages {

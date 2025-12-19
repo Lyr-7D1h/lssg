@@ -11,7 +11,9 @@ use serde_extensions::Overwrite;
 use crate::{
     lmarkdown::Token,
     lssg_error::LssgError,
-    sitetree::{Input, Page, Relation, Resource, SiteNode, SiteNodeKind, SiteTree, Stylesheet},
+    sitetree::{
+        Input, Page, Relation, Resource, SiteId, SiteNode, SiteNodeKind, SiteTree, Stylesheet,
+    },
     tree::DFS,
 };
 use virtual_dom::{
@@ -90,8 +92,8 @@ impl Default for SinglePageOptions {
 
 fn create_options_map(
     site_tree: &SiteTree,
-) -> Result<HashMap<usize, PropegatedOptions>, LssgError> {
-    let mut options_map: HashMap<usize, PropegatedOptions> = HashMap::new();
+) -> Result<HashMap<SiteId, PropegatedOptions>, LssgError> {
+    let mut options_map: HashMap<SiteId, PropegatedOptions> = HashMap::new();
     for id in DFS::new(site_tree) {
         if let SiteNodeKind::Page(page) = &site_tree[id].kind {
             let mut options = if let Some(parent_options) = site_tree
@@ -258,7 +260,7 @@ fn head(document: &mut Document, context: &RenderContext, options: &PropegatedOp
 /// Implements all basic default behavior, like rendering all tokens and adding meta tags and title to head
 pub struct DefaultModule {
     /// Map of all site pages to options. Considers options from parents.
-    options_map: HashMap<usize, PropegatedOptions>,
+    options_map: HashMap<SiteId, PropegatedOptions>,
 }
 
 impl DefaultModule {
@@ -276,7 +278,7 @@ impl RendererModule for DefaultModule {
 
     /// Add all resources from ResourceOptions to SiteTree
     fn init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
-        let pages: Vec<usize> = DFS::new(site_tree)
+        let pages: Vec<SiteId> = DFS::new(site_tree)
             .filter(|id| site_tree[*id].kind.is_page())
             .collect();
 
@@ -307,7 +309,7 @@ impl RendererModule for DefaultModule {
         ));
         site_tree.add_link(site_tree.root(), default_stylesheet);
 
-        let mut relation_map: HashMap<usize, Vec<usize>> = HashMap::new();
+        let mut relation_map: HashMap<SiteId, Vec<SiteId>> = HashMap::new();
         // propegate relations to stylesheets, favicon and js from parent to child
         for id in pages {
             // skip page if disabled
@@ -319,7 +321,7 @@ impl RendererModule for DefaultModule {
             }
 
             // get the set of links to favicon and stylesheets
-            let mut set: Vec<usize> = site_tree
+            let mut set: Vec<SiteId> = site_tree
                 .links_from(id)
                 .into_iter()
                 .filter_map(|link| match link.relation {
@@ -344,7 +346,7 @@ impl RendererModule for DefaultModule {
                 if let Some(parent_set) = relation_map.get(&parent) {
                     // 0 [28, 29, 32, 35, 37, 49]
                     // add links from parent_set without the ones it already has
-                    let mut new_links: Vec<usize> = parent_set
+                    let mut new_links: Vec<SiteId> = parent_set
                         .into_iter()
                         .filter(|id| !set.contains(id))
                         .cloned()
@@ -426,7 +428,7 @@ impl RendererModule for DefaultModule {
             }
 
             let mut footer = DomNode::create_element("footer");
-            footer.set_attribute("id", "default__footer");
+            footer.set_attribute("id".to_string(), "default__footer".to_string());
             let mut items = items.into_iter().peekable();
             while let Some(item) = items.next() {
                 footer.append_child(item);
@@ -458,7 +460,7 @@ impl RendererModule for DefaultModule {
             Token::OrderedList { items, start, .. } => {
                 let mut ol = document.create_element("ol");
                 if *start != 0 && *start != 1 {
-                    ol.set_attribute("start".into(), &start.to_string());
+                    ol.set_attribute("start".into(), start.to_string());
                 }
                 for tokens in items {
                     let li = document.create_element("li");
@@ -664,7 +666,7 @@ impl RendererModule for DefaultModule {
             Token::CodeBlock { text: code, info } => {
                 let mut code_html = document.create_element("code");
                 if let Some(info) = info {
-                    code_html.set_attribute("class".into(), &format!("language-{info}"));
+                    code_html.set_attribute("class".into(), format!("language-{info}"));
                 }
                 code_html.append_child(document.create_text_node(code));
                 let pre = document.create_element("pre");

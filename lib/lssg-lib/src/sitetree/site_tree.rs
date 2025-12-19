@@ -6,7 +6,7 @@ use std::{
 
 use log::{debug, warn};
 
-use crate::{tree::Tree, LssgError};
+use crate::{sitetree::SiteId, tree::Tree, LssgError};
 
 use super::{
     page::Page,
@@ -17,11 +17,11 @@ use super::{
 };
 
 fn absolute_path(nodes: &Vec<SiteNode>, to: SiteId) -> String {
-    let mut names = vec![nodes[to].name.clone()];
-    let mut parent = nodes[to].parent;
+    let mut names = vec![nodes[*to].name.clone()];
+    let mut parent = nodes[*to].parent;
     while let Some(p) = parent {
-        names.push(nodes[p].name.clone());
-        parent = nodes[p].parent;
+        names.push(nodes[*p].name.clone());
+        parent = nodes[*p].parent;
     }
     names.pop(); // pop root
     names.reverse();
@@ -31,18 +31,18 @@ fn absolute_path(nodes: &Vec<SiteNode>, to: SiteId) -> String {
 /// Get the relative path between two nodes
 fn rel_path(nodes: &Vec<SiteNode>, from: SiteId, to: SiteId) -> String {
     let mut visited = HashMap::new();
-    let mut to_path = vec![nodes[to].name.clone()];
+    let mut to_path = vec![nodes[*to].name.clone()];
 
     // discover all parents from destination
     let mut depth = 0;
-    let mut node = nodes[to].parent;
+    let mut node = nodes[*to].parent;
     while let Some(i) = node {
         visited.insert(i, depth);
         depth += 1;
-        node = nodes[i].parent;
+        node = nodes[*i].parent;
         // if not root (root doesn't have a parent) add to file directories
-        if let Some(_) = nodes[i].parent {
-            to_path.push(nodes[i].name.clone())
+        if let Some(_) = nodes[*i].parent {
+            to_path.push(nodes[*i].name.clone())
         }
     }
 
@@ -56,12 +56,12 @@ fn rel_path(nodes: &Vec<SiteNode>, from: SiteId, to: SiteId) -> String {
             break;
         }
         depth += 1;
-        node = nodes[i].parent;
+        node = nodes[*i].parent;
     }
 
     // don't add anything to path traversal if root
     to_path.reverse();
-    let to_path = if nodes[to].parent.is_some() {
+    let to_path = if nodes[*to].parent.is_some() {
         to_path[to_path.len() - 1 - to_depth..to_path.len()].join("/")
     } else {
         depth -= 1;
@@ -75,8 +75,6 @@ fn rel_path(nodes: &Vec<SiteNode>, from: SiteId, to: SiteId) -> String {
         return format!("./{}", to_path);
     }
 }
-
-pub type SiteId = usize;
 
 /// Code representation of all nodes within the site (hierarchy and how nodes are related)
 #[derive(Debug)]
@@ -100,7 +98,7 @@ impl SiteTree {
     pub fn from_input(input: Input) -> Result<SiteTree, LssgError> {
         let mut tree = SiteTree {
             nodes: vec![],
-            root: 0,
+            root: SiteId(0),
             root_input: input.clone(),
             input_to_id: HashMap::new(),
             rel_graph: RelationalGraph::new(),
@@ -111,12 +109,12 @@ impl SiteTree {
 
     /// Check if node `id` has `parent_id` as (grand)parent node
     pub fn is_parent(&self, id: SiteId, parent_id: SiteId) -> bool {
-        let mut parent = self.nodes[id].parent;
+        let mut parent = self.nodes[*id].parent;
         while let Some(p) = parent {
             if p == parent_id {
                 return true;
             }
-            parent = self.nodes[id].parent
+            parent = self.nodes[*id].parent
         }
         return false;
     }
@@ -130,10 +128,10 @@ impl SiteTree {
 
     // get a node by name by checking the children of `id`
     pub fn get_by_name(&self, name: &str, id: SiteId) -> Option<&SiteId> {
-        self.nodes[id]
+        self.nodes[*id]
             .children
             .iter()
-            .find(|n| &self.nodes[**n].name == name)
+            .find(|n| self.nodes[***n].name == name)
     }
 
     pub fn root(&self) -> SiteId {
@@ -141,32 +139,32 @@ impl SiteTree {
     }
 
     pub fn get(&self, id: SiteId) -> Result<&SiteNode, LssgError> {
-        self.nodes.get(id).ok_or(LssgError::sitetree(&format!(
+        self.nodes.get(*id).ok_or(LssgError::sitetree(&format!(
             "Could not find {id} in SiteTree"
         )))
     }
 
     /// get next parent of page
     pub fn page_parent(&self, id: SiteId) -> Option<SiteId> {
-        let mut parent = self.nodes[id].parent;
+        let mut parent = self.nodes[*id].parent;
         let mut parents = vec![];
         while let Some(p) = parent {
-            if let SiteNodeKind::Page { .. } = self.nodes[p].kind {
+            if let SiteNodeKind::Page { .. } = self.nodes[*p].kind {
                 return Some(p);
             }
             parents.push(p);
-            parent = self.nodes[p].parent;
+            parent = self.nodes[*p].parent;
         }
         None
     }
 
     /// Get all parents from a node
     pub fn parents(&self, id: SiteId) -> Vec<SiteId> {
-        let mut parent = self.nodes[id].parent;
+        let mut parent = self.nodes[*id].parent;
         let mut parents = vec![];
         while let Some(p) = parent {
             parents.push(p);
-            parent = self.nodes[p].parent;
+            parent = self.nodes[*p].parent;
         }
         parents
     }
@@ -182,7 +180,7 @@ impl SiteTree {
     }
 
     pub fn ids(&self) -> Vec<SiteId> {
-        (0..self.nodes.len() - 1).collect()
+        (0..self.nodes.len()).map(SiteId::from).collect()
     }
 
     /// add an external relation between two site nodes
@@ -206,9 +204,9 @@ impl SiteTree {
             }
         }
 
-        let id = self.nodes.len();
+        let id = SiteId::from(self.nodes.len());
         if let Some(parent) = node.parent {
-            self.nodes[parent].children.push(id);
+            self.nodes[*parent].children.push(id);
             self.rel_graph.add(parent, id, Relation::Family);
         }
         self.nodes.push(node);
@@ -284,7 +282,7 @@ impl SiteTree {
         // register input
         self.input_to_id.insert(input.clone(), id);
 
-        let page = match &self.nodes[id].kind {
+        let page = match &self.nodes[*id].kind {
             SiteNodeKind::Page(page) => page,
             _ => panic!("has to be page"),
         };
@@ -314,7 +312,7 @@ impl SiteTree {
             }
         }
 
-        let page = match &self.nodes[id].kind {
+        let page = match &self.nodes[*id].kind {
             SiteNodeKind::Page(page) => page,
             _ => panic!("has to be page"),
         };
@@ -432,7 +430,7 @@ impl SiteTree {
     }
 }
 
-impl Tree for SiteTree {
+impl Tree<SiteId> for SiteTree {
     type Node = SiteNode;
 
     fn root(&self) -> SiteId {
@@ -440,7 +438,7 @@ impl Tree for SiteTree {
     }
 
     fn get(&self, id: SiteId) -> &Self::Node {
-        &self[id]
+        &self.nodes[*id]
     }
 }
 
@@ -452,7 +450,7 @@ impl fmt::Display for SiteTree {
         let mut prev_col = 0;
         let mut queue = vec![(self.root(), 0)];
         while let Some((n, col)) = queue.pop() {
-            let node = &self.nodes[n];
+            let node = &self.nodes[*n];
             for c in &node.children {
                 queue.push((c.clone(), col + 1))
             }
@@ -525,11 +523,11 @@ impl Index<SiteId> for SiteTree {
     type Output = SiteNode;
 
     fn index(&self, index: SiteId) -> &Self::Output {
-        &self.nodes[index]
+        &self.nodes[*index]
     }
 }
 impl IndexMut<SiteId> for SiteTree {
     fn index_mut(&mut self, index: SiteId) -> &mut Self::Output {
-        &mut self.nodes[index]
+        &mut self.nodes[*index]
     }
 }

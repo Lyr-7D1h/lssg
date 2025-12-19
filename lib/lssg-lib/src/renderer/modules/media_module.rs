@@ -6,7 +6,7 @@ use serde_extensions::Overwrite;
 
 use crate::{
     lssg_error::{LssgError, LssgErrorKind},
-    sitetree::{Resource, SiteNodeKind, SiteTree},
+    sitetree::{Resource, SiteId, SiteNodeKind, SiteTree},
     tree::DFS,
 };
 
@@ -470,7 +470,7 @@ impl RendererModule for MediaModule {
         info!("Starting media optimization...");
 
         // Find all resource nodes
-        let resource_ids: Vec<usize> = DFS::new(site_tree)
+        let resource_ids: Vec<SiteId> = DFS::new(site_tree)
             .filter(|id| matches!(site_tree[*id].kind, SiteNodeKind::Resource(_)))
             .collect();
 
