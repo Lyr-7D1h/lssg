@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use lssg_lib::{
     lmarkdown::parse_lmarkdown,
-    renderer::{BlogModule, DefaultModule, ExternalModule, MediaModule, Renderer, RendererModule},
+    renderer::{BlogModule, DefaultModule, ExternalModule, MediaModule, Renderer},
     sitetree::{Input, SiteTree},
     Lssg,
 };

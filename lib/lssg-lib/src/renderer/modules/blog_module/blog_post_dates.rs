@@ -6,11 +6,11 @@ use crate::{lssg_error::LssgError, sitetree::Input};
 use super::BlogPostOptions;
 
 #[derive(Clone)]
-pub struct Dates {
+pub struct BlogPostDates {
     pub modified_on: Option<DateTime<Utc>>,
     pub created_on: Option<DateTime<Utc>>,
 }
-impl Default for Dates {
+impl Default for BlogPostDates {
     fn default() -> Self {
         Self {
             modified_on: None,
@@ -18,7 +18,7 @@ impl Default for Dates {
         }
     }
 }
-impl Dates {
+impl BlogPostDates {
     pub fn from_post_options(
         post_options: &BlogPostOptions,
         input: &Option<Input>,

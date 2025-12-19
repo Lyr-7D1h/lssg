@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use serde::Deserialize;
 use serde_extensions::Overwrite;
 
@@ -7,12 +9,15 @@ pub struct RssOptions {
     pub enabled: bool,
     /// This footer is applied to this page and all of its children
     pub footer: bool,
+    /// Path to the rss feed
+    pub path: PathBuf,
 }
 impl Default for RssOptions {
     fn default() -> Self {
         Self {
             enabled: true,
             footer: true,
+            path: PathBuf::from("feed.xml"),
         }
     }
 }

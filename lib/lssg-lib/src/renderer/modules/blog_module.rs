@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
+use blog_post_dates::BlogPostDates;
 use constants::BLOG_STYLESHEET;
-use dates::Dates;
 use log::{error, warn};
 use proc_virtual_dom::dom;
 use rss::RssOptions;
@@ -18,8 +18,8 @@ use virtual_dom::{to_attributes, Document, DomNode};
 
 use super::{RendererModule, TokenRenderer};
 
+mod blog_post_dates;
 mod constants;
-mod dates;
 mod rss;
 
 #[derive(Clone)]
@@ -78,7 +78,7 @@ impl Default for BlogPostOptions {
 struct PostPage {
     post_options: BlogPostOptions,
     /// Relevant dates given by metadata
-    dates: Dates,
+    dates: BlogPostDates,
     /// Contents of the page that gets filled in during render
     contents: Contents,
 }
@@ -188,7 +188,7 @@ impl RendererModule for BlogModule {
                             } else {
                                 None
                             };
-                            let dates = Dates::from_post_options(&post_options, &input)
+                            let dates = BlogPostDates::from_post_options(&post_options, &input)
                                 .inspect_err(|e| warn!("Failed to parse dates: {e}"))
                                 .ok()
                                 .unwrap_or_default();
