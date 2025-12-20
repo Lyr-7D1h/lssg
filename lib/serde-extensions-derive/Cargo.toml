@@ -10,6 +10,7 @@ description = "Extensions for serde serializable structs"
 proc-macro = true
 
 [dependencies]
-serde = {version="1.0.192", features = ["derive"]}
+serde = { version = "1.0.192", features = ["derive"] }
 syn = "2.0"
 quote = "1.0"
+serde-value = "0.7"

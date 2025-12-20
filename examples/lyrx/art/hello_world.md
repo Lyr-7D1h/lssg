@@ -1,4 +1,7 @@
-<!--blog.created_on="2024-3-5"-->
+<!--
+[blog.post]
+created_on="2024-3-5"
+-->
 
 # Hello World: Random Graph Circles
 

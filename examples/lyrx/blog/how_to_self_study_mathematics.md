@@ -1,4 +1,8 @@
-<!--blog.post.modified_on="2024-1-3"-->
+<!--
+[blog.post]
+modified_on="2024-1-3"
+created_on="2024-1-3"
+-->
 # How to self study mathematics
 
 ## Background

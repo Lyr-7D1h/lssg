@@ -168,6 +168,10 @@ impl Node<SiteId> for SiteNode {
     fn children(&self) -> &Vec<SiteId> {
         &self.children
     }
+
+    fn parent(&self) -> Option<SiteId> {
+        self.parent
+    }
 }
 impl SiteNode {
     pub fn stylesheet(name: impl Into<String>, parent: SiteId, stylesheet: Stylesheet) -> SiteNode {

@@ -13,10 +13,16 @@ image="https://lyrx.dev/icon.png"
 
 [footer]
 items = [
-  "Made with <3"
+  "Made with <3",
+  '<a href="/feed.xml">RSS Feed</a>'
 ]
 
-[blog.root]
+[blog.root.rss]
+title = "LyrX"
+description = "Lyr's little space of the internet"
+language = "en"
+host = "https://lyrx.dev"
+path = "feed.xml"
 -->
 [](./icon.png)
 <!-- add favicon -->

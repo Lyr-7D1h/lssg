@@ -32,7 +32,7 @@ const PRISM_JS: &str = include_str!("./default_module/prism.js");
 
 const SUPPORTED_VIDEO_FORMATS: [&str; 6] = ["mp4", "webm", "ogg", "ogv", "mov", "avi"];
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Overwrite)]
 #[serde(default)]
 struct Footer {
     /// Every item you want to include in your footer

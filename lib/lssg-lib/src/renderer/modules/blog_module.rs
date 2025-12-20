@@ -1,8 +1,5 @@
 use std::collections::HashMap;
 
-use blog_post_dates::BlogPostDates;
-use constants::BLOG_STYLESHEET;
-use log::{error, warn};
 use proc_virtual_dom::dom;
 use rss::RssOptions;
 use serde::Deserialize;
@@ -10,34 +7,23 @@ use serde_extensions::Overwrite;
 
 use crate::{
     lmarkdown::Token,
-    renderer::RenderContext,
-    sitetree::{SiteId, SiteNode, SiteNodeKind, SiteTree, Stylesheet},
-    tree::DFS,
+    renderer::{
+        modules::blog_module::{
+            collect_roots::{PostPage, RootPage},
+            constants::BLOG_STYLESHEET,
+        },
+        RenderContext,
+    },
+    sitetree::{SiteId, SiteNode, Stylesheet},
 };
-use virtual_dom::{to_attributes, Document, DomNode, DomNodeKind};
+use virtual_dom::{to_attributes, Document, DomNode};
 
 use super::{RendererModule, TokenRenderer};
 
 mod blog_post_dates;
+mod collect_roots;
 mod constants;
 mod rss;
-
-#[derive(Debug, Clone)]
-/// Describes the content of a blog post
-struct Contents {
-    title: Option<String>,
-    link: Option<String>,
-    description: Option<String>,
-}
-impl Contents {
-    fn empty() -> Self {
-        Self {
-            title: None,
-            link: None,
-            description: None,
-        }
-    }
-}
 
 #[derive(Overwrite, Clone, Debug, Deserialize)]
 pub struct BlogRootOptions {
@@ -62,6 +48,7 @@ pub struct BlogPostOptions {
     modified_on: Option<String>,
     created_on: Option<String>,
     tags: Option<Vec<String>>,
+    summary: Option<String>,
 }
 impl Default for BlogPostOptions {
     fn default() -> Self {
@@ -70,30 +57,13 @@ impl Default for BlogPostOptions {
             modified_on: None,
             created_on: None,
             tags: None,
+            summary: None,
         }
     }
 }
 
-#[derive(Debug, Clone)]
-struct PostPage {
-    post_options: BlogPostOptions,
-    /// Relevant dates given by metadata
-    dates: BlogPostDates,
-    /// Contents of the page that gets filled in during render
-    contents: Contents,
-}
-
-#[derive(Debug)]
-/// Represent a page active in the blog module
-struct BlogPage {
-    /// Global blog settings applied to all children
-    root_options: BlogRootOptions,
-    /// Blog Post settings
-    post_page: Option<PostPage>,
-}
-
 pub struct BlogModule {
-    blog_pages: HashMap<SiteId, BlogPage>,
+    roots: HashMap<SiteId, RootPage>,
     /// Local variable to keep track if date has been inserted
     has_inserted_date: bool,
 }
@@ -101,36 +71,21 @@ pub struct BlogModule {
 impl BlogModule {
     pub fn new() -> Self {
         Self {
-            blog_pages: HashMap::new(),
             has_inserted_date: false,
+            roots: HashMap::new(),
         }
     }
 
     /// Get blog page for render
-    fn blog_page(&self, site_id: SiteId) -> Option<&PostPage> {
-        let page = self.blog_pages.get(&site_id)?;
-        let page = page.post_page.as_ref()?;
+    fn post_page(&self, site_id: SiteId) -> Option<&PostPage> {
+        let page = self
+            .roots
+            .values()
+            .find_map(|root| root.posts.get(&site_id))?;
         if page.post_options.render == false {
             return None;
         }
         Some(page)
-    }
-
-    /// Get blog root options
-    fn blog_root_options<'n>(
-        &self,
-        site_tree: &SiteTree,
-        site_id: SiteId,
-    ) -> Option<&BlogRootOptions> {
-        let mut site_id = Some(site_id);
-        while let Some(id) = site_id {
-            if let Some(page) = self.blog_pages.get(&id) {
-                return Some(&page.root_options);
-            }
-
-            site_id = site_tree.page_parent(id);
-        }
-        None
     }
 }
 
@@ -143,77 +98,38 @@ impl RendererModule for BlogModule {
         &mut self,
         site_tree: &mut crate::sitetree::SiteTree,
     ) -> Result<(), crate::lssg_error::LssgError> {
+        let roots = self.collect_roots(site_tree);
+
         let default_stylesheet = site_tree.add(SiteNode::stylesheet(
             "blog.css",
             site_tree.root(),
             Stylesheet::from_readable(BLOG_STYLESHEET)?,
         ));
 
-        let pages: Vec<SiteId> = DFS::new(site_tree)
-            .filter(|id| site_tree[*id].kind.is_page())
-            .collect();
+        for (root_id, root) in roots.iter() {
+            for page_id in root.posts.keys() {
+                site_tree.add_link(*page_id, default_stylesheet);
+            }
 
-        // if contains module id it is a blog post
-        for site_id in pages {
-            match &mut site_tree[site_id].kind {
-                SiteNodeKind::Page(page) => {
-                    if let Some(Some(table)) = page.attributes().map(|a| a.get(self.id()).cloned())
-                    {
-                        let root_options = {
-                            match table.get("root") {
-                                Some(v) => {
-                                    let mut o = BlogRootOptions::default();
-                                    if let Err(e) = o.overwrite(v.clone()) {
-                                        error!(
-                                            "Failed to parse options for '{}' module: {e}",
-                                            self.id()
-                                        )
-                                    }
-                                    o
-                                }
-                                None => match self.blog_root_options(site_tree, site_id) {
-                                    Some(o) => o.clone(),
-                                    // if no blog root parent ignore
-                                    None => BlogRootOptions::default(),
-                                },
-                            }
-                        };
-                        let post_page = table.get("post").map(|v| {
-                            let mut post_options = BlogPostOptions::default();
-                            if let Err(e) = post_options.overwrite(v.clone()) {
-                                error!("Failed to parse options for '{}' module: {e}", self.id())
-                            }
+            // Generate RSS feed if enabled
+            if root.options.rss.enabled {
+                let rss_feed = rss::RssFeed::from_root(*root_id, root, site_tree);
+                let rss_content = rss_feed.to_string();
 
-                            let input = if root_options.use_fs_dates {
-                                site_tree.get_input(site_id).cloned()
-                            } else {
-                                None
-                            };
-                            let dates = BlogPostDates::from_post_options(&post_options, &input)
-                                .inspect_err(|e| warn!("Failed to parse dates: {e}"))
-                                .ok()
-                                .unwrap_or_default();
+                let rss_resource = crate::sitetree::Resource::new_static(rss_content);
+                let rss_filename = root
+                    .options
+                    .rss
+                    .path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("feed.xml");
 
-                            PostPage {
-                                post_options,
-                                dates,
-                                contents: Contents::empty(),
-                            }
-                        });
-
-                        self.blog_pages.insert(
-                            site_id,
-                            BlogPage {
-                                root_options,
-                                post_page,
-                            },
-                        );
-                        site_tree.add_link(site_id, default_stylesheet);
-                    }
-                }
-                _ => {}
+                site_tree.add(SiteNode::resource(rss_filename, *root_id, rss_resource));
             }
         }
+
+        self.roots = roots;
 
         Ok(())
     }
@@ -226,7 +142,7 @@ impl RendererModule for BlogModule {
         let site_id = context.site_id;
 
         // if not a blog page
-        let Some(blog_page) = self.blog_page(site_id) else {
+        let Some(blog_page) = self.post_page(site_id) else {
             return None;
         };
 
@@ -261,7 +177,7 @@ impl RendererModule for BlogModule {
         let site_id = context.site_id;
 
         // if not a blog page
-        let Some(blog_page) = self.blog_page(site_id).cloned() else {
+        let Some(blog_page) = self.post_page(site_id).cloned() else {
             return None;
         };
 
