@@ -27,7 +27,14 @@ impl<'a> TokenRenderer {
     ) -> DomNode {
         'l: for token in tokens.iter() {
             let modules = unsafe { self.modules.as_mut().unwrap() };
-            for module in modules.iter_mut() {
+            let mut modules_iter = modules.iter_mut();
+            // skip all before current module
+            while let Some(module) = modules_iter.next() {
+                if module.id() == current_module.id() {
+                    break;
+                }
+            }
+            for module in modules_iter {
                 if current_module.id() == module.id() {
                     continue;
                 }

@@ -14,7 +14,7 @@ use crate::{
     sitetree::{SiteId, SiteNode, SiteNodeKind, SiteTree, Stylesheet},
     tree::DFS,
 };
-use virtual_dom::{to_attributes, Document, DomNode};
+use virtual_dom::{to_attributes, Document, DomNode, DomNodeKind};
 
 use super::{RendererModule, TokenRenderer};
 
@@ -22,7 +22,7 @@ mod blog_post_dates;
 mod constants;
 mod rss;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 /// Describes the content of a blog post
 struct Contents {
     title: Option<String>,
@@ -74,7 +74,7 @@ impl Default for BlogPostOptions {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 struct PostPage {
     post_options: BlogPostOptions,
     /// Relevant dates given by metadata
@@ -83,6 +83,7 @@ struct PostPage {
     contents: Contents,
 }
 
+#[derive(Debug)]
 /// Represent a page active in the blog module
 struct BlogPage {
     /// Global blog settings applied to all children
@@ -173,7 +174,7 @@ impl RendererModule for BlogModule {
                                 None => match self.blog_root_options(site_tree, site_id) {
                                     Some(o) => o.clone(),
                                     // if no blog root parent ignore
-                                    None => continue,
+                                    None => BlogRootOptions::default(),
                                 },
                             }
                         };
@@ -268,13 +269,21 @@ impl RendererModule for BlogModule {
             Token::Heading { depth, .. } if *depth == 1 && !self.has_inserted_date => {
                 self.has_inserted_date = true;
                 let post = document
-                    .create_element_with_attributes("div", to_attributes([("class", "post")]));
-                let content = document
-                    .create_element_with_attributes("div", to_attributes([("class", "content")]));
+                    .create_element_with_attributes("div", to_attributes([("id", "blog__post")]));
+                let content = document.create_element_with_attributes(
+                    "div",
+                    to_attributes([("class", "blog__content")]),
+                );
                 post.append_child(content.clone());
                 parent.append_child(post);
                 // render heading
-                tr.render(document, context, content.clone(), &vec![token.clone()]);
+                tr.render_down(
+                    self,
+                    document,
+                    context,
+                    content.clone(),
+                    &vec![token.clone()],
+                );
                 if let Some(date) = blog_page.dates.to_pretty_string() {
                     content.append_child(dom!(<div class="blog__date">{date}</div>));
                 }
@@ -301,19 +310,32 @@ impl RendererModule for BlogModule {
                     return Some(parent);
                 }
             }
-            // TODO add section links
-            // Token::Heading { depth, tokens } if *depth == 2 => {
-            //     let href = tokens_to_text(tokens).to_lowercase().replace(" ", "-");
-            //     println!("{parent_id:?} {token:?}");
-            //     let id = tr.render_down(self, dom, context, parent_id, &vec![token.clone()]);
-            //     println!("{:?}", dom.get(id));
-            //     dom.add_html(id, dom!(r#"<a name="{href}"></a>"#));
-            //     dom.add_html(id, dom!(r##"<a class="section-link" aria-hidden="true" href="#{href}"><svg xmlns="http://www.w3.org/2000/svg" height="16" width="20" viewBox="0 0 640 512"><path d="M579.8 267.7c56.5-56.5 56.5-148 0-204.5c-50-50-128.8-56.5-186.3-15.4l-1.6 1.1c-14.4 10.3-17.7 30.3-7.4 44.6s30.3 17.7 44.6 7.4l-1.6 1.1c-32.1-22.9-76-19.3-103.8 8.6c31.5 31.5 31.5 82.5 0 114L422.3 334.8c-31.5 31.5-82.5 31.5-114 0c-27.9-27.9-31.5-71.8-8.6-103.8l1.1-1.6c10.3-14.4 6.9-34.4-7.4-44.6s-34.4-6.9-44.6 7.4l-1.1 1.6C206.5 251.2 213 330 263 380c56.5 56.5 148 56.5 204.5 0L579.8 267.7zM60.2 244.3c-56.5 56.5-56.5 148 0 204.5c50 50 128.8 56.5 186.3 15.4l1.6-1.1c14.4-10.3 17.7-30.3 7.4-44.6s-30.3-17.7-44.6-7.4l-1.6 1.1c-32.1-22.9-76 19.3-103.8-8.6C74 372 74 321 105.5 289.5L217.7 177.2c31.5-31.5 82.5-31.5 114 0c27.9 27.9 31.5 71.8 8.6 103.9l-1.1 1.6c-10.3 14.4-6.9 34.4 7.4 44.6s34.4-6.9 44.6-7.4l1.1-1.6C433.5 260.8 427 182 377 132c-56.5-56.5-148-56.5-204.5 0L60.2 244.3z"/></svg></a>"##));
-            //     return Some(id);
-            // }
             _ => {}
         }
         return None;
+    }
+
+    fn after_render<'n>(&mut self, document: &mut Document, _context: &RenderContext<'n>) {
+        // Add link icons to each sub header
+        if let Some(post) = document.body.get_element_by_id("blog__post") {
+            for mut heading in post.get_elements_by_tag_name("h2") {
+                let id = match heading.get_attribute("id") {
+                    Some(id) => id,
+                    None => {
+                        let id = heading.inner_text().to_ascii_lowercase().replace(" ", "-");
+                        heading.set_attribute("id", &id);
+                        id
+                    }
+                };
+                heading.prepend(
+                    dom!(
+                    <a href="#{id}" class="section-link" aria-hidden=true>
+                        <svg xmlns="http://www.w3.org/2000/svg" height="16" width="20" viewBox="0 0 640 512"><path d="M579.8 267.7c56.5-56.5 56.5-148 0-204.5c-50-50-128.8-56.5-186.3-15.4l-1.6 1.1c-14.4 10.3-17.7 30.3-7.4 44.6s30.3 17.7 44.6 7.4l-1.6 1.1c-32.1-22.9-76-19.3-103.8 8.6c31.5 31.5 31.5 82.5 0 114L422.3 334.8c-31.5 31.5-82.5 31.5-114 0c-27.9-27.9-31.5-71.8-8.6-103.8l1.1-1.6c10.3-14.4 6.9-34.4-7.4-44.6s-34.4-6.9-44.6 7.4l-1.1 1.6C206.5 251.2 213 330 263 380c56.5 56.5 148 56.5 204.5 0L579.8 267.7zM60.2 244.3c-56.5 56.5-56.5 148 0 204.5c50 50 128.8 56.5 186.3 15.4l1.6-1.1c14.4-10.3 17.7-30.3 7.4-44.6s-30.3-17.7-44.6-7.4l-1.6 1.1c-32.1-22.9-76 19.3-103.8-8.6C74 372 74 321 105.5 289.5L217.7 177.2c31.5-31.5 82.5-31.5 114 0c27.9 27.9 31.5 71.8 8.6 103.9l-1.1 1.6c-10.3 14.4-6.9 34.4 7.4 44.6s34.4-6.9 44.6-7.4l1.1-1.6C433.5 260.8 427 182 377 132c-56.5-56.5-148-56.5-204.5 0L60.2 244.3z"/></svg>
+                    </a>)
+
+                );
+            }
+        }
     }
 }
 

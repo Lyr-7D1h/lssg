@@ -21,6 +21,7 @@ pub mod parse_error;
 pub mod renderer;
 pub mod sitetree;
 
+mod domnode_to_token;
 pub mod lssg_error;
 mod path_extension;
 mod tree;

@@ -265,6 +265,28 @@ impl DomNode {
             .collect()
     }
 
+    pub fn get_element_by_id(&self, id: &str) -> Option<DomNode> {
+        self.descendants().find(|d| {
+            if let DomNodeKind::Element { attributes, .. } = &*d.kind() {
+                if let Some(element_id) = attributes.get("id") {
+                    return element_id == id;
+                }
+            }
+            false
+        })
+    }
+
+    /// Returns the text content of this node and all its descendants.
+    pub fn inner_text(&self) -> String {
+        let mut text = String::new();
+        for descendant in self.descendants() {
+            if let DomNodeKind::Text { text: t } = &*descendant.kind() {
+                text.push_str(t);
+            }
+        }
+        text
+    }
+
     /// Detaches a node from its parent and siblings. Children are not affected.
     ///
     /// # Panics

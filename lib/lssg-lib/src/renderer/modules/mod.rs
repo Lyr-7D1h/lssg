@@ -39,6 +39,7 @@ pub trait RendererModule {
     }
 
     /// Modify DomTree before rendering page
+    ///
     /// return Some(String) if you want to render the page yourself and ignore renderer for this page
     fn render_page<'n>(
         &mut self,
@@ -48,10 +49,12 @@ pub trait RendererModule {
         None
     }
 
-    /// Render a token before default token renderer returns parent id for following tokens if it parsed this token otherwise None
+    /// Render a single token by appending to parent
+    ///
+    /// returns the Some(new_parent) if it rendered given token otherwise None and will continue to next render module
     fn render_body<'n>(
         &mut self,
-        dom: &mut Document,
+        document: &mut Document,
         context: &RenderContext<'n>,
         parent: DomNode,
         token: &Token,
@@ -61,7 +64,7 @@ pub trait RendererModule {
     }
 
     /// Gets called after body has been rendered, can be used for final changes to the dom
-    fn after_render<'n>(&mut self, dom: &mut Document, context: &RenderContext<'n>) {}
+    fn after_render<'n>(&mut self, document: &mut Document, context: &RenderContext<'n>) {}
 
     /// get options by overwriting provided `default` with Token::Attributes
     fn options_with_default<D: Overwrite + Default>(&self, page: &Page, mut default: D) -> D

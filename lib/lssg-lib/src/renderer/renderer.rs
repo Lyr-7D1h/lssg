@@ -102,10 +102,6 @@ impl Renderer {
         // sanitize html
         dom.sanitize();
 
-        // println!("{dom}");
-        // println!("{dom:?}");
-        // println!("{:?}", tree.get_mut(9));
-        // println!("{page:#?}");
         Ok(dom.to_string())
     }
 }

@@ -407,7 +407,7 @@ impl RendererModule for DefaultModule {
 
         // move all dom elements to under #content
         let content =
-            document.create_element_with_attributes("div", to_attributes([("id", "content")]));
+            document.create_element_with_attributes("main", to_attributes([("id", "content")]));
         for child in body.children() {
             child.detach();
             content.append_child(child);
@@ -428,7 +428,7 @@ impl RendererModule for DefaultModule {
             }
 
             let mut footer = DomNode::create_element("footer");
-            footer.set_attribute("id".to_string(), "default__footer".to_string());
+            footer.set_attribute("id", "default__footer");
             let mut items = items.into_iter().peekable();
             while let Some(item) = items.next() {
                 footer.append_child(item);
@@ -460,7 +460,7 @@ impl RendererModule for DefaultModule {
             Token::OrderedList { items, start, .. } => {
                 let mut ol = document.create_element("ol");
                 if *start != 0 && *start != 1 {
-                    ol.set_attribute("start".into(), start.to_string());
+                    ol.set_attribute("start", &start.to_string());
                 }
                 for tokens in items {
                     let li = document.create_element("li");
@@ -666,7 +666,7 @@ impl RendererModule for DefaultModule {
             Token::CodeBlock { text: code, info } => {
                 let mut code_html = document.create_element("code");
                 if let Some(info) = info {
-                    code_html.set_attribute("class".into(), format!("language-{info}"));
+                    code_html.set_attribute("class".into(), &format!("language-{info}"));
                 }
                 code_html.append_child(document.create_text_node(code));
                 let pre = document.create_element("pre");

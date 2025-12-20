@@ -5,7 +5,7 @@ use crate::{lssg_error::LssgError, sitetree::Input};
 
 use super::BlogPostOptions;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct BlogPostDates {
     pub modified_on: Option<DateTime<Utc>>,
     pub created_on: Option<DateTime<Utc>>,
