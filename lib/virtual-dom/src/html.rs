@@ -60,7 +60,14 @@ fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, io::Er
                     i += 1;
                     in_value = true
                 }
-                _ => {}
+                _ => {
+                    // '=' not followed by a quote
+                    if in_value {
+                        value.push('=')
+                    } else {
+                        key.push('=')
+                    }
+                }
             },
             '\'' | '"' if in_value => in_value = false,
             c => {
@@ -81,6 +88,8 @@ fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, io::Er
 }
 
 /// Get the start tag with its attributes starts after the opening tag '<'
+///
+/// returns (tag, attributes, tag_content_length, void_element)
 fn element_start_tag(
     reader: &mut CharReader<impl Read>,
 ) -> Result<Option<(String, HashMap<String, String>, usize, bool)>, io::Error> {
@@ -89,7 +98,7 @@ fn element_start_tag(
     let mut i = 1;
     while let Some(c) = reader.peek_char(i)? {
         match c {
-            '>' if inside_double_quotes == false && inside_double_quotes == false => {
+            '>' if inside_single_quotes == false && inside_double_quotes == false => {
                 let tag_content = reader.peek_string(i + 1)?;
 
                 let mut tag = String::new();
@@ -101,20 +110,89 @@ fn element_start_tag(
                 }
 
                 let void_element = reader.peek_char(i - 1)? == Some('/') && is_void_element(&tag);
-                // if it is void it is one character less
-                let attributes_end = if void_element { i } else { i + 1 };
+                // if it is void it is one character less (exclude the / and >)
+                // otherwise just exclude the >
+                let attributes_end = if void_element {
+                    tag_content.len() - 2
+                } else {
+                    tag_content.len() - 1
+                };
 
-                let attributes = attributes(&tag_content[tag.len() + 1..attributes_end - 1])?;
+                let attributes = attributes(&tag_content[tag.len() + 1..attributes_end])?;
 
                 return Ok(Some((tag, attributes, i + 1, void_element)));
             }
-            '"' => inside_double_quotes = !inside_double_quotes,
-            '\'' => inside_single_quotes = !inside_single_quotes,
+            '"' if !inside_single_quotes => inside_double_quotes = !inside_double_quotes,
+            '\'' if !inside_double_quotes => inside_single_quotes = !inside_single_quotes,
             _ => {}
         }
         i += 1;
     }
     Ok(None)
+}
+
+/// Find the matching closing tag while respecting nesting
+fn find_matching_closing_tag(
+    reader: &mut CharReader<impl Read>,
+    tag: &str,
+    start_offset: usize,
+) -> Result<Option<usize>, io::Error> {
+    let start_tag = format!("<{}", tag);
+    let end_tag = format!("</{}>", tag);
+    let mut depth = 0;
+    let mut i = start_offset;
+    let mut in_double_quotes = false;
+    let mut in_single_quotes = false;
+
+    loop {
+        // Try to peek ahead to see if we have more content
+        let peek_char = reader.peek_char(i)?;
+        if peek_char.is_none() {
+            return Ok(None);
+        }
+
+        let current_char = peek_char.unwrap();
+
+        // Track quote state to ignore tags inside attribute values
+        match current_char {
+            '"' if !in_single_quotes => in_double_quotes = !in_double_quotes,
+            '\'' if !in_double_quotes => in_single_quotes = !in_single_quotes,
+            _ => {}
+        }
+
+        // Only look for tags when not inside quotes
+        if !in_double_quotes && !in_single_quotes && current_char == '<' {
+            // Check if we can match the start tag at position i
+            let start_tag_len = start_tag.len();
+            if let Ok(peek_start) = reader.peek_string_from(i, start_tag_len + 1) {
+                if peek_start.starts_with(&start_tag) {
+                    // Make sure it's actually a tag (followed by space, >, or /)
+                    if let Some(next_char) = peek_start.chars().nth(start_tag_len) {
+                        if next_char == ' ' || next_char == '>' || next_char == '/' {
+                            depth += 1;
+                            i += start_tag_len;
+                            continue;
+                        }
+                    }
+                }
+            }
+
+            // Check if we can match the end tag at position i
+            let end_tag_len = end_tag.len();
+            if let Ok(peek_end) = reader.peek_string_from(i, end_tag_len) {
+                if peek_end == end_tag {
+                    if depth == 0 {
+                        return Ok(Some(i - start_offset));
+                    }
+                    depth -= 1;
+                    i += end_tag_len;
+                    continue;
+                }
+            }
+        }
+
+        i += 1;
+    }
 }
 
 /// parse html from start to end and return (tag, attributes, innerHtml)
@@ -133,14 +211,13 @@ fn element(
                 return Ok(Some((tag, attributes, None)));
             }
 
-            // <{start_tag}></{start_tag}>
-            let end_tag = format!("</{tag}>");
-            if let Some(html_block) =
-                reader.peek_until_match_exclusive_from(tag_content_length, &end_tag)?
+            // <{start_tag}>{content}</{start_tag}>
+            if let Some(content_length) =
+                find_matching_closing_tag(reader, &tag, tag_content_length)?
             {
                 reader.consume(tag_content_length)?;
-                let content = reader.consume_string(html_block.len())?;
-                reader.consume(end_tag.len())?;
+                let content = reader.consume_string(content_length)?;
+                reader.consume(tag.len() + 3)?; // </{tag}>
 
                 return Ok(Some((tag, attributes, Some(content))));
             }
@@ -334,6 +411,32 @@ This should be text
             tag: "div".into(),
             attributes: to_attributes([("onclick", "() => test()")]),
             children: vec![],
+        }];
+        let tokens = parse_html(input.as_bytes()).unwrap();
+        assert_eq!(expected, tokens);
+    }
+
+    #[test]
+    fn test_nested_elements() {
+        let input = r#"<div class="a">
+            <div class="b">
+                <div class="c">
+                </div>
+            </div>
+        </div>
+        "#;
+        let expected = vec![Html::Element {
+            tag: "div".into(),
+            attributes: to_attributes([("class", "a")]),
+            children: vec![Html::Element {
+                tag: "div".into(),
+                attributes: to_attributes([("class", "b")]),
+                children: vec![Html::Element {
+                    tag: "div".into(),
+                    attributes: to_attributes([("class", "c")]),
+                    children: vec![],
+                }],
+            }],
         }];
         let tokens = parse_html(input.as_bytes()).unwrap();
         assert_eq!(expected, tokens);
