@@ -4,10 +4,10 @@
 
 body,
 html {
-  /* height: 100svh; */
   min-height: 100svh;
   margin: 0;
   padding: 0;
+  font-size: 20px;
 }
 
 h1,
@@ -32,8 +32,8 @@ h2 {
 li {
   font-size: 20px;
 }
-p {
-  font-size: 20px;
+i {
+  margin-right: 5px;
 }
 blockquote {
   color: #656d76;
@@ -149,6 +149,7 @@ video {
   min-height: calc(100vh - 30px);
 }
 #default__footer {
+  font-size: 16px;
   text-align: center;
   height: 30px;
   margin: 0;
@@ -168,11 +169,6 @@ video {
 .centered > h6,
 .centered > p {
   text-align: center;
-}
-/* Make titles more centered by ignoring spacing */
-.centered > h1 {
-  /* margin-top: 0;
-  padding-top: 0; */
 }
 
 /* links */
@@ -347,16 +343,30 @@ nav.links a {
 }
 
 .default__sitetree {
-  font-size: 20px;
-  line-height: 2em;
+  line-height: 1.1em;
 }
-.default__sitetree_page {
+.default__sitetree_folder {
   text-align: left;
-  margin-left: 3em;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  padding-bottom: 8px;
+}
+.default__sitetree_folder > a {
+  font-size: 18px;
+}
+.default__sitetree_folder_content {
+  padding-left: 10px;
+}
+.default__sitetree_file {
+  text-align: left;
   text-overflow: ellipsis;
   overflow: hidden;
 }
-
-i {
-  margin-right: 5px;
+.default__sitetree_file > a {
+  font-size: 16px;
+  padding-top: 1px;
+}
+.default__sitetree_file.default__sitetree_single_file > a {
+  font-size: 14px;
+  opacity: 0.8;
 }

@@ -51,7 +51,7 @@ path = "feed.xml"
 Hi! My name is Ivo. I go by Lyr online. Welcome to my online space! I like to think of myself as a creator, I love making things and I do this with a bag of tools, with some tools I'm better than others. This is where I share my projects, code, data, 3d models, art, ideas and anything else I find interesting. Feel free to have a look around :) 
 </p>
 
-<sitetree ignore="404">
+<sitetree ignore="404,controller">
 </sitetree>
 
 

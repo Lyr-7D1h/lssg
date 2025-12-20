@@ -179,46 +179,87 @@ fn carousel(
     parent.append_child(carousel);
 }
 
-pub fn sitetree(context: &RenderContext, parent: &DomNode, attributes: &HashMap<String, String>) {
+pub fn sitetree(ctx: &RenderContext, parent: &DomNode, attributes: &HashMap<String, String>) {
     let ignore_list = attributes
         .get("ignore")
         .map(|s| s.split(',').collect())
         .unwrap_or(vec![]);
 
-    let sitetree = dom!(<div class="default__sitetree"></div>);
-    for c in context.site_tree[context.site_tree.root()].children() {
-        if let Some(child) = sitetree_recurs(*c, context, &ignore_list) {
-            sitetree.append_child(child)
+    let mut map = vec![Vec::new(); ctx.site_tree.len()];
+
+    let mut queue = vec![(ctx.site_tree.root(), ctx.site_tree.root())];
+    while let Some((id, parent)) = queue.pop() {
+        let mut children = vec![];
+        for child in ctx.site_tree[id].children() {
+            let child = *child;
+            let name = &ctx.site_tree[child].name.as_str();
+            if ignore_list.contains(name) {
+                continue;
+            }
+            let child_parent = match &ctx.site_tree[child].kind {
+                crate::sitetree::SiteNodeKind::Page(_) => {
+                    children.push(child);
+                    child
+                }
+                _ => parent,
+            };
+            // Pages become the new parent for their descendants, while non-page nodes
+            // inherit the parent from their ancestor page (flattening the hierarchy)
+            queue.push((child, child_parent));
         }
+        map[*parent].append(&mut children);
     }
+
+    let tree = sitetree_recurs(ctx.site_tree.root(), &map, ctx, true);
+    let sitetree = dom!(<div class="default__sitetree">{tree}</div>);
     parent.append_child(sitetree);
 }
 
 fn sitetree_recurs(
     id: SiteId,
-    context: &RenderContext,
-    ignore_list: &Vec<&str>,
-) -> Option<DomNode> {
-    let node = &context.site_tree[id];
-    let name = &node.name;
-    if ignore_list.contains(&name.as_str()) {
-        return None;
-    }
-    let children: Vec<DomNode> = context.site_tree[id]
-        .children()
+    map: &Vec<Vec<SiteId>>,
+    ctx: &RenderContext,
+    root: bool,
+) -> Vec<DomNode> {
+    let mut children = map[*id].clone();
+    children.sort_by(|a, b| {
+        let (a, b) = (*a, *b);
+        let a_name = &ctx.site_tree[a].name;
+        let b_name = &ctx.site_tree[b].name;
+        let a_has_children = map[*a].len() > 0;
+        let b_has_children = map[*b].len() > 0;
+
+        // Sort by has_children first (true before false), then by name
+        b_has_children
+            .cmp(&a_has_children)
+            .then_with(|| a_name.cmp(&b_name))
+    });
+    let children: Vec<DomNode> = children
         .into_iter()
-        .filter_map(|c| sitetree_recurs(*c, context, ignore_list))
+        .flat_map(|c| sitetree_recurs(c, map, ctx, false))
         .collect();
-    let n = match &node.kind {
-        crate::sitetree::SiteNodeKind::Page(_) => {
-            let slash = if children.len() > 0 { "/" } else { "" };
-            let name = format!("{}{slash}", &node.name);
-            let path = context.site_tree.path(id);
-            dom!(<div class="default__sitetree_page"><a href="{path}">{name}</a>{children}</div>)
-        }
-        _ => return None,
-    };
-    return Some(n);
+
+    if root {
+        return children;
+    }
+
+    let node = &ctx.site_tree[id];
+    let name = &node.name;
+    let has_children = children.len() > 0;
+    let name = format!("{name}{}", if has_children { "/" } else { "" });
+    let path = ctx.site_tree.path(id);
+    if has_children {
+        vec![dom!(
+            <div class="default__sitetree_folder">
+                <a href="{path}">{name}</a>
+                <div class="default__sitetree_folder_content">
+                    {children}
+                </div>
+            </div>
+        )]
+    } else {
+        vec![dom!(<div class="default__sitetree_file"><a href="{path}">{name}</a></div>)]
+    }
 }
 
 pub fn render_html(
