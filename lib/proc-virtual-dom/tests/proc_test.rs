@@ -151,3 +151,23 @@ fn html_with_js_works() {
 
     assert_eq!(expected, input.into())
 }
+
+#[test]
+fn html_with_whitespace_and_interpolation() {
+    let path = "/test";
+    let name = "test";
+    let children: Vec<virtual_dom::DomNode> = vec![virtual_dom::DomNode::create_text("child1")];
+
+    // This has whitespace/newlines like in the actual code
+    let input = dom!(
+        <div class="default__sitetree_folder">
+            <a href="{path}">{name}</a>
+            <div class="default__sitetree_folder_content">
+                {children}
+            </div>
+        </div>
+    );
+
+    // Should still return a single DomNode
+    let _: virtual_dom::DomNode = input;
+}

@@ -29,7 +29,11 @@ use virtual_dom::{parse_html, Html};
 /// ```
 #[proc_macro]
 pub fn dom(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let parsed_content = input.to_string();
+    let parsed_content = input
+        .to_string()
+        // Normalize newlines within HTML tags to spaces to fix parsing issues
+        // when TokenStream.to_string() inserts newlines in tag attributes
+        .replace("\n", " ");
     let template = parse_macro_input!(input as Template);
 
     let tokens = match parse_html(parsed_content.to_string().as_bytes()) {
@@ -42,7 +46,7 @@ pub fn dom(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let html = to_tokens(&tokens, &template, None, 0);
 
-    if html.len() > 1 {
+    if tokens.len() > 1 {
         let children = quote!(vec![#({#html},)*]);
         return quote! {
             {
