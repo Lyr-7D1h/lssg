@@ -184,14 +184,10 @@ impl RendererModule for BlogModule {
         match token {
             Token::Heading { depth, .. } if *depth == 1 && !self.has_inserted_date => {
                 self.has_inserted_date = true;
-                let post = document
-                    .create_element_with_attributes("div", to_attributes([("id", "blog__post")]));
                 let content = document.create_element_with_attributes(
                     "div",
-                    to_attributes([("class", "blog__content")]),
+                    to_attributes([("id", "blog__content")]),
                 );
-                post.append_child(content.clone());
-                parent.append_child(post);
                 // render heading
                 tr.render_down(
                     self,
@@ -203,7 +199,7 @@ impl RendererModule for BlogModule {
                 if let Some(date) = blog_page.dates.to_pretty_string() {
                     content.append_child(dom!(<div class="blog__date">{date}</div>));
                 }
-
+                parent.append_child(content.clone());
                 return Some(content);
             }
             Token::Link {

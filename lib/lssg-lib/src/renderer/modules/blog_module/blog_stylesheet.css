@@ -1,33 +1,29 @@
-#blog__post {
-  display: flex;
-  justify-content: center;
-}
-
-#blog__post > .blog__content {
-  max-width: 680px;
-}
-
+/* Constrain specific content elements to max-width and center them */
 .blog__date,
-.blog__content ul,
-.blog__content h1,
-.blog__content h2,
-.blog__content h3,
-.blog__content h4,
-.blog__content h5,
-.blog__content h6,
-.blog__content p,
-.blog__content blockquote {
-  margin: 10px;
+#blog__content ul,
+#blog__content h1,
+#blog__content h2,
+#blog__content h3,
+#blog__content h4,
+#blog__content h5,
+#blog__content h6,
+#blog__content p,
+#blog__content blockquote {
+  max-width: 680px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-top: 10px;
+  margin-bottom: 10px;
   text-align: left;
 }
 
-.blog__content h1 {
+#blog__content h1 {
   line-height: 40px;
 }
-.blog__content h2 {
+#blog__content h2 {
   padding-bottom: 0;
 }
-.blog__content p {
+#blog__content p {
   letter-spacing: -0.003em;
   margin-bottom: 2.14em;
   line-height: 28px;
@@ -35,26 +31,22 @@
 
 @media only screen and (max-width: 768px) {
   .blog__date,
-  .blog__content ul,
-  .blog__content h1,
-  .blog__content h2,
-  .blog__content h3,
-  .blog__content h4,
-  .blog__content h5,
-  .blog__content h6,
-  .blog__content p {
+  #blog__content ul,
+  #blog__content h1,
+  #blog__content h2,
+  #blog__content h3,
+  #blog__content h4,
+  #blog__content h5,
+  #blog__content h6,
+  #blog__content p {
     margin-left: 24px;
     margin-right: 24px;
   }
 
-  #blog__post > .blog__content {
-    width: 100%;
-  }
-
-  .blog__content p {
+  #blog__content p {
     line-height: 22px;
   }
-  .blog__content h1 {
+  #blog__content h1 {
     line-height: 38px;
   }
 }
