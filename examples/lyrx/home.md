@@ -1,7 +1,7 @@
 <!--
 title="Lyrx"
 head=[
-  '<script defer src="https://analytics.lyrx.dev/script.js" data-website-id="5839ff14-81d0-4a0e-a9b4-2ca9fc44839b"></script>'
+  '<script defer src="https://analytics.lyrx.dev/script.js" data-website-id="a3641f2d-876d-4971-97d3-2cb6c57a762b"></script>'
 ]
 
 [meta]
