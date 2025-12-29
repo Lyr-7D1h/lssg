@@ -18,6 +18,7 @@ items = [
 ]
 
 [blog.root.rss]
+enabled = true
 title = "LyrX"
 description = "Lyr's little space of the internet"
 language = "en"

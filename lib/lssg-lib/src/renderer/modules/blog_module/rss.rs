@@ -23,7 +23,7 @@ pub(super) struct RssOptions {
 impl Default for RssOptions {
     fn default() -> Self {
         Self {
-            enabled: true,
+            enabled: false,
             title: "Feed".to_string(),
             description: Some("My feed".to_string()),
             path: PathBuf::from("feed.xml"),

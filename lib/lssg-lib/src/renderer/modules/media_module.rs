@@ -18,10 +18,6 @@ pub struct MediaOptions {
     pub optimize_images: bool,
     /// Image quality (1-100)
     pub image_quality: u8,
-    /// Enable video optimization  
-    pub optimize_videos: bool,
-    /// Video quality CRF (0-51, lower = better quality)
-    pub video_crf: u8,
     /// Convert images to WebP
     pub convert_to_webp: bool,
     /// Maximum image width
@@ -32,8 +28,13 @@ pub struct MediaOptions {
     pub resize_threshold_bytes: usize,
     /// WebP quality (1-100, 95+ uses lossless)
     pub webp_quality: u8,
+
+    /// Enable video optimization  
+    pub optimize_videos: bool,
     /// Enable FFmpeg for video optimization
     pub use_ffmpeg: bool,
+    /// Video quality CRF (0-51, lower = better quality)
+    pub video_crf: u8,
 }
 
 impl Default for MediaOptions {
