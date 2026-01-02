@@ -25,6 +25,7 @@ use crate::renderer::{RenderContext, RendererModule, TokenRenderer};
 use super::util::{process_href, tokens_to_text};
 
 mod constants;
+mod nav;
 mod render_html;
 
 const PRISM_CSS: &[u8] = include_bytes!("./default_module/prism.css");
@@ -370,9 +371,8 @@ impl RendererModule for DefaultModule {
         Ok(())
     }
 
-    fn after_render<'n>(&mut self, document: &mut Document, context: &RenderContext<'n>) {
-        let site_id = context.site_id;
-        let site_tree = context.site_tree;
+    fn after_render<'n>(&mut self, document: &mut Document, ctx: &RenderContext<'n>) {
+        let site_id = ctx.site_id;
         let body = &document.body;
 
         let options = self
@@ -381,28 +381,8 @@ impl RendererModule for DefaultModule {
             .expect("expected options map to contain all page ids");
 
         // add breacrumbs if not root
-        if context.site_id != context.site_tree.root() {
-            let nav = document
-                .create_element_with_attributes("nav", to_attributes([("class", "breadcrumbs")]));
-
-            nav.append_child(document.create_text_node("/"));
-
-            let parents = site_tree.parents(site_id);
-            let parents_length = parents.len();
-            for (i, p) in parents.into_iter().rev().enumerate() {
-                let a = document.create_element_with_attributes(
-                    "a",
-                    to_attributes([("href", site_tree.rel_path(site_id, p))]),
-                );
-                a.append_child(document.create_text_node(site_tree[p].name.clone()));
-                nav.append_child(a);
-                if i != parents_length - 1 {
-                    nav.append_child(document.create_text_node("/"));
-                }
-            }
-            nav.append_child(document.create_text_node(format!("/{}", site_tree[site_id].name)));
-
-            body.prepend(nav);
+        if ctx.site_id != ctx.site_tree.root() {
+            body.prepend(nav::breadcrumbs(document, ctx));
         }
 
         // move all dom elements to under #content
@@ -445,7 +425,7 @@ impl RendererModule for DefaultModule {
         }
 
         // fill head
-        head(document, context, options);
+        head(document, ctx, options);
     }
 
     fn render_body<'n>(
