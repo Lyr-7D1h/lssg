@@ -351,9 +351,6 @@ nav.links a {
   overflow: hidden;
   padding-bottom: 8px;
 }
-.default__sitetree_folder > a {
-  font-size: 18px;
-}
 .default__sitetree_folder_content {
   padding-left: 10px;
 }
@@ -363,7 +360,7 @@ nav.links a {
   overflow: hidden;
 }
 .default__sitetree_file > a {
-  font-size: 16px;
+  font-size: 0.85em;
   padding-top: 1px;
 }
 .default__sitetree_file.default__sitetree_single_file > a {
