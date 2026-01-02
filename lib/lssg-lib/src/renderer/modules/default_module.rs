@@ -395,7 +395,7 @@ impl RendererModule for DefaultModule {
         body.append_child(content);
 
         if let Some(footer) = options.footer.custom.as_ref() {
-            if let Ok(html) = parse_html_from_string(footer) {
+            if let Ok(html) = virtual_dom::parse_html_from_string(footer) {
                 body.append_child(html);
             }
         } else {
@@ -411,7 +411,9 @@ impl RendererModule for DefaultModule {
             footer.set_attribute("id", "default__footer");
             let mut items = items.into_iter().peekable();
             while let Some(item) = items.next() {
-                footer.append_child(item);
+                if let Ok(item) = virtual_dom::parse_html_from_string(&item) {
+                    footer.append_child(item);
+                }
                 if items.peek().is_some() {
                     footer.append_child(" | ");
                 }
