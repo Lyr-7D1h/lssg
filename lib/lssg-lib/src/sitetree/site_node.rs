@@ -79,7 +79,10 @@ impl Input {
                     &path
                 };
                 let mut path = path.join(path_string);
-                path = fs::canonicalize(path)?;
+                path = fs::canonicalize(path).map_err(|e| {
+                    LssgError::from(e)
+                        .with_context(format!("Failed to canonicalize {path_string:?}"))
+                })?;
                 return Ok(Input::Local { path });
             }
             Input::External { url } => {
@@ -110,11 +113,15 @@ impl Input {
     pub fn readable(&self) -> Result<Box<dyn Read>, LssgError> {
         match self {
             Input::Local { path } => {
-                let file = File::open(path)?;
+                let file = File::open(path).map_err(|e| {
+                    LssgError::from(e).with_context(format!("Failed to read file '{path:?}"))
+                })?;
                 Ok(Box::new(file))
             }
             Input::External { url } => {
-                let response = reqwest::blocking::get(url.clone())?;
+                let response = reqwest::blocking::get(url.clone()).map_err(|e| {
+                    LssgError::from(e).with_context(format!("Failed to get url '{url:?}"))
+                })?;
                 let content = Cursor::new(response.bytes().unwrap());
                 Ok(Box::new(content))
             }

@@ -209,6 +209,7 @@ impl SiteTree {
             self.nodes[*parent].children.push(id);
             self.rel_graph.add(parent, id, Relation::Family);
         }
+        debug!("Adding {:?} to tree", node.name);
         self.nodes.push(node);
 
         id
@@ -235,7 +236,7 @@ impl SiteTree {
         } else if SiteNodeKind::input_is_page(&input) {
             self.add_page_from_input(input.clone(), parent_id)?
         } else {
-            parent_id = self.create_folders(&input, parent_id)?;
+            parent_id = self.create_folders(&input, parent_id);
             let id = self.add(SiteNode {
                 name: input.filename()?,
                 parent: Some(parent_id),
@@ -267,7 +268,7 @@ impl SiteTree {
         }
 
         if let Some(parent) = &mut parent {
-            *parent = self.create_folders(&input, *parent)?;
+            *parent = self.create_folders(&input, *parent);
         }
 
         // create early because of the need of an parent id
@@ -339,7 +340,7 @@ impl SiteTree {
         input: Input,
         mut parent: SiteId,
     ) -> Result<SiteId, LssgError> {
-        parent = self.create_folders(&input, parent)?;
+        parent = self.create_folders(&input, parent);
 
         let stylesheet = Stylesheet::try_from(&input)?;
         let stylesheet_links: Vec<String> = stylesheet
@@ -350,7 +351,7 @@ impl SiteTree {
             })
             .collect();
 
-        let parent = self.create_folders(&input, parent)?;
+        let parent = self.create_folders(&input, parent);
         let stylesheet_id = self.add(SiteNode {
             name: input.filename()?,
             parent: Some(parent),
@@ -360,7 +361,7 @@ impl SiteTree {
 
         for link in stylesheet_links {
             let input = input.new(&link)?;
-            let parent = self.create_folders(&input, parent)?;
+            let parent = self.create_folders(&input, parent);
             let resource_id = self.add(SiteNode {
                 name: input.filename()?,
                 parent: Some(parent),
@@ -383,11 +384,11 @@ impl SiteTree {
 
     /// If local input and not outside of `root_input` it will create some extra folders for
     /// structuring SiteTree
-    fn create_folders(&mut self, input: &Input, mut parent: SiteId) -> Result<SiteId, LssgError> {
+    fn create_folders(&mut self, input: &Input, mut parent: SiteId) -> SiteId {
         if let Some(rel_path) = self.root_input.make_relative(input) {
             // don't allow backtrack from root
             if rel_path.starts_with("..") {
-                return Ok(parent);
+                return parent;
             }
             let parts: Vec<&str> = rel_path.split("/").collect();
             let parts = &parts[0..parts.len() - 1];
@@ -415,7 +416,7 @@ impl SiteTree {
                 }
             }
         }
-        return Ok(parent);
+        return parent;
     }
 
     pub fn remove(&mut self, id: SiteId) {

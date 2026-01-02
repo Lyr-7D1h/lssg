@@ -288,7 +288,7 @@ impl<R: Read> CharReader<R> {
             return Ok(result);
         }
         loop {
-            if &result[result.len() - pattern.len()..] == pattern {
+            if result.ends_with(pattern) {
                 break;
             }
             match self.consume_char()? {

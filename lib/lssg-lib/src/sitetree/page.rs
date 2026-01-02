@@ -16,7 +16,9 @@ impl Page {
     }
 
     pub fn from_input(input: &Input) -> Result<Page, LssgError> {
-        let tokens = parse_lmarkdown(input.readable()?)?;
+        let tokens = parse_lmarkdown(input.readable()?).map_err(|e| {
+            LssgError::from(e).with_context(format!("Failed to parse markdown {input:?}"))
+        })?;
         Ok(Page { tokens })
     }
 

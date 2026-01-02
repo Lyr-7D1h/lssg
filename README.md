@@ -8,7 +8,7 @@ This uses a custom Markdown parser which will not necessarily follow [official s
 
 - [Installation](docs/install.md) - How to install LSSG
 - [Usage](docs/usage.md) - How to use LSSG to generate static sites
-- [Configuration](docs/modules.md) 
+- [Configuration](docs/configuration.md) 
 - [LMarkdown](docs/lmarkdown.md) - Learn about the custom markdown format
 - [Architecture](docs/architecture.md) - Understand how LSSG works internally
 - [Roadmap](docs/roadmap.md) - Future plans and completed features

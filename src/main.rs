@@ -91,5 +91,5 @@ fn main() {
         lssg.add_module(MediaModule::new());
     }
     lssg.add_module(DefaultModule::new());
-    lssg.render().unwrap()
+    lssg.render().expect("Failed to render");
 }

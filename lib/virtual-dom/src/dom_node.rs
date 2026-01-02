@@ -472,10 +472,23 @@ impl DomNode {
     }
 }
 
+/// Escapes HTML special characters in text content
+fn escape_html(text: &str) -> String {
+    text.chars()
+        .map(|c| match c {
+            '&' => "&amp;".to_string(),
+            '<' => "&lt;".to_string(),
+            '>' => "&gt;".to_string(),
+            '"' => "&quot;".to_string(),
+            '\'' => "&#39;".to_string(),
+            _ => c.to_string(),
+        })
+        .collect()
+}
 impl ToString for DomNode {
     fn to_string(&self) -> String {
         match &*self.kind() {
-            DomNodeKind::Text { text } => text.to_string(),
+            DomNodeKind::Text { text } => escape_html(text),
             DomNodeKind::Element { tag, attributes } => {
                 let attributes = attributes
                     .into_iter()
