@@ -1,6 +1,6 @@
 use core::fmt;
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     iter::once,
     ops::{Index, IndexMut},
 };
@@ -90,6 +90,14 @@ pub struct SiteTree {
     /// reverse mapping: node ids to inputs
     id_to_input: HashMap<SiteId, Input>,
     rel_graph: RelationalGraph,
+}
+
+/// Type of link discovered during BFS traversal
+enum LinkType {
+    EmptyText, // Link with no text content
+    Page,      // Link to another page
+    Image,     // Image reference
+    Other,     // Other types of links
 }
 
 impl SiteTree {
@@ -292,46 +300,114 @@ impl SiteTree {
             _ => panic!("has to be page"),
         };
 
-        // add other pages
-        let links: Vec<(bool, String)> = page
+        // BFS queue (parent_id, parent_input, link_type, href)
+        let mut bfs_queue: VecDeque<(SiteId, Input, LinkType, String)> = page
             .links()
             .into_iter()
-            .map(|(text, href, ..)| (text.len() == 0, href.clone()))
+            .map(|(text, href, ..)| {
+                let link_type = if text.is_empty() {
+                    LinkType::EmptyText
+                } else if Page::is_href_to_page(&href) {
+                    LinkType::Page
+                } else {
+                    LinkType::Other
+                };
+                (id, input.clone(), link_type, href.clone())
+            })
+            .chain(
+                page.images()
+                    .into_iter()
+                    .filter(|(_, src, _)| Input::is_relative(src))
+                    .map(|(_, src, _)| (id, input.clone(), LinkType::Image, src.clone())),
+            )
             .collect();
-        for (is_empty, href) in links {
-            // if link has no text add whatever is in it
-            if is_empty {
-                let input = input.new(&href)?;
-                let child_id = self.add_from_input(input, id)?;
-                self.rel_graph
-                    .add(id, child_id, Relation::Discovered { raw_path: href });
-                continue;
-            }
 
-            if Page::is_href_to_page(&href) {
-                let input = input.new(&href)?;
-                let child_id = self.add_page_from_input(input, id)?;
-                self.rel_graph
-                    .add(id, child_id, Relation::Discovered { raw_path: href });
-                continue;
-            }
-        }
+        while let Some((parent_id, parent_input, link_type, href)) = bfs_queue.pop_front() {
+            let new_input = match parent_input.new(&href) {
+                Ok(input) => input,
+                Err(e) => {
+                    warn!("Invalid path {href}: {e}");
+                    continue;
+                }
+            };
 
-        let page = match &self.nodes[*id].kind {
-            SiteNodeKind::Page(page) => page,
-            _ => panic!("has to be page"),
-        };
-        let images: Vec<String> = page
-            .images()
-            .into_iter()
-            .map(|(_tokens, src, _title)| src.clone())
-            .collect();
-        for src in images {
-            if Input::is_relative(&src) {
-                let input = input.new(&src);
-                let child_id = self.add_from_input(input?, parent.unwrap_or(self.root))?;
-                self.rel_graph
-                    .add(id, child_id, Relation::Discovered { raw_path: src });
+            match link_type {
+                LinkType::EmptyText => {
+                    let child_id = self.add_from_input(new_input, parent_id)?;
+                    self.rel_graph.add(
+                        parent_id,
+                        child_id,
+                        Relation::Discovered { raw_path: href },
+                    );
+                }
+                LinkType::Page => {
+                    // Check if page already exists
+                    if let Some(&existing_id) = self.input_to_id.get(&new_input) {
+                        self.rel_graph.add(
+                            parent_id,
+                            existing_id,
+                            Relation::Discovered { raw_path: href },
+                        );
+                        continue;
+                    }
+
+                    // Create folders and add the page
+                    let page_parent = Some(self.create_folders(&new_input, parent_id));
+                    let page = Page::from_input(&new_input)?;
+                    let new_id = self.add(SiteNode {
+                        name: new_input.filestem().unwrap_or("root".to_string()),
+                        parent: page_parent,
+                        children: vec![],
+                        kind: SiteNodeKind::Page(page),
+                    });
+
+                    // Register the new page
+                    self.input_to_id.insert(new_input.clone(), new_id);
+                    self.id_to_input.insert(new_id, new_input.clone());
+                    self.rel_graph
+                        .add(parent_id, new_id, Relation::Discovered { raw_path: href });
+
+                    // Queue the new page's links and images
+                    if let SiteNodeKind::Page(page) = &self.nodes[*new_id].kind {
+                        for (text, link_href, ..) in page.links() {
+                            let link_type = if text.is_empty() {
+                                LinkType::EmptyText
+                            } else if Page::is_href_to_page(&link_href) {
+                                LinkType::Page
+                            } else {
+                                LinkType::Other
+                            };
+                            bfs_queue.push_back((
+                                new_id,
+                                new_input.clone(),
+                                link_type,
+                                link_href.clone(),
+                            ));
+                        }
+
+                        for (_, src, _) in page.images() {
+                            if Input::is_relative(&src) {
+                                bfs_queue.push_back((
+                                    new_id,
+                                    new_input.clone(),
+                                    LinkType::Image,
+                                    src.clone(),
+                                ));
+                            }
+                        }
+                    }
+                }
+                LinkType::Image => {
+                    let child_id = self.add_from_input(new_input, parent_id)?;
+                    self.rel_graph.add(
+                        parent_id,
+                        child_id,
+                        Relation::Discovered { raw_path: href },
+                    );
+                }
+                LinkType::Other => {
+                    // Skip non-page, non-empty links
+                }
             }
         }
 
