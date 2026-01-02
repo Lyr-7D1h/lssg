@@ -1,6 +1,7 @@
 use core::fmt;
 use std::{
     collections::HashMap,
+    iter::once,
     ops::{Index, IndexMut},
 };
 
@@ -86,6 +87,8 @@ pub struct SiteTree {
 
     /// cannonical paths to node ids
     input_to_id: HashMap<Input, SiteId>,
+    /// reverse mapping: node ids to inputs
+    id_to_input: HashMap<SiteId, Input>,
     rel_graph: RelationalGraph,
 }
 
@@ -101,6 +104,7 @@ impl SiteTree {
             root: SiteId(0),
             root_input: input.clone(),
             input_to_id: HashMap::new(),
+            id_to_input: HashMap::new(),
             rel_graph: RelationalGraph::new(),
         };
         tree.add_page_under_parent(input, None)?;
@@ -121,9 +125,7 @@ impl SiteTree {
 
     /// try and get the input of a node if input exists
     pub fn get_input(&self, id: SiteId) -> Option<&Input> {
-        self.input_to_id
-            .iter()
-            .find_map(|(input, i)| if *i == id { Some(input) } else { None })
+        self.id_to_input.get(&id)
     }
 
     // get a node by name by checking the children of `id`
@@ -244,6 +246,7 @@ impl SiteTree {
                 kind: SiteNodeKind::Resource(Resource::new_fetched(input.clone())?),
             });
             self.input_to_id.insert(input.clone(), id);
+            self.id_to_input.insert(id, input.clone());
             id
         };
 
@@ -282,6 +285,7 @@ impl SiteTree {
 
         // register input
         self.input_to_id.insert(input.clone(), id);
+        self.id_to_input.insert(id, input.clone());
 
         let page = match &self.nodes[*id].kind {
             SiteNodeKind::Page(page) => page,
@@ -373,19 +377,38 @@ impl SiteTree {
                 resource_id,
                 Relation::Discovered { raw_path: link },
             );
-            self.input_to_id.insert(input, resource_id);
+            self.input_to_id.insert(input.clone(), resource_id);
+            self.id_to_input.insert(resource_id, input);
         }
 
         // register input
-        self.input_to_id.insert(input, stylesheet_id);
+        self.input_to_id.insert(input.clone(), stylesheet_id);
+        self.id_to_input.insert(stylesheet_id, input);
 
         Ok(stylesheet_id)
     }
 
-    /// If local input and not outside of `root_input` it will create some extra folders for
-    /// structuring SiteTree
+    /// Create some extra folders relative to the path and input of the parent
     fn create_folders(&mut self, input: &Input, mut parent: SiteId) -> SiteId {
-        if let Some(rel_path) = self.root_input.make_relative(input) {
+        let mut base = self.root_input.clone();
+        let mut folders = vec![];
+        let mut current = parent;
+        while let Some(parent) = self[current].parent {
+            if parent == self.root {
+                break;
+            }
+            if matches!(self[parent].kind, SiteNodeKind::Folder) {
+                folders.push(self[parent].name.as_str());
+            }
+            if let Some(input) = self.id_to_input.get(&parent) {
+                base = input.clone();
+            };
+            current = parent;
+        }
+        folders.reverse();
+        base.new(&folders.join("/")).unwrap();
+
+        if let Some(rel_path) = base.make_relative(input) {
             // don't allow backtrack from root
             if rel_path.starts_with("..") {
                 return parent;
@@ -393,8 +416,11 @@ impl SiteTree {
             let parts: Vec<&str> = rel_path.split("/").collect();
             let parts = &parts[0..parts.len() - 1];
 
-            let mut parents = self.parents(parent);
-            parents.push(parent);
+            let mut parents: Vec<SiteId> = once(parent)
+                .chain(self.parents(parent).into_iter())
+                // .filter(|p| matches!(self[*p].kind, SiteNodeKind::Folder))
+                .collect();
+            parents.pop();
             parents.reverse();
             for i in 0..parts.len() {
                 let name = parts[i];
@@ -421,6 +447,10 @@ impl SiteTree {
 
     pub fn remove(&mut self, id: SiteId) {
         self.rel_graph.remove_all(id);
+        // Remove from bidirectional input mappings
+        if let Some(input) = self.id_to_input.remove(&id) {
+            self.input_to_id.remove(&input);
+        }
         todo!("remove from tree");
     }
 

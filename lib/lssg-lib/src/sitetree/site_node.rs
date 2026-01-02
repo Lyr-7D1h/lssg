@@ -1,7 +1,7 @@
 use std::{
     fs::{self, File},
     io::{Cursor, Read},
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
 };
 
 use crate::{path_extension::PathExtension, sitetree::SiteId, tree::Node, LssgError};
@@ -10,6 +10,32 @@ use reqwest::Url;
 
 use super::stylesheet::Stylesheet;
 use super::{page::Page, Resource};
+
+/// Resolve `.` and `..` components
+fn normalize_path(path: &Path) -> PathBuf {
+    let mut components = Vec::new();
+
+    for component in path.components() {
+        match component {
+            Component::ParentDir => {
+                // Only pop if we have something to pop and it's not a prefix/root
+                if let Some(last) = components.last() {
+                    if !matches!(last, Component::Prefix(_) | Component::RootDir) {
+                        components.pop();
+                    }
+                }
+            }
+            Component::CurDir => {
+                // Skip current directory references
+            }
+            _ => {
+                components.push(component);
+            }
+        }
+    }
+
+    components.iter().collect()
+}
 
 /// Wrapper around absolute path to either an internal or external (http://) file
 #[derive(Debug, Clone, Hash, Eq, PartialEq)] // TODO check if Hash is valid
@@ -66,7 +92,7 @@ impl Input {
     pub fn new(&self, path_string: &str) -> Result<Input, LssgError> {
         // return new if absolute
         if path_string.starts_with("http") {
-            let url = Url::parse(&path_string).unwrap();
+            let url = Url::parse(&path_string).map_err(|e| LssgError::parse(e.to_string()))?;
             return Ok(Input::External { url });
         }
 
@@ -79,10 +105,19 @@ impl Input {
                     &path
                 };
                 let mut path = path.join(path_string);
-                path = fs::canonicalize(path).map_err(|e| {
-                    LssgError::from(e)
-                        .with_context(format!("Failed to canonicalize {path_string:?}"))
-                })?;
+
+                // Make path absolute if it's relative
+                if path.is_relative() {
+                    path = std::env::current_dir()
+                        .map_err(|e| {
+                            LssgError::from(e).with_context("Failed to get current directory")
+                        })?
+                        .join(path);
+                }
+
+                // Normalize the path (resolve . and .. components)
+                path = normalize_path(&path);
+
                 return Ok(Input::Local { path });
             }
             Input::External { url } => {
