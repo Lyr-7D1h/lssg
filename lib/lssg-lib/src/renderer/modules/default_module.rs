@@ -87,6 +87,14 @@ impl Default for PropegatedOptions {
     }
 }
 
+/// Wrapper that tracks which site ID these options originated from
+#[derive(Debug, Clone)]
+struct PropegatedOptionsWithRoot {
+    pub options: PropegatedOptions,
+    /// The site id where `root=true`
+    pub root_site_id: Option<SiteId>,
+}
+
 #[derive(Debug, Clone, Overwrite, Default)]
 pub struct SinglePageOptions {
     /// If this page is a root don't reuse options from parent
@@ -95,24 +103,42 @@ pub struct SinglePageOptions {
 
 fn create_options_map(
     site_tree: &SiteTree,
-) -> Result<HashMap<SiteId, PropegatedOptions>, LssgError> {
-    let mut options_map: HashMap<SiteId, PropegatedOptions> = HashMap::new();
+) -> Result<HashMap<SiteId, PropegatedOptionsWithRoot>, LssgError> {
+    let mut options_map: HashMap<SiteId, PropegatedOptionsWithRoot> = HashMap::new();
     for id in Dfs::new(site_tree) {
         if let SiteNodeKind::Page(page) = &site_tree[id].kind {
-            let mut options = if let Some(parent_options) = site_tree
+            let is_root = page
+                .attributes()
+                .and_then(|attributes| attributes.get("root").and_then(|v| v.as_bool()))
+                .unwrap_or(false);
+
+            let (mut options, root_id) = if is_root {
+                // If root=true, start with default options instead of inheriting from parent
+                (PropegatedOptions::default(), Some(id))
+            } else if let Some(parent_opts) = site_tree
                 .page_parent(id)
                 .and_then(|id| options_map.get(&id))
             {
-                parent_options.clone()
+                // Inherit from parent, preserving the root_site_id
+                (parent_opts.options.clone(), parent_opts.root_site_id)
             } else {
-                PropegatedOptions::default()
+                // No parent, start fresh
+                (PropegatedOptions::default(), Some(id))
             };
+
             if let Some(attributes) = page.attributes() {
                 options
                     .overwrite(attributes)
                     .map_err(|e| LssgError::parse(format!("Failed to parse options: {e}")))?;
             }
-            options_map.insert(id, options.clone());
+
+            options_map.insert(
+                id,
+                PropegatedOptionsWithRoot {
+                    options,
+                    root_site_id: root_id,
+                },
+            );
         }
     }
     Ok(options_map)
@@ -281,7 +307,7 @@ fn section_link(document: &mut Document) {
 #[derive(Default)]
 pub struct DefaultModule {
     /// Map of all site pages to options. Considers options from parents.
-    options_map: HashMap<SiteId, PropegatedOptions>,
+    options_map: HashMap<SiteId, PropegatedOptionsWithRoot>,
 }
 
 impl RendererModule for DefaultModule {
@@ -295,46 +321,37 @@ impl RendererModule for DefaultModule {
             .filter(|id| site_tree[*id].kind.is_page())
             .collect();
 
-        let prism_js = site_tree.add(SiteNode::resource(
-            "prism.js",
-            site_tree.root(),
-            Resource::new_static(PRISM_JS.to_owned()),
-        ));
-        site_tree.add_link(site_tree.root(), prism_js);
-        let default_js = site_tree.add(SiteNode::stylesheet(
-            "prism.css",
-            site_tree.root(),
-            Stylesheet::from_readable(PRISM_CSS)?,
-        ));
-        site_tree.add_link(site_tree.root(), default_js);
-
-        let default_js = site_tree.add(SiteNode::resource(
-            "default.js",
-            site_tree.root(),
-            Resource::new_static(DEFAULT_JS.to_owned()),
-        ));
-        site_tree.add_link(site_tree.root(), default_js);
-
-        let default_stylesheet = site_tree.add(SiteNode::stylesheet(
-            "default.css",
-            site_tree.root(),
-            Stylesheet::from_readable(DEFAULT_STYLESHEET)?,
-        ));
-        site_tree.add_link(site_tree.root(), default_stylesheet);
+        let default_links = [
+            site_tree.add(SiteNode::stylesheet(
+                "default.css",
+                site_tree.root(),
+                Stylesheet::from_readable(DEFAULT_STYLESHEET)?,
+            )),
+            site_tree.add(SiteNode::resource(
+                "default.js",
+                site_tree.root(),
+                Resource::new_static(DEFAULT_JS.to_owned()),
+            )),
+            site_tree.add(SiteNode::stylesheet(
+                "prism.css",
+                site_tree.root(),
+                Stylesheet::from_readable(PRISM_CSS)?,
+            )),
+            site_tree.add(SiteNode::resource(
+                "prism.js",
+                site_tree.root(),
+                Resource::new_static(PRISM_JS.to_owned()),
+            )),
+        ];
+        for id in default_links.iter() {
+            site_tree.add_link(site_tree.root(), *id);
+        }
 
         let mut relation_map: HashMap<SiteId, Vec<SiteId>> = HashMap::new();
         // propegate relations to stylesheets, favicon and js from parent to child
         for id in pages {
-            // skip page if disabled
-            if let SiteNodeKind::Page(page) = &site_tree[id].kind {
-                let opts: SinglePageOptions = self.options(page);
-                if opts.root {
-                    continue;
-                }
-            }
-
             // get the set of links to favicon and stylesheets
-            let mut set: Vec<SiteId> = site_tree
+            let set: Vec<SiteId> = site_tree
                 .links_from(id)
                 .into_iter()
                 .filter_map(|link| match link.relation {
@@ -354,24 +371,33 @@ impl RendererModule for DefaultModule {
                 })
                 .collect();
 
-            // update set with parent and add any links from parent
-            if let Some(parent) = site_tree.page_parent(id)
+            let is_root = if let SiteNodeKind::Page(page) = &site_tree[id].kind {
+                let opts: SinglePageOptions = self.options(page);
+                opts.root
+            } else {
+                false
+            };
+
+            let parent_set = if let Some(parent) = site_tree.page_parent(id)
                 && let Some(parent_set) = relation_map.get(&parent)
+                && !is_root
             {
-                // 0 [28, 29, 32, 35, 37, 49]
-                // add links from parent_set without the ones it already has
-                let mut new_links: Vec<SiteId> = parent_set
-                    .iter()
-                    .filter(|id| !set.contains(id))
-                    .cloned()
-                    .collect();
-                for to in new_links.iter() {
-                    site_tree.add_link(id, *to);
-                }
-                new_links.extend(set.iter());
-                set = new_links;
+                parent_set
+            } else {
+                &default_links.into()
+            };
+
+            // add links from parent_set without the ones it already has
+            let mut new_links: Vec<SiteId> = parent_set
+                .iter()
+                .filter(|id| !set.contains(id))
+                .cloned()
+                .collect();
+            for to in new_links.iter() {
+                site_tree.add_link(id, *to);
             }
-            relation_map.insert(id, set);
+            new_links.extend(set.iter());
+            relation_map.insert(id, new_links);
         }
 
         Ok(())
@@ -385,13 +411,14 @@ impl RendererModule for DefaultModule {
 
     fn after_render<'n>(&mut self, document: &mut Document, ctx: &RenderContext<'n>) {
         let site_id = ctx.site_id;
-        let options = self
+        let opts = self
             .options_map
             .get(&site_id)
             .expect("expected options map to contain all page ids");
+        let options = &opts.options;
 
         // add breacrumbs if not root
-        nav::nav(options.nav.clone(), document, ctx);
+        nav::nav(opts, document, ctx);
 
         let body = &document.body;
 

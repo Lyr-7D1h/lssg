@@ -4,8 +4,6 @@
 
 - YAML frontmatter metadata support
 - Trees like the ones https://owickstrom.github.io/the-monospace-web/
-- Tables
-- [Section links](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#section-links)
 - [Emoji support](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#using-emoji)
 - [Footnote support](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#footnotes)
 - [Alert support](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts)
@@ -22,9 +20,7 @@
 - Make importing pages from notion easier
 - Don't load all files into memory, might cause issues for large resource files or big sites
 - Add file minification for CSS
-- Documentation module
 - Improve blog module
-    - RSS functionality
     - tags
     - Better index page
         - Show and sort by date
@@ -36,6 +32,9 @@
 
 ## Completed
 
+- ~~RSS functionality~~
+- ~~Tables~~
+- ~~[Section links](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#section-links)~~
 - ~~Custom styling support~~
 - ~~Make default options root of Attributes (don't require [default] block)~~
 - ~~Html macro~~

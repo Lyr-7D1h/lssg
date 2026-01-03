@@ -35,7 +35,12 @@ fn links_grid(
                 {
                     let first = tokens.next().unwrap();
                     let cover = dom!(<div class="default__links_grid_card_cover"></div>);
-                    let s = tr.render(document, context, cover.clone(), std::slice::from_ref(first));
+                    let s = tr.render(
+                        document,
+                        context,
+                        cover.clone(),
+                        std::slice::from_ref(first),
+                    );
                     // if svg set viewbox to allow scaling
                     match &mut *s.first_child().unwrap().kind_mut() {
                         virtual_dom::DomNodeKind::Element { attributes, .. } => {
@@ -50,7 +55,7 @@ fn links_grid(
                 let title = tokens_to_text(&tokens);
                 a.first_child()
                     .unwrap()
-                    .append_child(dom!(<h2 class="default__links_grid_card_title">{title}</h2>));
+                    .append_child(dom!(<h3 class="default__links_grid_card_title">{title}</h3>));
 
                 Some(a)
             } else {

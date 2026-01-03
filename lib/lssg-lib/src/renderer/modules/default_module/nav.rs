@@ -2,9 +2,11 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 use serde_extensions::Overwrite;
-use virtual_dom::{to_attributes, Document, DomNode};
+use virtual_dom::{Document, DomNode, to_attributes};
 
 use crate::renderer::RenderContext;
+
+use super::PropegatedOptionsWithRoot;
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -32,7 +34,11 @@ impl Default for NavOptions {
     }
 }
 
-fn breadcrumbs(document: &Document, ctx: &RenderContext) -> DomNode {
+fn breadcrumbs(
+    document: &Document,
+    ctx: &RenderContext,
+    root_site_id: crate::sitetree::SiteId,
+) -> DomNode {
     let site_id = ctx.site_id;
     let site_tree = ctx.site_tree;
     let nav = document
@@ -41,8 +47,16 @@ fn breadcrumbs(document: &Document, ctx: &RenderContext) -> DomNode {
     nav.append_child(document.create_text_node("/"));
 
     let parents = site_tree.parents(site_id);
-    let parents_length = parents.len();
-    for (i, p) in parents.into_iter().rev().enumerate() {
+
+    // Filter parents to only include those up to (and including) the root_site_id
+    let filtered_parents: Vec<_> = parents
+        .into_iter()
+        .rev()
+        .skip_while(|p| *p != root_site_id)
+        .collect();
+
+    let parents_length = filtered_parents.len();
+    for (i, p) in filtered_parents.into_iter().enumerate() {
         let el = match &site_tree[p].kind {
             crate::sitetree::SiteNodeKind::Page(_) => document.create_element_with_attributes(
                 "a",
@@ -75,6 +89,7 @@ fn format_node_name(name: &str, name_map: Option<&HashMap<String, String>>) -> S
 fn side_menu(
     document: &Document,
     ctx: &RenderContext,
+    root_site_id: crate::sitetree::SiteId,
     include_root: bool,
     name_map: Option<&HashMap<String, String>>,
 ) -> DomNode {
@@ -87,8 +102,8 @@ fn side_menu(
     // Get flattened page hierarchy
     let map = site_tree.flatten_to_pages();
 
-    // Build a hierarchical menu structure
-    let root_id = site_tree.root();
+    // Use the provided root_site_id instead of site_tree.root()
+    let root_id = root_site_id;
 
     // If include_root is true, wrap the entire menu with a root link
     if include_root {
@@ -142,7 +157,7 @@ fn build_menu_tree(
     let ul = document.create_element("ul");
 
     // Get page children from the flattened map
-    for child_id in map[*node_id].iter().rev() {
+    for child_id in map[*node_id].iter() {
         let child = &site_tree[*child_id];
         let li = document.create_element("li");
 
@@ -186,21 +201,26 @@ fn build_menu_tree(
     ul
 }
 
-pub fn nav(opts: NavOptions, document: &mut Document, ctx: &RenderContext) {
-    if let Some(kind) = opts.kind {
+pub fn nav(opts_wrapper: &PropegatedOptionsWithRoot, document: &mut Document, ctx: &RenderContext) {
+    if let Some(kind) = &opts_wrapper.options.nav.kind {
+        // Use root_site_id from the wrapper or fall back to the site tree root
+        let root_id = opts_wrapper
+            .root_site_id
+            .unwrap_or_else(|| ctx.site_tree.root());
+
         let el = match kind {
             NavKind::None => return,
             NavKind::Breadcrumbs => {
                 // don't show breadcrumbs on root
-                if ctx.site_id == ctx.site_tree.root() {
+                if ctx.site_id == root_id {
                     return;
                 }
-                breadcrumbs(document, ctx)
+                breadcrumbs(document, ctx, root_id)
             }
             NavKind::SideMenu => {
-                let include_root = opts.include_root.unwrap_or(false);
-                let name_map = opts.name_map.as_ref();
-                side_menu(document, ctx, include_root, name_map)
+                let include_root = opts_wrapper.options.nav.include_root.unwrap_or(false);
+                let name_map = opts_wrapper.options.nav.name_map.as_ref();
+                side_menu(document, ctx, root_id, include_root, name_map)
             }
         };
         document.body.prepend(el);

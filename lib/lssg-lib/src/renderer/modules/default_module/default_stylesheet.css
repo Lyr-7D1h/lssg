@@ -432,7 +432,7 @@ body:has(.default__side-menu) #default__content {
   overflow: hidden;
 }
 .default__sitetree_file > a {
-  font-size: 0.85em;
+  font-size: 0.95em;
   padding-top: 1px;
 }
 .default__sitetree_file.default__sitetree_single_file > a {
