@@ -109,12 +109,16 @@ fn element_start_tag(
                     }
                 }
 
-                let void_element = reader.peek_char(i - 1)? == Some('/') && is_void_element(&tag);
-                // if it is void it is one character less (exclude the / and >)
-                // otherwise just exclude the >
-                let attributes_end = if void_element {
+                // Check if this is a void element (with or without self-closing /)
+                let has_self_closing_slash = reader.peek_char(i - 1)? == Some('/');
+                let void_element = is_void_element(&tag);
+
+                // Calculate attributes end position
+                let attributes_end = if has_self_closing_slash {
+                    // if it has self-closing slash, exclude the / and >
                     tag_content.len() - 2
                 } else {
+                    // otherwise just exclude the >
                     tag_content.len() - 1
                 };
 
@@ -446,56 +450,112 @@ This should be text
     }
 
     #[test]
-    fn test_head() {
-        let input = r#"
+    fn test_full_html_document() {
+        let input = r#"<!doctype html>
+<html>
   <head>
     <meta content="art,simulation,technology" name="keywords" />
-    <script src="./assets/main-B0Asn3MK.js" type="module" crossorigin></script>
-    <link rel="modulepreload" crossorigin href="./assets/creature-BZHPYSn1.js" />
-    <link rel="stylesheet" crossorigin href="./assets/main-CjrOOoWN.css" />
+    <script type="module" crossorigin src="./assets/main-B0Asn3MK.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/creature-BZHPYSn1.js">
+    <link rel="stylesheet" crossorigin href="./assets/main-CjrOOoWN.css">
   </head>
-        "#;
-        let expected = vec![Html::Element {
-            tag: "head".into(),
-            attributes: HashMap::new(),
-            children: vec![
-                Html::Element {
-                    tag: "meta".into(),
-                    attributes: to_attributes([
-                        ("content", "art,simulation,technology"),
-                        ("name", "keywords"),
-                    ]),
-                    children: vec![],
-                },
-                Html::Element {
-                    tag: "script".into(),
-                    attributes: to_attributes([
-                        ("src", "./assets/main-B0Asn3MK.js"),
-                        ("type", "module"),
-                        ("crossorigin", ""),
-                    ]),
-                    children: vec![],
-                },
-                Html::Element {
-                    tag: "link".into(),
-                    attributes: to_attributes([
-                        ("rel", "modulepreload"),
-                        ("crossorigin", ""),
-                        ("href", "./assets/creature-BZHPYSn1.js"),
-                    ]),
-                    children: vec![],
-                },
-                Html::Element {
-                    tag: "link".into(),
-                    attributes: to_attributes([
-                        ("rel", "stylesheet"),
-                        ("crossorigin", ""),
-                        ("href", "./assets/main-CjrOOoWN.css"),
-                    ]),
-                    children: vec![],
-                },
-            ],
-        }];
+  <body>
+    <div id="messages"></div>
+    <div id="debug"></div>
+    <canvas id="root">Your browser does not support the HTML canvas tag.</canvas>
+    <a id="qr-link" target="_blank">
+      <div id="qr"></div>
+    </a>
+  </body>
+</html>"#;
+        let expected = vec![
+            Html::Text {
+                text: "<!doctype html>\n".into(),
+            },
+            Html::Element {
+                tag: "html".into(),
+                attributes: HashMap::new(),
+                children: vec![
+                    Html::Element {
+                        tag: "head".into(),
+                        attributes: HashMap::new(),
+                        children: vec![
+                            Html::Element {
+                                tag: "meta".into(),
+                                attributes: to_attributes([
+                                    ("content", "art,simulation,technology"),
+                                    ("name", "keywords"),
+                                ]),
+                                children: vec![],
+                            },
+                            Html::Element {
+                                tag: "script".into(),
+                                attributes: to_attributes([
+                                    ("type", "module"),
+                                    ("crossorigin", ""),
+                                    ("src", "./assets/main-B0Asn3MK.js"),
+                                ]),
+                                children: vec![],
+                            },
+                            Html::Element {
+                                tag: "link".into(),
+                                attributes: to_attributes([
+                                    ("rel", "modulepreload"),
+                                    ("crossorigin", ""),
+                                    ("href", "./assets/creature-BZHPYSn1.js"),
+                                ]),
+                                children: vec![],
+                            },
+                            Html::Element {
+                                tag: "link".into(),
+                                attributes: to_attributes([
+                                    ("rel", "stylesheet"),
+                                    ("crossorigin", ""),
+                                    ("href", "./assets/main-CjrOOoWN.css"),
+                                ]),
+                                children: vec![],
+                            },
+                        ],
+                    },
+                    Html::Element {
+                        tag: "body".into(),
+                        attributes: HashMap::new(),
+                        children: vec![
+                            Html::Element {
+                                tag: "div".into(),
+                                attributes: to_attributes([("id", "messages")]),
+                                children: vec![],
+                            },
+                            Html::Element {
+                                tag: "div".into(),
+                                attributes: to_attributes([("id", "debug")]),
+                                children: vec![],
+                            },
+                            Html::Element {
+                                tag: "canvas".into(),
+                                attributes: to_attributes([("id", "root")]),
+                                children: vec![Html::Text {
+                                    text: "Your browser does not support the HTML canvas tag."
+                                        .into(),
+                                }],
+                            },
+                            Html::Element {
+                                tag: "a".into(),
+                                attributes: to_attributes([
+                                    ("id", "qr-link"),
+                                    ("target", "_blank"),
+                                ]),
+                                children: vec![Html::Element {
+                                    tag: "div".into(),
+                                    attributes: to_attributes([("id", "qr")]),
+                                    children: vec![],
+                                }],
+                            },
+                        ],
+                    },
+                ],
+            },
+        ];
         let tokens = parse_html(input.as_bytes()).unwrap();
         assert_eq!(expected, tokens);
     }
@@ -519,5 +579,28 @@ This should be text
         }];
         let tokens = parse_html(input.as_bytes()).unwrap();
         assert_eq!(expected, tokens);
+    }
+
+    #[test]
+    fn test_void_elements_with_and_without_self_closing() {
+        // Void elements without self-closing slash (HTML5 style)
+        let input = r#"<meta charset="utf-8">
+<link rel="stylesheet" href="style.css">
+<img src="image.jpg" alt="test">"#;
+        let tokens = parse_html(input.as_bytes()).unwrap();
+        assert_eq!(tokens.len(), 3);
+        assert!(matches!(tokens[0], Html::Element { ref tag, .. } if tag == "meta"));
+        assert!(matches!(tokens[1], Html::Element { ref tag, .. } if tag == "link"));
+        assert!(matches!(tokens[2], Html::Element { ref tag, .. } if tag == "img"));
+
+        // Void elements with self-closing slash (XHTML style)
+        let input = r#"<meta charset="utf-8" />
+<link rel="stylesheet" href="style.css" />
+<img src="image.jpg" alt="test" />"#;
+        let tokens = parse_html(input.as_bytes()).unwrap();
+        assert_eq!(tokens.len(), 3);
+        assert!(matches!(tokens[0], Html::Element { ref tag, .. } if tag == "meta"));
+        assert!(matches!(tokens[1], Html::Element { ref tag, .. } if tag == "link"));
+        assert!(matches!(tokens[2], Html::Element { ref tag, .. } if tag == "img"));
     }
 }
