@@ -750,6 +750,59 @@ impl RendererModule for DefaultModule {
                     return Some(parent);
                 }
             }
+            Token::Table {
+                header,
+                align,
+                rows,
+            } => {
+                use crate::lmarkdown::TableAlign;
+                
+                let table = document.create_element("table");
+                
+                // Render thead
+                let thead = document.create_element("thead");
+                let header_row = document.create_element("tr");
+                for (i, cell_tokens) in header.iter().enumerate() {
+                    let mut th = document.create_element("th");
+                    if let Some(alignment) = align.get(i) {
+                        match alignment {
+                            TableAlign::Left => th.set_attribute("align", "left"),
+                            TableAlign::Center => th.set_attribute("align", "center"),
+                            TableAlign::Right => th.set_attribute("align", "right"),
+                            TableAlign::None => {}
+                        }
+                    }
+                    tr.render(document, context, th.clone(), cell_tokens);
+                    header_row.append_child(th);
+                }
+                thead.append_child(header_row);
+                table.append_child(thead);
+                
+                // Render tbody
+                if !rows.is_empty() {
+                    let tbody = document.create_element("tbody");
+                    for row in rows {
+                        let tr_elem = document.create_element("tr");
+                        for (i, cell_tokens) in row.iter().enumerate() {
+                            let mut td = document.create_element("td");
+                            if let Some(alignment) = align.get(i) {
+                                match alignment {
+                                    TableAlign::Left => td.set_attribute("align", "left"),
+                                    TableAlign::Center => td.set_attribute("align", "center"),
+                                    TableAlign::Right => td.set_attribute("align", "right"),
+                                    TableAlign::None => {}
+                                }
+                            }
+                            tr.render(document, context, td.clone(), cell_tokens);
+                            tr_elem.append_child(td);
+                        }
+                        tbody.append_child(tr_elem);
+                    }
+                    table.append_child(tbody);
+                }
+                
+                parent.append_child(table);
+            }
         };
         // always renders
         Some(parent)

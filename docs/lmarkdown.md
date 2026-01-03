@@ -15,6 +15,12 @@ Structure of a lmarkdown file:
 
 For how to define values in `MODULE_CONFIG` see [Modules](./configuration.md)
 
+## Differences with CommonMark
+
+- Support for [github style tables](https://github.github.com/gfm/#tables-extension-)
+- No newlines needed for inserting html
+- [TOML](https://toml.io/en/) configuration comment on top of a markdown document
+
 ## Example
 
 ```markdown

@@ -97,9 +97,9 @@ fn side_menu(
         let root_li = document.create_element("li");
 
         let is_current = root_id == site_id;
-        let mut classes = vec!["side-menu__link"];
+        let mut classes = vec!["default__side-menu__link"];
         if is_current {
-            classes.push("side-menu__link--active");
+            classes.push("default__side-menu__link--active");
         }
 
         let root_link = document.create_element_with_attributes(
@@ -150,9 +150,9 @@ fn build_menu_tree(
         let is_current = *child_id == current_id;
 
         // Create the link
-        let mut classes = vec!["side-menu__link"];
+        let mut classes = vec!["default__side-menu__link"];
         if is_current {
-            classes.push("side-menu__link--active");
+            classes.push("default__side-menu__link--active");
         }
 
         let a = document.create_element_with_attributes(

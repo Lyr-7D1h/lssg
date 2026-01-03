@@ -36,6 +36,8 @@ mod tests {
 
     use toml::{Table, Value};
 
+    use crate::lmarkdown::TableAlign;
+
     use super::{parse_lmarkdown, Token};
 
     /// Utility function to convert iteratables into attributes hashmap
@@ -451,6 +453,38 @@ test='<test></test>'
             table: [("test".to_string(), Value::String("<test></test>".into()))]
                 .into_iter()
                 .collect(),
+        }];
+        let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_table() {
+        let input = r#"| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `root` | Boolean | `false` | Disable parent inheritance |
+"#;
+        let expected = vec![Token::Table {
+            header: vec![
+                vec![Token::Text { text: "Option".into() }],
+                vec![Token::Text { text: "Type".into() }],
+                vec![Token::Text { text: "Default".into() }],
+                vec![Token::Text { text: "Description".into() }],
+            ],
+            align: vec![
+                TableAlign::None,
+                TableAlign::None,
+                TableAlign::None,
+                TableAlign::None,
+            ],
+            rows: vec![vec![
+                vec![Token::Code { text: "root".into() }],
+                vec![Token::Text { text: "Boolean".into() }],
+                vec![Token::Code { text: "false".into() }],
+                vec![Token::Text {
+                    text: "Disable parent inheritance".into(),
+                }],
+            ]],
         }];
         let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
         assert_eq!(tokens, expected);

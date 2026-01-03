@@ -231,7 +231,10 @@ impl MediaModule {
             (self.options.max_width, self.options.max_height)
         {
             // Simple scale filter that maintains aspect ratio and ensures even dimensions
-            format!("scale='min({},iw)':'min({}*ih/iw,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2", max_w, max_h)
+            format!(
+                "scale='min({},iw)':'min({}*ih/iw,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2",
+                max_w, max_h
+            )
         } else {
             // Just ensure dimensions are even
             "scale=trunc(iw/2)*2:trunc(ih/2)*2".to_string()

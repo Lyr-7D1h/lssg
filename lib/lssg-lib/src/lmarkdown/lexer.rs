@@ -62,6 +62,42 @@ fn parse_block_token_text(block_token: &mut Token) -> Result<(), ParseError> {
             let mut reader = CharReader::new(text.as_bytes());
             *tokens = read_inline_tokens(&mut reader)?;
         }
+        Token::Table { header, rows, .. } => {
+            // Parse inline tokens in header cells
+            for cell in header.iter_mut() {
+                let text = cell
+                    .iter()
+                    .filter_map(|t| {
+                        if let Token::Text { text } = t {
+                            Some(text.as_str())
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>()
+                    .join("");
+                let mut reader = CharReader::new(text.as_bytes());
+                *cell = read_inline_tokens(&mut reader)?;
+            }
+            // Parse inline tokens in row cells
+            for row in rows.iter_mut() {
+                for cell in row.iter_mut() {
+                    let text = cell
+                        .iter()
+                        .filter_map(|t| {
+                            if let Token::Text { text } = t {
+                                Some(text.as_str())
+                            } else {
+                                None
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join("");
+                    let mut reader = CharReader::new(text.as_bytes());
+                    *cell = read_inline_tokens(&mut reader)?;
+                }
+            }
+        }
         Token::CodeBlock { .. } | Token::Attributes { .. } | Token::Comment { .. } => {}
         _ => {
             return Err(ParseError::invalid(
@@ -71,6 +107,15 @@ fn parse_block_token_text(block_token: &mut Token) -> Result<(), ParseError> {
     };
 
     return Ok(());
+}
+
+/// Table column alignment
+#[derive(Debug, Clone, PartialEq)]
+pub enum TableAlign {
+    Left,
+    Center,
+    Right,
+    None,
 }
 
 /// https://github.com/markedjs/marked/blob/master/src/Tokenizer.js
@@ -110,6 +155,11 @@ pub enum Token {
     CodeBlock {
         info: Option<String>,
         text: String,
+    },
+    Table {
+        header: Vec<Vec<Token>>,
+        align: Vec<TableAlign>,
+        rows: Vec<Vec<Vec<Token>>>,
     },
     Bold {
         text: String,
@@ -156,6 +206,18 @@ impl Token {
                 let tokens = items.iter().flatten().collect();
                 Some(tokens)
             }
+            Token::Table { header, rows, .. } => {
+                let mut tokens = vec![];
+                for cell in header {
+                    tokens.extend(cell.iter());
+                }
+                for row in rows {
+                    for cell in row {
+                        tokens.extend(cell.iter());
+                    }
+                }
+                Some(tokens)
+            }
             _ => None,
         }
     }
@@ -190,6 +252,7 @@ impl Token {
             | Token::Html { .. }
             | Token::Paragraph { .. }
             | Token::BlockQuote { .. }
+            | Token::Table { .. }
             | Token::CodeBlock { .. } => true,
             _ => false,
         }

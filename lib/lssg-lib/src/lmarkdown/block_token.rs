@@ -6,8 +6,9 @@ use virtual_dom::Html;
 use crate::{char_reader::CharReader, parse_error::ParseError};
 
 use super::{
+    Token,
     html::{html_comment, html_element},
-    sanitize_text, Token,
+    sanitize_text,
 };
 
 /// https://spec.commonmark.org/0.30/#blocks-and-inlines
@@ -30,12 +31,12 @@ pub fn read_block_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token
                     if reader.peek_char(0)?.is_none() {
                         return Ok(tokens);
                     }
-                    if let Some(token) = from_reader(blank_line, reader, &mut tokens)? {
+                    if let Some(token) = from_reader(blank_line, c, reader, &mut tokens)? {
                         tokens.push(token)
                     }
                     continue;
                 }
-                if let Some(token) = from_reader(false, reader, &mut tokens)? {
+                if let Some(token) = from_reader(false, c, reader, &mut tokens)? {
                     tokens.push(token)
                 }
             }
@@ -45,6 +46,7 @@ pub fn read_block_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token
 
 fn from_reader(
     blank_line: bool,
+    c: char,
     reader: &mut CharReader<impl Read>,
     tokens: &mut Vec<Token>,
 ) -> Result<Option<Token>, ParseError> {
@@ -125,6 +127,10 @@ fn from_reader(
 
     if let Some(blockquote) = blockquote(reader)? {
         return Ok(Some(blockquote));
+    }
+
+    if let Some(table) = table(c, reader)? {
+        return Ok(Some(table));
     }
 
     // TODO https://spec.commonmark.org/0.30/#link-reference-definitions
@@ -428,6 +434,133 @@ pub fn ordered_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>,
     return Ok(Some(Token::OrderedList { items, start }));
 }
 
+/// Parse a GitHub Flavored Markdown table
+/// https://github.github.com/gfm/#tables-extension-
+fn table(c: char, reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
+    use super::TableAlign;
+
+    // must start with |
+    if c != '|' {
+        return Ok(None);
+    }
+
+    // Try to parse header row
+    let Some(header_line) = reader.peek_until_inclusive(|c| c == '\n')? else {
+        return Ok(None);
+    };
+
+    // or contain |
+    if !header_line.contains('|') {
+        return Ok(None);
+    }
+
+    // Try to parse delimiter row
+    let Some(delimiter_line) =
+        reader.peek_until_inclusive_from(header_line.len(), |c| c == '\n')?
+    else {
+        return Ok(None);
+    };
+
+    // Check if delimiter row looks like a table delimiter
+    let delimiter_trimmed = delimiter_line.trim();
+    if !delimiter_trimmed.starts_with('|') && !delimiter_trimmed.contains('|') {
+        return Ok(None);
+    }
+
+    // Parse delimiter to check validity and get alignment
+    let delimiter_cells: Vec<&str> = delimiter_trimmed
+        .split('|')
+        .filter(|s| !s.trim().is_empty())
+        .collect();
+
+    // Check if delimiter cells are valid (must contain at least one hyphen and only hyphens, colons, and spaces)
+    let mut alignments = vec![];
+    for cell in &delimiter_cells {
+        let trimmed = cell.trim();
+        if trimmed.is_empty() || !trimmed.chars().any(|c| c == '-') {
+            return Ok(None);
+        }
+        if !trimmed.chars().all(|c| c == '-' || c == ':' || c == ' ') {
+            return Ok(None);
+        }
+
+        // Determine alignment
+        let starts_with_colon = trimmed.starts_with(':');
+        let ends_with_colon = trimmed.ends_with(':');
+        let align = match (starts_with_colon, ends_with_colon) {
+            (true, true) => TableAlign::Center,
+            (true, false) => TableAlign::Left,
+            (false, true) => TableAlign::Right,
+            (false, false) => TableAlign::None,
+        };
+        alignments.push(align);
+    }
+
+    // Parse header cells
+    let header_cells: Vec<&str> = header_line
+        .trim()
+        .trim_start_matches('|')
+        .trim_end_matches('|')
+        .split('|')
+        .map(|s| s.trim())
+        .collect();
+
+    // Must have at least one column
+    if header_cells.is_empty() {
+        return Ok(None);
+    }
+
+    // Consume header and delimiter
+    reader.consume(header_line.len() + delimiter_line.len())?;
+
+    // Parse header tokens
+    let header: Vec<Vec<Token>> = header_cells
+        .into_iter()
+        .map(|cell| {
+            vec![Token::Text {
+                text: cell.to_string(),
+            }]
+        })
+        .collect();
+
+    // Parse data rows
+    let mut rows = vec![];
+    while let Some(row_line) = reader.peek_until_inclusive(|c| c == '\n')? {
+        let row_trimmed = row_line.trim();
+
+        // Stop if not a table row
+        if row_trimmed.is_empty() || (!row_trimmed.starts_with('|') && !row_trimmed.contains('|')) {
+            break;
+        }
+
+        // Parse row cells
+        let row_cells: Vec<&str> = row_trimmed
+            .trim_start_matches('|')
+            .trim_end_matches('|')
+            .split('|')
+            .map(|s| s.trim())
+            .collect();
+
+        let row: Vec<Vec<Token>> = row_cells
+            .into_iter()
+            .map(|cell| {
+                vec![Token::Text {
+                    text: cell.to_string(),
+                }]
+            })
+            .collect();
+
+        rows.push(row);
+        reader.consume(row_line.len())?;
+    }
+
+    Ok(Some(Token::Table {
+        header,
+        align: alignments,
+        rows,
+    }))
+}
+
 /// ignore up to 4 space idententations returns at which position the match begins
 pub fn detect_char_with_ident(
     reader: &mut CharReader<impl Read>,
@@ -541,5 +674,53 @@ This should be text"),
         let mut reader = CharReader::new(input.as_bytes());
         let tokens = read_block_tokens(&mut reader).unwrap();
         assert_eq!(expected, tokens);
+    }
+
+    #[test]
+    fn test_table() {
+        let input = r#"| Option | Type | Default |
+|--------|------|---------|
+| `root` | Boolean | `false` |
+| `title` | String | First H1 |
+"#;
+
+        let mut reader = CharReader::new(input.as_bytes());
+        let tokens = read_block_tokens(&mut reader).unwrap();
+
+        assert_eq!(tokens.len(), 1);
+        if let Token::Table { header, rows, .. } = &tokens[0] {
+            assert_eq!(header.len(), 3); // 3 columns
+            assert_eq!(rows.len(), 2); // 2 data rows
+        } else {
+            panic!("Expected table token, got {:?}", tokens[0]);
+        }
+    }
+
+    #[test]
+    fn test_table_with_alignment() {
+        let input = r#"| Left | Center | Right |
+|:-----|:------:|------:|
+| L1 | C1 | R1 |
+"#;
+
+        let mut reader = CharReader::new(input.as_bytes());
+        let tokens = read_block_tokens(&mut reader).unwrap();
+
+        assert_eq!(tokens.len(), 1);
+        if let Token::Table {
+            header,
+            align,
+            rows,
+        } = &tokens[0]
+        {
+            use crate::lmarkdown::TableAlign;
+            assert_eq!(header.len(), 3);
+            assert_eq!(align[0], TableAlign::Left);
+            assert_eq!(align[1], TableAlign::Center);
+            assert_eq!(align[2], TableAlign::Right);
+            assert_eq!(rows.len(), 1);
+        } else {
+            panic!("Expected table token");
+        }
     }
 }
