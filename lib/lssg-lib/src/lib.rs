@@ -49,7 +49,7 @@ pub struct Lssg {
 
 impl Lssg {
     pub fn new(input: Input, output_directory: PathBuf) -> Lssg {
-        let renderer = Renderer::new();
+        let renderer = Renderer::default();
         Lssg {
             input,
             output_directory,
@@ -70,7 +70,7 @@ impl Lssg {
 
         // site_tree.minify();
 
-        self.renderer.after_init(&mut site_tree);
+        self.renderer.after_init(&site_tree);
 
         if self.output_directory.exists() {
             info!(
@@ -126,7 +126,7 @@ impl Lssg {
 
                     info!(
                         "Writing to {:?}",
-                        (&html_output_path).canonicalize_nonexistent_path()
+                        html_output_path.canonicalize_nonexistent_path()
                     );
                     write(html_output_path, html)?;
                 }

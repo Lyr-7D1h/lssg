@@ -11,9 +11,8 @@ use super::{
     sanitize_text,
 };
 
-/// https://spec.commonmark.org/0.30/#blocks-and-inlines
 // FIXME: first parse all block tokens then parse into Token
-
+/// https://spec.commonmark.org/0.30/#blocks-and-inlines
 pub fn read_block_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token>, ParseError> {
     let mut tokens = vec![];
     loop {
@@ -24,10 +23,9 @@ pub fn read_block_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token
                 if c == '\n' {
                     reader.consume(0)?;
                     // if more than one newline than could be a blankline
-                    let blank_line = reader
+                    let blank_line = !reader
                         .consume_until_exclusive(|c| c != '\n' && c != '\r')?
-                        .len()
-                        > 0;
+                        .is_empty();
                     if reader.peek_char(0)?.is_none() {
                         return Ok(tokens);
                     }
@@ -51,20 +49,18 @@ fn from_reader(
     tokens: &mut Vec<Token>,
 ) -> Result<Option<Token>, ParseError> {
     // if starts with comment in toml format it is an attribute
-    if reader.has_read() == false {
-        if let Some('<') = reader.peek_char(0)? {
-            if reader.peek_string(4)? == "<!--" {
-                if let Some(comment) = reader.peek_until_match_inclusive("-->")? {
-                    match toml::from_str(&comment[4..comment.len() - 3]) {
-                        Ok(toml::Value::Table(table)) => {
-                            reader.consume(comment.len())?;
-                            return Ok(Some(Token::Attributes { table }));
-                        }
-                        Ok(_) => warn!("Attributes is not a table"),
-                        Err(e) => warn!("Not parsing possible Attributes: {e}"),
-                    }
-                }
+    if !reader.has_read()
+        && let Some('<') = reader.peek_char(0)?
+        && reader.peek_string(4)? == "<!--"
+        && let Some(comment) = reader.peek_until_match_inclusive("-->")?
+    {
+        match toml::from_str(&comment[4..comment.len() - 3]) {
+            Ok(toml::Value::Table(table)) => {
+                reader.consume(comment.len())?;
+                return Ok(Some(Token::Attributes { table }));
             }
+            Ok(_) => warn!("Attributes is not a table"),
+            Err(e) => warn!("Not parsing possible Attributes: {e}"),
         }
     }
 
@@ -136,32 +132,31 @@ fn from_reader(
     // TODO https://spec.commonmark.org/0.30/#link-reference-definitions
 
     let text = reader.consume_until_match_inclusive("\n")?;
-    if !blank_line {
-        if let Some(Token::Paragraph {
+    if !blank_line
+        && let Some(Token::Paragraph {
             text: last_text, ..
         }) = tokens.last_mut()
-        {
-            *last_text += &text;
-            return Ok(None);
-        }
+    {
+        *last_text += &text;
+        return Ok(None);
     }
-    return Ok(Some(Token::Paragraph {
+    Ok(Some(Token::Paragraph {
         text,
         tokens: vec![],
-    }));
+    }))
 }
 
 /// https://spec.commonmark.org/0.30/#indented-code-blocks
 pub fn indented_code(
     reader: &mut CharReader<impl Read>,
-    tokens: &Vec<Token>,
+    tokens: &[Token],
     blank_line: bool,
 ) -> Result<Option<Token>, ParseError> {
     // can't interupt a paragraph if there wasn't a blank line
-    if let Some(Token::Paragraph { .. }) = tokens.last() {
-        if !blank_line {
-            return Ok(None);
-        }
+    if let Some(Token::Paragraph { .. }) = tokens.last()
+        && !blank_line
+    {
+        return Ok(None);
     }
 
     let mut text = String::new();
@@ -169,11 +164,11 @@ pub fn indented_code(
         let line = reader.consume_until_inclusive(|c| c == '\n')?;
         text.push_str(&line[4..line.len()]);
     }
-    if text.len() == 0 {
+    if text.is_empty() {
         return Ok(None);
     }
 
-    return Ok(Some(Token::CodeBlock { info: None, text }));
+    Ok(Some(Token::CodeBlock { info: None, text }))
 }
 
 /// https://spec.commonmark.org/0.30/#fenced-code-blocks
@@ -189,7 +184,7 @@ pub fn fenced_code(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, 
         }
 
         // must start with more than 3 of same fence_type
-        if !(count_backticks >= 3) {
+        if count_backticks < 3 {
             return Ok(None);
         }
 
@@ -209,7 +204,7 @@ pub fn fenced_code(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, 
         // add all content
         'outer: loop {
             let line = reader.consume_until_inclusive(|c| c == '\n')?;
-            if line.len() == 0 {
+            if line.is_empty() {
                 break;
             }
 
@@ -220,10 +215,10 @@ pub fn fenced_code(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, 
                     Some(c) if *c == fence_type => {
                         // continue if all characters are not same as opening fence
                         for j in i..i + count_backticks {
-                            if let Some(c) = chars.get(j) {
-                                if *c != fence_type {
-                                    break;
-                                }
+                            if let Some(c) = chars.get(j)
+                                && *c != fence_type
+                            {
+                                break;
                             }
                         }
                         break 'outer;
@@ -234,9 +229,10 @@ pub fn fenced_code(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, 
             }
 
             let mut pos = 0;
-            for i in 0..indent {
-                if chars[i] == ' ' {
+            for c in chars.iter().take(indent) {
+                if *c == ' ' {
                     pos += 1;
+                    continue;
                 }
                 break;
             }
@@ -249,7 +245,7 @@ pub fn fenced_code(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, 
         }));
     }
 
-    return Ok(None);
+    Ok(None)
 }
 
 /// https://spec.commonmark.org/0.30/#setext-heading
@@ -300,14 +296,14 @@ pub fn setext_heading(
 pub fn thematic_break(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
     if let Some(pos) = detect_char_with_ident(reader, |c| c == '*' || c == '-' || c == '_')? {
         let line = reader.peek_line_from(pos)?;
-        if let Some(pattern) = line.replace(" ", "").get(0..3) {
-            if pattern == "***" || pattern == "---" || pattern == "___" {
-                reader.consume_string(pos + line.len())?;
-                return Ok(Some(Token::ThematicBreak));
-            }
+        if let Some(pattern) = line.replace(" ", "").get(0..3)
+            && (pattern == "***" || pattern == "---" || pattern == "___")
+        {
+            reader.consume_string(pos + line.len())?;
+            return Ok(Some(Token::ThematicBreak));
         }
     }
-    return Ok(None);
+    Ok(None)
 }
 
 fn list_item_text(
@@ -323,7 +319,7 @@ fn list_item_text(
         if line.is_empty() {
             let line = reader.consume_string(line.len() + 1)?;
             // end
-            if line.len() == 0 {
+            if line.is_empty() {
                 break;
             }
             item_content.push_str(&line);
@@ -367,11 +363,11 @@ pub fn bullet_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, 
         items.push(tokens)
     }
 
-    if items.len() == 0 {
+    if items.is_empty() {
         return Ok(None);
     }
 
-    return Ok(Some(Token::BulletList { items }));
+    Ok(Some(Token::BulletList { items }))
 }
 // TODO implement all specs (check for same usage of bullet enc.)
 /// https://spec.commonmark.org/0.30/#list-items
@@ -389,7 +385,7 @@ pub fn ordered_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>,
             match reader.peek_char(pos + i)? {
                 Some(c) if c.is_ascii_digit() => {}
                 Some('.') | Some(')') => {
-                    pos = i + pos;
+                    pos += i;
                     closing_char = true;
                     break;
                 }
@@ -427,11 +423,11 @@ pub fn ordered_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>,
         items.push(tokens)
     }
 
-    if items.len() == 0 {
+    if items.is_empty() {
         return Ok(None);
     }
 
-    return Ok(Some(Token::OrderedList { items, start }));
+    Ok(Some(Token::OrderedList { items, start }))
 }
 
 /// Parse a GitHub Flavored Markdown table
@@ -573,7 +569,7 @@ pub fn detect_char_with_ident(
             Some(_) | None => return Ok(None),
         }
     }
-    return Ok(None);
+    Ok(None)
 }
 
 /// Heading (#*{depth} {text})
@@ -625,7 +621,7 @@ pub fn blockquote(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, P
         break;
     }
 
-    if lines.len() == 0 {
+    if lines.is_empty() {
         return Ok(None);
     }
 
@@ -633,7 +629,7 @@ pub fn blockquote(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, P
     let mut reader = CharReader::new(text.as_bytes());
     let tokens = read_block_tokens(&mut reader)?;
 
-    return Ok(Some(Token::BlockQuote { tokens }));
+    Ok(Some(Token::BlockQuote { tokens }))
 }
 
 #[cfg(test)]

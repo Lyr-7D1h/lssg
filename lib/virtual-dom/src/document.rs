@@ -22,7 +22,7 @@ impl Document {
         let head = children.next().ok_or("head not found")?;
         let body = children.next().ok_or("body not found")?;
 
-        return Ok(Document { root, head, body });
+        Ok(Document { root, head, body })
     }
 
     pub fn new() -> Document {
@@ -71,9 +71,15 @@ impl Document {
     }
 }
 
-impl ToString for Document {
-    fn to_string(&self) -> String {
-        format!(r#"<!DOCTYPE html>{}"#, self.root.to_string())
+impl std::fmt::Display for Document {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, r#"<!DOCTYPE html>{}"#, self.root)
+    }
+}
+
+impl Default for Document {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

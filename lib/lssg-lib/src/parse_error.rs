@@ -47,9 +47,9 @@ impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Error while parsing file {}. {}",
+            "Error while parsing file {}. \n{}",
             self.message,
-            format!("\n{}", self.context)
+            self.context
         )
     }
 }

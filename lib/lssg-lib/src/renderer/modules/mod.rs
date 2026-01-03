@@ -80,11 +80,10 @@ pub trait RendererModule {
                 return default;
             }
 
-            if let Some(v) = toml.get(self.id()) {
-                if let Err(e) = default.overwrite(v.clone()) {
+            if let Some(v) = toml.get(self.id())
+                && let Err(e) = default.overwrite(v.clone()) {
                     error!("Failed to parse options for '{}' module: {e}", self.id())
                 }
-            }
         }
         default
     }
@@ -104,11 +103,10 @@ pub trait RendererModule {
                 return o;
             }
 
-            if let Some(v) = toml.get(self.id()) {
-                if let Err(e) = o.overwrite(v.clone()) {
+            if let Some(v) = toml.get(self.id())
+                && let Err(e) = o.overwrite(v.clone()) {
                     error!("Failed to parse options for '{}' module: {e}", self.id())
                 }
-            }
         }
         o
     }

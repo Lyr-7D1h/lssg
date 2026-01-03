@@ -153,11 +153,11 @@ impl DomNode {
         Some(DomNode(self.0.borrow().next_sibling.as_ref()?.clone()))
     }
 
-    pub fn kind(&self) -> Ref<DomNodeKind> {
+    pub fn kind(&self) -> Ref<'_, DomNodeKind> {
         Ref::map(self.0.borrow(), |v| &v.kind)
     }
 
-    pub fn kind_mut(&self) -> RefMut<DomNodeKind> {
+    pub fn kind_mut(&self) -> RefMut<'_, DomNodeKind> {
         RefMut::map(self.0.borrow_mut(), |v| &mut v.kind)
     }
 
@@ -227,7 +227,7 @@ impl DomNode {
 
         // can't remove while borrowing in c.kind() so getting remove flag instead
         let should_remove = match &*self.kind() {
-            DomNodeKind::Text { text } if text.len() == 0 => true,
+            DomNodeKind::Text { text } if text.is_empty() => true,
             // remove paragraph if no children
             DomNodeKind::Element { tag, .. } if tag == "p" && self.first_child().is_none() => true,
             // remove paragraph if text children are only whitespace
@@ -485,15 +485,15 @@ fn escape_html(text: &str) -> String {
         })
         .collect()
 }
-impl ToString for DomNode {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for DomNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &*self.kind() {
-            DomNodeKind::Text { text } => escape_html(text),
+            DomNodeKind::Text { text } => write!(f, "{}", escape_html(text)),
             DomNodeKind::Element { tag, attributes } => {
                 let attributes = attributes
-                    .into_iter()
+                    .iter()
                     .map(|(k, v)| {
-                        if v.len() > 0 {
+                        if !v.is_empty() {
                             format!(r#"{k}="{v}""#)
                         } else {
                             k.into()
@@ -502,26 +502,24 @@ impl ToString for DomNode {
                     .collect::<Vec<String>>()
                     .join(" ");
 
-                let spacing = if attributes.len() > 0 {
+                let spacing = if !attributes.is_empty() {
                     String::from(" ")
                 } else {
                     String::new()
                 };
 
                 let children: Vec<DomNode> = self.children().collect();
-                if children.len() == 0 {
-                    if is_void_element(&tag) {
-                        return format!("<{tag}{spacing}{}/>", attributes);
-                    }
+                if children.is_empty() && is_void_element(tag) {
+                    return write!(f, "<{tag}{spacing}{}/>", attributes);
                 }
 
                 let mut content = String::new();
 
                 for c in children {
-                    content += &c.to_string();
+                    content += &format!("{}", c);
                 }
 
-                format!("<{tag}{spacing}{}>{}</{tag}>", attributes, content)
+                write!(f, "<{tag}{spacing}{}>{}</{tag}>", attributes, content)
             }
         }
     }
@@ -729,8 +727,8 @@ pub enum NodeEdge {
 impl PartialEq for NodeEdge {
     fn eq(&self, other: &NodeEdge) -> bool {
         match (self, other) {
-            (&NodeEdge::Start(ref n1), &NodeEdge::Start(ref n2)) => *n1 == *n2,
-            (&NodeEdge::End(ref n1), &NodeEdge::End(ref n2)) => *n1 == *n2,
+            (NodeEdge::Start(n1), NodeEdge::Start(n2)) => *n1 == *n2,
+            (NodeEdge::End(n1), NodeEdge::End(n2)) => *n1 == *n2,
             _ => false,
         }
     }

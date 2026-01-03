@@ -23,13 +23,13 @@ impl<'a> TokenRenderer {
         dom: &mut Document,
         context: &RenderContext<'a>,
         mut parent: DomNode,
-        tokens: &Vec<Token>,
+        tokens: &[Token],
     ) -> DomNode {
         'l: for token in tokens.iter() {
             let modules = unsafe { self.modules.as_mut().unwrap() };
             let mut modules_iter = modules.iter_mut();
             // skip all before current module
-            while let Some(module) = modules_iter.next() {
+            for module in modules_iter.by_ref() {
                 if module.id() == current_module.id() {
                     break;
                 }
@@ -38,7 +38,7 @@ impl<'a> TokenRenderer {
                 if current_module.id() == module.id() {
                     continue;
                 }
-                if let Some(p) = module.render_body(dom, context, parent.clone(), &token, self) {
+                if let Some(p) = module.render_body(dom, context, parent.clone(), token, self) {
                     parent = p;
                     continue 'l;
                 }
@@ -53,12 +53,12 @@ impl<'a> TokenRenderer {
         document: &mut Document,
         context: &RenderContext<'a>,
         mut parent: DomNode,
-        tokens: &Vec<Token>,
+        tokens: &[Token],
     ) -> DomNode {
         'l: for token in tokens.iter() {
             let modules = unsafe { self.modules.as_mut().unwrap() };
             for module in modules.iter_mut() {
-                if let Some(p) = module.render_body(document, context, parent.clone(), &token, self)
+                if let Some(p) = module.render_body(document, context, parent.clone(), token, self)
                 {
                     parent = p;
                     continue 'l;

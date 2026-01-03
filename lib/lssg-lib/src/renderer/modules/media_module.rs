@@ -7,7 +7,7 @@ use serde_extensions::Overwrite;
 use crate::{
     lssg_error::{LssgError, LssgErrorKind},
     sitetree::{Resource, SiteId, SiteNodeKind, SiteTree},
-    tree::DFS,
+    tree::Dfs,
 };
 
 use super::RendererModule;
@@ -47,24 +47,19 @@ impl Default for MediaOptions {
             convert_to_webp: true,
             max_width: Some(1920),
             max_height: Some(1080),
-            resize_threshold_bytes: 1000_000,
+            resize_threshold_bytes: 1_000_000,
             webp_quality: 95,
             use_ffmpeg: true,
         }
     }
 }
 
+#[derive(Default)]
 pub struct MediaModule {
     options: MediaOptions,
 }
 
 impl MediaModule {
-    pub fn new() -> Self {
-        Self {
-            options: MediaOptions::default(),
-        }
-    }
-
     fn optimize_image(
         &self,
         resource: &mut Resource,
@@ -117,16 +112,15 @@ impl MediaModule {
                 data.len()
             );
         } else if let (Some(max_w), Some(max_h)) = (self.options.max_width, self.options.max_height)
+            && (optimized_img.width() > max_w || optimized_img.height() > max_h)
         {
-            if optimized_img.width() > max_w || optimized_img.height() > max_h {
-                info!(
-                    "Skipping resize for {} ({}x{}, {} bytes) - file size too small to warrant quality loss",
-                    original_name,
-                    optimized_img.width(),
-                    optimized_img.height(),
-                    data.len()
-                );
-            }
+            info!(
+                "Skipping resize for {} ({}x{}, {} bytes) - file size too small to warrant quality loss",
+                original_name,
+                optimized_img.width(),
+                optimized_img.height(),
+                data.len()
+            );
         }
 
         let mut buffer = Vec::new();
@@ -160,7 +154,7 @@ impl MediaModule {
         };
 
         // Calculate compression ratio
-        let compression_ratio = if data.len() > 0 {
+        let compression_ratio = if !data.is_empty() {
             ((data.len() as f64 - buffer.len() as f64) / data.len() as f64) * 100.0
         } else {
             0.0
@@ -408,7 +402,7 @@ impl MediaModule {
         })?;
 
         // Calculate compression ratio
-        let compression_ratio = if data.len() > 0 {
+        let compression_ratio = if !data.is_empty() {
             ((data.len() as f64 - optimized_data.len() as f64) / data.len() as f64) * 100.0
         } else {
             0.0
@@ -474,7 +468,7 @@ impl RendererModule for MediaModule {
         info!("Starting media optimization...");
 
         // Find all resource nodes
-        let resource_ids: Vec<SiteId> = DFS::new(site_tree)
+        let resource_ids: Vec<SiteId> = Dfs::new(site_tree)
             .filter(|id| matches!(site_tree[*id].kind, SiteNodeKind::Resource(_)))
             .collect();
 
@@ -484,7 +478,7 @@ impl RendererModule for MediaModule {
         for id in resource_ids {
             let node_name = site_tree[id].name.clone();
 
-            if let SiteNodeKind::Resource(ref mut resource) = &mut site_tree[id].kind {
+            if let SiteNodeKind::Resource(resource) = &mut site_tree[id].kind {
                 let mut optimized = false;
 
                 if self.options.optimize_images && Self::is_image_file(&node_name) {

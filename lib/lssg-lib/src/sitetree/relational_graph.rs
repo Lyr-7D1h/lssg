@@ -52,25 +52,6 @@ impl RelationalGraph {
             .collect()
     }
 
-    pub fn get(&self, node_id: SiteId) -> &Vec<Link> {
-        self.links
-            .get(*node_id)
-            .expect(&format!("{node_id} not found in rel graph"))
-    }
-
-    pub fn get_mut(&mut self, node_id: SiteId) -> &mut Vec<Link> {
-        self.links
-            .get_mut(*node_id)
-            .expect(&format!("{node_id} not found in rel graph"))
-    }
-
-    pub fn remove(&mut self, from: SiteId, to: SiteId) {
-        let links = self.get_mut(from);
-        links.retain(|l| l.from == from && l.to == to);
-        let links = self.get_mut(to);
-        links.retain(|l| l.from == from && l.to == to);
-    }
-
     /// remove all links to and from `node_id`
     pub fn remove_all(&mut self, node_id: SiteId) {
         // remove links pointing to node_id

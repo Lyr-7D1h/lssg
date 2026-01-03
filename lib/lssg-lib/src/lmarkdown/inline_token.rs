@@ -4,7 +4,7 @@ use virtual_dom::Html;
 
 use crate::{char_reader::CharReader, parse_error::ParseError};
 
-use super::{html::html_comment, html::html_element, sanitize_text, Token};
+use super::{Token, html::html_comment, html::html_element, sanitize_text};
 
 pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token>, ParseError> {
     let mut tokens = vec![];
@@ -88,10 +88,11 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
                             reader.consume(backtick_count)?;
                             let mut text = reader.consume_string(i + 1 - backtick_count * 2)?;
                             // remove leading and ending space if not only contained with spaces
-                            if text.starts_with(" ") && text.ends_with(" ") {
-                                if let Some(_) = text.find(char::is_alphabetic) {
-                                    text = text[1..text.len() - 1].to_string();
-                                }
+                            if text.starts_with(" ")
+                                && text.ends_with(" ")
+                                && text.find(char::is_alphabetic).is_some()
+                            {
+                                text = text[1..text.len() - 1].to_string();
                             }
                             reader.consume(backtick_count)?;
                             tokens.push(Token::Code { text });
@@ -105,47 +106,45 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
         }
 
         // https://spec.commonmark.org/0.30/#images
-        if c == '!' {
-            if let Some('[') = reader.peek_char(1)? {
-                if let Some(raw_text) = reader.peek_until_inclusive_from(2, |c| c == ']')? {
-                    let href_start = 2 + raw_text.len();
-                    if let Some('(') = reader.peek_char(href_start)? {
-                        if let Some(raw_href) =
-                            reader.peek_until_inclusive_from(href_start + 1, |c| c == ')')?
-                        {
-                            reader.consume(2)?;
-                            let text = reader.consume_string(raw_text.len() - 1)?;
-                            reader.consume(2)?;
-                            let src = reader.consume_string(raw_href.len() - 1)?;
-                            let src = sanitize_text(src);
+        if c == '!'
+            && let Some('[') = reader.peek_char(1)?
+            && let Some(raw_text) = reader.peek_until_inclusive_from(2, |c| c == ']')?
+        {
+            let href_start = 2 + raw_text.len();
+            if let Some('(') = reader.peek_char(href_start)?
+                && let Some(raw_href) =
+                    reader.peek_until_inclusive_from(href_start + 1, |c| c == ')')?
+            {
+                reader.consume(2)?;
+                let text = reader.consume_string(raw_text.len() - 1)?;
+                reader.consume(2)?;
+                let src = reader.consume_string(raw_href.len() - 1)?;
+                let src = sanitize_text(src);
 
-                            // https://spec.commonmark.org/0.30/#link-title
-                            let title = if let Some(start_title) = src.find(" ") {
-                                let title = &src[start_title..src.len()];
+                // https://spec.commonmark.org/0.30/#link-title
+                let title = if let Some(start_title) = src.find(" ") {
+                    let title = &src[start_title..src.len()];
 
-                                if ((title.starts_with("\"") && title.ends_with("\""))
-                                    || (title.starts_with("\'") && title.ends_with("\'")))
-                                    && title.len() >= 2
-                                {
-                                    Some(title.to_string())
-                                } else {
-                                    None
-                                }
-                            } else {
-                                None
-                            };
-
-                            reader.consume(1)?;
-                            let alt = read_inline_tokens(&mut CharReader::new(text.as_bytes()))?;
-                            tokens.push(Token::Image {
-                                tokens: alt,
-                                src,
-                                title,
-                            });
-                            continue;
-                        }
+                    if ((title.starts_with("\"") && title.ends_with("\""))
+                        || (title.starts_with("\'") && title.ends_with("\'")))
+                        && title.len() >= 2
+                    {
+                        Some(title.to_string())
+                    } else {
+                        None
                     }
-                }
+                } else {
+                    None
+                };
+
+                reader.consume(1)?;
+                let alt = read_inline_tokens(&mut CharReader::new(text.as_bytes()))?;
+                tokens.push(Token::Image {
+                    tokens: alt,
+                    src,
+                    title,
+                });
+                continue;
             }
         }
 
@@ -171,56 +170,55 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
                     _ => {}
                 }
             }
-            if indent == 0 {
-                if let Some('(') = reader.peek_char(i)? {
-                    if let Some(raw_href) = reader.peek_until_inclusive_from(i + 1, |c| c == ')')? {
-                        reader.consume(1)?;
-                        let text = reader.consume_string(i - 2)?;
-                        reader.consume(2)?;
-                        let mut href = reader.consume_string(raw_href.len() - 1)?;
-                        reader.consume(1)?;
-                        let text = sanitize_text(text);
-                        let text = read_inline_tokens(&mut CharReader::new(text.as_bytes()))?;
+            if indent == 0
+                && let Some('(') = reader.peek_char(i)?
+                && let Some(raw_href) = reader.peek_until_inclusive_from(i + 1, |c| c == ')')?
+            {
+                reader.consume(1)?;
+                let text = reader.consume_string(i - 2)?;
+                reader.consume(2)?;
+                let mut href = reader.consume_string(raw_href.len() - 1)?;
+                reader.consume(1)?;
+                let text = sanitize_text(text);
+                let text = read_inline_tokens(&mut CharReader::new(text.as_bytes()))?;
 
-                        // https://spec.commonmark.org/0.30/#link-title
-                        let title = if let Some(start_title) = href.find(" ") {
-                            let title = &href[start_title + 1..href.len()];
+                // https://spec.commonmark.org/0.30/#link-title
+                let title = if let Some(start_title) = href.find(" ") {
+                    let title = &href[start_title + 1..href.len()];
 
-                            if ((title.starts_with("\"") && title.ends_with("\""))
-                                || (title.starts_with("\'") && title.ends_with("\'")))
-                                && title.len() >= 2
-                            {
-                                let title = title[1..title.len() - 1].to_string();
-                                href = (&href[0..start_title]).into();
-                                Some(title)
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        };
-
-                        tokens.push(Token::Link {
-                            tokens: text,
-                            href,
-                            title,
-                        });
-                        continue;
+                    if ((title.starts_with("\"") && title.ends_with("\""))
+                        || (title.starts_with("\'") && title.ends_with("\'")))
+                        && title.len() >= 2
+                    {
+                        let title = title[1..title.len() - 1].to_string();
+                        href = (&href[0..start_title]).into();
+                        Some(title)
+                    } else {
+                        None
                     }
-                }
+                } else {
+                    None
+                };
+
+                tokens.push(Token::Link {
+                    tokens: text,
+                    href,
+                    title,
+                });
+                continue;
             }
         }
 
         // emphasis: https://spec.commonmark.org/0.30/#emphasis-and-strong-emphasis
         if c == '*' {
-            if let Some('*') = reader.peek_char(1)? {
-                if let Some(text) = reader.peek_until_match_inclusive_from(2, "**")? {
-                    reader.consume(2)?;
-                    let text = reader.consume_string(text.len() - 2)?;
-                    reader.consume(2)?;
-                    tokens.push(Token::Bold { text });
-                    continue;
-                }
+            if let Some('*') = reader.peek_char(1)?
+                && let Some(text) = reader.peek_until_match_inclusive_from(2, "**")?
+            {
+                reader.consume(2)?;
+                let text = reader.consume_string(text.len() - 2)?;
+                reader.consume(2)?;
+                tokens.push(Token::Bold { text });
+                continue;
             }
             if let Some(text) = reader.peek_until_inclusive_from(1, |c| c == '*')? {
                 reader.consume(1)?;
@@ -264,5 +262,5 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
         }
     }
 
-    return Ok(tokens);
+    Ok(tokens)
 }

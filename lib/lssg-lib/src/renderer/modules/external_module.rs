@@ -7,24 +7,24 @@ use crate::{
     lssg_error::LssgError,
     renderer::RenderContext,
     sitetree::{Page, Resource, SiteId, SiteNode, SiteNodeKind, Stylesheet},
-    tree::DFS,
+    tree::Dfs,
 };
 
 use super::RendererModule;
 
-#[derive(Overwrite, Debug)]
+#[derive(Overwrite, Debug, Default)]
 pub struct ExternalModuleOptions {
     href: Option<String>,
 }
 
-impl Default for ExternalModuleOptions {
-    fn default() -> Self {
-        Self { href: None }
-    }
-}
-
 pub struct ExternalModule {
     external_pages: HashMap<SiteId, Document>,
+}
+
+impl Default for ExternalModule {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ExternalModule {
@@ -44,12 +44,12 @@ impl RendererModule for ExternalModule {
         &mut self,
         site_tree: &mut crate::sitetree::SiteTree,
     ) -> Result<(), crate::lssg_error::LssgError> {
-        let pages: Vec<SiteId> = DFS::new(site_tree)
+        let pages: Vec<SiteId> = Dfs::new(site_tree)
             .filter(|id| site_tree[*id].kind.is_page())
             .collect();
         for id in pages {
             if let SiteNodeKind::Page(page) = &site_tree[id].kind {
-                let options: ExternalModuleOptions = self.options(&page);
+                let options: ExternalModuleOptions = self.options(page);
                 if let Some(href) = options.href {
                     let res = reqwest::blocking::get(href)?;
                     let bytes = res.bytes()?;
@@ -66,9 +66,9 @@ impl RendererModule for ExternalModule {
 
                             let ancestors: Vec<&Path> = name.ancestors().skip(1).collect();
                             let mut parent_id = id;
-                            for i in 0..ancestors.len().saturating_sub(2) {
+                            for ancestor in ancestors.iter().take(ancestors.len().saturating_sub(2)) {
                                 let folder_name =
-                                    ancestors[i].file_name().unwrap().to_str().unwrap();
+                                    ancestor.file_name().unwrap().to_str().unwrap();
                                 // only add if not already present
                                 parent_id = match site_tree.get_by_name(folder_name, parent_id) {
                                     Some(id) => *id,

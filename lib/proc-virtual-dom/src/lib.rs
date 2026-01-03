@@ -59,14 +59,14 @@ pub fn dom(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     }
 
     let html = html.into_iter().next().expect("no html given");
-    return quote! {
+    quote! {
         {
             use ::std::collections::HashMap;
             use ::virtual_dom::*;
             #html
         }
     }
-    .into();
+    .into()
 }
 
 /// collect all interpolated variables
@@ -79,27 +79,24 @@ impl Parse for Template {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let mut variables = HashMap::new();
 
-        while input.is_empty() == false {
+        while !input.is_empty() {
             if input.peek(Brace) {
                 let content;
                 syn::braced!(content in input);
                 for s in content.call(Block::parse_within)? {
                     match s {
-                        Stmt::Expr(e, _) => match e {
-                            _ => match e {
-                                Expr::Path(p) => {
-                                    let a = p.path.segments[0].ident.to_string();
-                                    let ident = p
-                                        .path
-                                        .segments
-                                        .first()
-                                        .expect("path does not include ident")
-                                        .ident
-                                        .clone();
-                                    variables.insert(a, ident);
-                                }
-                                _ => {}
-                            },
+                        Stmt::Expr(e, _) => {
+                            if let Expr::Path(p) = e {
+                                let a = p.path.segments[0].ident.to_string();
+                                let ident = p
+                                    .path
+                                    .segments
+                                    .first()
+                                    .expect("path does not include ident")
+                                    .ident
+                                    .clone();
+                                variables.insert(a, ident);
+                            }
                         },
                         Stmt::Local(_) | Stmt::Item(_) | Stmt::Macro(_) => {
                             return Err(input.error("unexpected statement"));
@@ -137,11 +134,11 @@ fn parse_braces(chars: &mut Chars) -> Result<String, String> {
     let mut raw = String::new();
     let mut variable_name = String::new();
     let mut var_has_whitespace = false;
-    while let Some(c) = chars.next() {
+    for c in chars.by_ref() {
         raw.push(c);
         match c {
             // if whitespace in between alphabetical not a valid block
-            ' ' | '\n' if variable_name.len() > 0 => {
+            ' ' | '\n' if !variable_name.is_empty() => {
                 var_has_whitespace = true;
             }
             // ignore whitespace
@@ -176,7 +173,7 @@ fn interpolate_string(text: &str, template: &Template) -> TokenStream {
         if c == '{' {
             match parse_braces(&mut chars) {
                 Ok(variable_name) => {
-                    let variable = template.variables.get(&variable_name).expect(&format!(
+                    let variable = template.variables.get(&variable_name).unwrap_or_else(|| panic!(
                         "failed to parse or find variable '{variable_name}'"
                     ));
                     text.push_str("{}");
@@ -188,7 +185,7 @@ fn interpolate_string(text: &str, template: &Template) -> TokenStream {
             text.push(c);
         }
     }
-    if variables.len() > 0 {
+    if !variables.is_empty() {
         return quote!(format!(#text, #(#variables,)*));
     }
     quote!(String::from(#text))
@@ -209,8 +206,8 @@ fn to_tokens(
             Html::Text { text } => {
                 // if text starts with quotes and ends with quotes remove quotes
                 let text = if text.starts_with("\"") && text.ends_with("\"") {
-                    let text = text.get(1..text.len() - 1).unwrap_or("".into());
-                    if text.len() == 0 {
+                    let text = text.get(1..text.len() - 1).unwrap_or("");
+                    if text.is_empty() {
                         continue;
                     }
                     text
@@ -224,11 +221,11 @@ fn to_tokens(
                     if c == '{' {
                         match parse_braces(&mut chars) {
                             Ok(variable_name) => {
-                                let variable = template.variables.get(&variable_name).expect(
-                                    &format!("failed to parse or find variable '{variable_name}'"),
-                                );
+                                let variable = template.variables.get(&variable_name).unwrap_or_else(|| panic!(
+                                    "failed to parse or find variable '{variable_name}'"
+                                ));
                                 if let Some(parent) = parent {
-                                    if text.len() > 0 {
+                                    if !text.is_empty() {
                                         items.push(
                                             quote!(#parent.append_child(DomNode::create_text(#text))),
                                         );
@@ -236,7 +233,7 @@ fn to_tokens(
                                     }
                                     items.push(quote!(#parent.append_child(#variable)));
                                 } else {
-                                    if text.len() > 0 {
+                                    if !text.is_empty() {
                                         items.push(quote!(DomNode::create_text(#text)));
                                         text.clear();
                                     }
@@ -249,7 +246,7 @@ fn to_tokens(
                         text.push(c);
                     }
                 }
-                if text.len() > 0 {
+                if !text.is_empty() {
                     if let Some(parent) = parent {
                         items.push(quote!(#parent.append_child(DomNode::create_text(#text))));
                     } else {
@@ -272,7 +269,7 @@ fn to_tokens(
 
                 let id = Ident::new(&format!("node_{i}"), Span::call_site());
 
-                let el = if children.len() > 0 {
+                let el = if !children.is_empty() {
                     let children = to_tokens(children, template, Some(&id), i + tokens.len());
                     quote!(
                         let mut attributes = HashMap::new();
@@ -303,5 +300,5 @@ fn to_tokens(
         }
     }
 
-    return items;
+    items
 }

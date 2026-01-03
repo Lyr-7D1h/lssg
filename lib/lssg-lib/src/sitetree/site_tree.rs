@@ -7,17 +7,17 @@ use std::{
 
 use log::{debug, warn};
 
-use crate::{sitetree::SiteId, tree::Tree, LssgError};
+use crate::{LssgError, sitetree::SiteId, tree::Tree};
 
 use super::{
+    Input, Resource, SiteNode, SiteNodeKind,
     page::Page,
     relational_graph::RelationalGraph,
     relational_graph::{Link, Relation},
     stylesheet::{Stylesheet, StylesheetLink},
-    Input, Resource, SiteNode, SiteNodeKind,
 };
 
-fn absolute_path(nodes: &Vec<SiteNode>, to: SiteId) -> String {
+fn absolute_path(nodes: &[SiteNode], to: SiteId) -> String {
     let mut names = vec![nodes[*to].name.clone()];
     let mut parent = nodes[*to].parent;
     while let Some(p) = parent {
@@ -26,11 +26,11 @@ fn absolute_path(nodes: &Vec<SiteNode>, to: SiteId) -> String {
     }
     names.pop(); // pop root
     names.reverse();
-    return format!("/{}", names.join("/"));
+    format!("/{}", names.join("/"))
 }
 
 /// Get the relative path between two nodes
-fn rel_path(nodes: &Vec<SiteNode>, from: SiteId, to: SiteId) -> String {
+fn rel_path(nodes: &[SiteNode], from: SiteId, to: SiteId) -> String {
     let mut visited = HashMap::new();
     let mut to_path = vec![nodes[*to].name.clone()];
 
@@ -42,7 +42,7 @@ fn rel_path(nodes: &Vec<SiteNode>, from: SiteId, to: SiteId) -> String {
         depth += 1;
         node = nodes[*i].parent;
         // if not root (root doesn't have a parent) add to file directories
-        if let Some(_) = nodes[*i].parent {
+        if nodes[*i].parent.is_some() {
             to_path.push(nodes[*i].name.clone())
         }
     }
@@ -71,9 +71,9 @@ fn rel_path(nodes: &Vec<SiteNode>, from: SiteId, to: SiteId) -> String {
 
     // get remaining path
     if depth > 0 {
-        return format!("{}{}", "../".repeat(depth), to_path);
+        format!("{}{}", "../".repeat(depth), to_path)
     } else {
-        return format!("./{}", to_path);
+        format!("./{}", to_path)
     }
 }
 
@@ -102,7 +102,11 @@ enum LinkType {
 
 impl SiteTree {
     pub fn len(&self) -> usize {
-        return self.nodes.len();
+        self.nodes.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
     }
 
     /// `input` is a markdown input file from where to start discovering resources and pages
@@ -128,7 +132,7 @@ impl SiteTree {
             }
             parent = self.nodes[*p].parent
         }
-        return false;
+        false
     }
 
     /// try and get the input of a node if input exists
@@ -149,7 +153,7 @@ impl SiteTree {
     }
 
     pub fn get(&self, id: SiteId) -> Result<&SiteNode, LssgError> {
-        self.nodes.get(*id).ok_or(LssgError::sitetree(&format!(
+        self.nodes.get(*id).ok_or(LssgError::sitetree(format!(
             "Could not find {id} in SiteTree"
         )))
     }
@@ -238,11 +242,11 @@ impl SiteTree {
     /// Utility function to add a node, create a id and add to parent children
     pub fn add(&mut self, node: SiteNode) -> SiteId {
         // check for name collisions
-        if let Some(parent) = node.parent {
-            if let Some(id) = self.get_by_name(&node.name, parent) {
-                warn!("{} already exists at {id}", node.name);
-                return *id;
-            }
+        if let Some(parent) = node.parent
+            && let Some(id) = self.get_by_name(&node.name, parent)
+        {
+            warn!("{} already exists at {id}", node.name);
+            return *id;
         }
 
         let id = SiteId::from(self.nodes.len());
@@ -338,7 +342,7 @@ impl SiteTree {
             .map(|(text, href, ..)| {
                 let link_type = if text.is_empty() {
                     LinkType::EmptyText
-                } else if Page::is_href_to_page(&href) {
+                } else if Page::is_href_to_page(href) {
                     LinkType::Page
                 } else {
                     LinkType::Other
@@ -403,7 +407,7 @@ impl SiteTree {
                         for (text, link_href, ..) in page.links() {
                             let link_type = if text.is_empty() {
                                 LinkType::EmptyText
-                            } else if Page::is_href_to_page(&link_href) {
+                            } else if Page::is_href_to_page(link_href) {
                                 LinkType::Page
                             } else {
                                 LinkType::Other
@@ -417,7 +421,7 @@ impl SiteTree {
                         }
 
                         for (_, src, _) in page.images() {
-                            if Input::is_relative(&src) {
+                            if Input::is_relative(src) {
                                 bfs_queue.push_back((
                                     new_id,
                                     new_input.clone(),
@@ -442,7 +446,7 @@ impl SiteTree {
             }
         }
 
-        return Ok(id);
+        Ok(id)
     }
 
     /// Add a stylesheet and all resources needed by the stylesheet
@@ -523,18 +527,14 @@ impl SiteTree {
             let parts: Vec<&str> = rel_path.split("/").collect();
             let parts = &parts[0..parts.len() - 1];
 
-            let mut parents: Vec<SiteId> = once(parent)
-                .chain(self.parents(parent).into_iter())
-                // .filter(|p| matches!(self[*p].kind, SiteNodeKind::Folder))
-                .collect();
+            let mut parents: Vec<SiteId> = once(parent).chain(self.parents(parent)).collect();
             parents.pop();
             parents.reverse();
-            for i in 0..parts.len() {
-                let name = parts[i];
-                if let Some(parent) = parents.get(i) {
-                    if self[*parent].name == name {
-                        continue;
-                    }
+            for (i, &name) in parts.iter().enumerate() {
+                if let Some(parent) = parents.get(i)
+                    && self[*parent].name == name
+                {
+                    continue;
                 }
                 if let Some(id) = self.get_by_name(name, parent) {
                     parent = *id;
@@ -549,7 +549,7 @@ impl SiteTree {
                 }
             }
         }
-        return parent;
+        parent
     }
 
     pub fn remove(&mut self, id: SiteId) {
@@ -590,11 +590,11 @@ impl fmt::Display for SiteTree {
         while let Some((n, col)) = queue.pop() {
             let node = &self.nodes[*n];
             for c in &node.children {
-                queue.push((c.clone(), col + 1))
+                queue.push((*c, col + 1))
             }
 
             // create col if not exists
-            if let None = table.get(col) {
+            if table.get(col).is_none() {
                 table.push(vec![]);
             }
 
@@ -613,7 +613,7 @@ impl fmt::Display for SiteTree {
             }
             prev_col = col;
 
-            let node_name = format!("{}({})({})", node.name, n, node.kind.to_string());
+            let node_name = format!("{}({})({})", node.name, n, node.kind);
             table[col].push(Some(node_name));
 
             let amount_rows_in_col = table[col].len();
@@ -636,19 +636,19 @@ impl fmt::Display for SiteTree {
                     Some(name) => {
                         out[row] += name;
                         out[row] += &" ".repeat(max_name_length - name.len());
-                        if let Some(next_column) = table.get(col + 1) {
-                            if let Some(Some(_)) = next_column.get(row) {
-                                out[row] += &" - ";
-                                continue;
-                            }
+                        if let Some(next_column) = table.get(col + 1)
+                            && let Some(Some(_)) = next_column.get(row)
+                        {
+                            out[row] += " - ";
+                            continue;
                         }
-                        out[row] += &"   ";
+                        out[row] += "   ";
                     }
                     None => out[row] += &" ".repeat(max_name_length + 3),
                 }
             }
-            for row in table[col].len()..row_length {
-                out[row] += &" ".repeat(max_name_length + 3);
+            for item in out.iter_mut().take(row_length).skip(table[col].len()) {
+                *item += &" ".repeat(max_name_length + 3);
             }
         }
 

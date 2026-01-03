@@ -27,7 +27,7 @@ fn links(content: &str) -> HashMap<String, StylesheetLink> {
         r#"@import ['"](.*)['"]|@import url\(['"]([^")]*)['"]\)|url\(['"]([^")]*)['"]\)"#,
     )
     .unwrap();
-    for r in re.captures_iter(&content).into_iter() {
+    for r in re.captures_iter(content) {
         if r[0].starts_with("@import") {
             let path = r
                 .get(1)
@@ -45,7 +45,7 @@ fn links(content: &str) -> HashMap<String, StylesheetLink> {
             resources.insert(r[0].into(), StylesheetLink::Url(r[3].to_string()));
         }
     }
-    return resources;
+    resources
 }
 
 impl Stylesheet {
@@ -57,7 +57,7 @@ impl Stylesheet {
     }
 
     pub fn links(&self) -> Vec<&StylesheetLink> {
-        return self.links.values().collect();
+        self.links.values().collect()
     }
 
     /// Append stylesheet and discover local referenced resources

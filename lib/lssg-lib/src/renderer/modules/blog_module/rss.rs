@@ -95,7 +95,7 @@ impl RssFeed {
         if rss_opts.last_build_date_enabled.unwrap_or(true) {
             feed.last_build_date = posts
                 .first()
-                .and_then(|(_, post)| post.dates.created_on.clone());
+                .and_then(|(_, post)| post.dates.created_on);
         }
 
         // Add RSS items for each post
@@ -128,7 +128,7 @@ impl RssFeed {
                 description,
                 link: post_link.clone(),
                 guid: post_link,
-                pub_date: pub_date.clone(),
+                pub_date: *pub_date,
             });
         }
 
@@ -136,8 +136,8 @@ impl RssFeed {
     }
 }
 
-impl ToString for RssFeed {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for RssFeed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut xml = String::from(r#"<?xml version="1.0" encoding="UTF-8"?>"#);
         xml.push_str("\n<rss version=\"2.0\">");
         xml.push_str("\n  <channel>");
@@ -181,7 +181,7 @@ impl ToString for RssFeed {
 
         xml.push_str("\n  </channel>");
         xml.push_str("\n</rss>");
-        xml
+        write!(f, "{}", xml)
     }
 }
 

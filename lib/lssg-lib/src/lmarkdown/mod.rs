@@ -14,12 +14,12 @@ fn sanitize_text(text: String) -> String {
     let mut lines = vec![];
     for line in text.lines() {
         let trimmed = line.trim();
-        if trimmed.len() > 0 {
+        if !trimmed.is_empty() {
             lines.push(trimmed);
         }
     }
 
-    return lines.join("\n");
+    lines.join("\n")
 }
 
 /// Parse LMarkdown using a recursive decent parser
@@ -27,7 +27,7 @@ fn sanitize_text(text: String) -> String {
 /// **NOTE: Current implementation is fairly wonky but fast**
 pub fn parse_lmarkdown(input: impl Read) -> Result<Vec<Token>, ParseError> {
     let mut reader = CharReader::new(input);
-    return read_tokens(&mut reader);
+    read_tokens(&mut reader)
 }
 
 #[cfg(test)]
@@ -38,7 +38,7 @@ mod tests {
 
     use crate::lmarkdown::TableAlign;
 
-    use super::{parse_lmarkdown, Token};
+    use super::{Token, parse_lmarkdown};
 
     /// Utility function to convert iteratables into attributes hashmap
     fn to_attributes<I: IntoIterator<Item = (impl Into<String>, impl Into<String>)>>(
@@ -466,10 +466,18 @@ test='<test></test>'
 "#;
         let expected = vec![Token::Table {
             header: vec![
-                vec![Token::Text { text: "Option".into() }],
-                vec![Token::Text { text: "Type".into() }],
-                vec![Token::Text { text: "Default".into() }],
-                vec![Token::Text { text: "Description".into() }],
+                vec![Token::Text {
+                    text: "Option".into(),
+                }],
+                vec![Token::Text {
+                    text: "Type".into(),
+                }],
+                vec![Token::Text {
+                    text: "Default".into(),
+                }],
+                vec![Token::Text {
+                    text: "Description".into(),
+                }],
             ],
             align: vec![
                 TableAlign::None,
@@ -478,9 +486,15 @@ test='<test></test>'
                 TableAlign::None,
             ],
             rows: vec![vec![
-                vec![Token::Code { text: "root".into() }],
-                vec![Token::Text { text: "Boolean".into() }],
-                vec![Token::Code { text: "false".into() }],
+                vec![Token::Code {
+                    text: "root".into(),
+                }],
+                vec![Token::Text {
+                    text: "Boolean".into(),
+                }],
+                vec![Token::Code {
+                    text: "false".into(),
+                }],
                 vec![Token::Text {
                     text: "Disable parent inheritance".into(),
                 }],

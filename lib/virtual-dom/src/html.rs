@@ -5,7 +5,7 @@ use char_reader::CharReader;
 use crate::DomNode;
 
 pub fn parse_html_from_string(input: &String) -> Result<Vec<Html>, io::Error> {
-    return parse_html(input.as_bytes());
+    parse_html(input.as_bytes())
 }
 
 // TODO: return DomNode directly instead of parsing to intermediary representation
@@ -47,8 +47,8 @@ fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, io::Er
     let mut i = 0;
     while i < chars.len() {
         match chars[i] {
-            ' ' | '\n' if in_value == false => {
-                if key.len() > 0 {
+            ' ' | '\n' if !in_value => {
+                if !key.is_empty() {
                     attributes.insert(key, value);
                     key = String::new();
                     value = String::new();
@@ -80,25 +80,27 @@ fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, io::Er
         }
         i += 1;
     }
-    if key.len() > 0 {
+    if !key.is_empty() {
         attributes.insert(key, value);
     }
 
     Ok(attributes)
 }
 
+type ElementStartTag = (String, HashMap<String, String>, usize, bool);
+
 /// Get the start tag with its attributes starts after the opening tag '<'
 ///
 /// returns (tag, attributes, tag_content_length, void_element)
 fn element_start_tag(
     reader: &mut CharReader<impl Read>,
-) -> Result<Option<(String, HashMap<String, String>, usize, bool)>, io::Error> {
+) -> Result<Option<ElementStartTag>, io::Error> {
     let mut inside_single_quotes = false;
     let mut inside_double_quotes = false;
     let mut i = 1;
     while let Some(c) = reader.peek_char(i)? {
         match c {
-            '>' if inside_single_quotes == false && inside_double_quotes == false => {
+            '>' if !inside_single_quotes && !inside_double_quotes => {
                 let tag_content = reader.peek_string(i + 1)?;
 
                 let mut tag = String::new();
@@ -199,12 +201,14 @@ fn find_matching_closing_tag(
     }
 }
 
+type Element = (String, HashMap<String, String>, Option<String>);
+
 /// parse html from start to end and return (tag, attributes, innerHtml)
 ///
 /// seperated to make logic more reusable
 fn element(
     reader: &mut CharReader<impl Read>,
-) -> Result<Option<(String, HashMap<String, String>, Option<String>)>, io::Error> {
+) -> Result<Option<Element>, io::Error> {
     if let Some('<') = reader.peek_char(0)? {
         if let Some((tag, attributes, tag_content_length, void_element)) =
             element_start_tag(reader)?
@@ -319,7 +323,7 @@ impl From<DomNode> for Html {
         match &*value.kind() {
             crate::DomNodeKind::Text { text } => Html::Text { text: text.clone() },
             crate::DomNodeKind::Element { tag, attributes } => {
-                let children = value.children().into_iter().map(|c| c.into()).collect();
+                let children = value.children().map(|c| c.into()).collect();
                 Html::Element {
                     tag: tag.clone(),
                     attributes: attributes.clone(),

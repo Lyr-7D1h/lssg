@@ -14,8 +14,8 @@ fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, ParseE
     let mut i = 0;
     while i < chars.len() {
         match chars[i] {
-            ' ' if in_value == false => {
-                if key.len() > 0 {
+            ' ' if !in_value => {
+                if !key.is_empty() {
                     attributes.insert(key, value);
                     key = String::new();
                     value = String::new();
@@ -40,19 +40,21 @@ fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, ParseE
         }
         i += 1;
     }
-    if key.len() > 0 {
+    if !key.is_empty() {
         attributes.insert(key, value);
     }
 
     Ok(attributes)
 }
 
+type HtmlElementResult = Result<Option<(String, HashMap<String, String>, Option<String>)>, ParseError>;
+
 /// from virtual_dom::html
 pub fn html_element(
     reader: &mut CharReader<impl Read>,
-) -> Result<Option<(String, HashMap<String, String>, Option<String>)>, ParseError> {
-    if let Some('<') = reader.peek_char(0)? {
-        if let Some(start_tag) = reader.peek_until_exclusive_from(1, |c| c == '>')? {
+) -> HtmlElementResult {
+    if let Some('<') = reader.peek_char(0)?
+        && let Some(start_tag) = reader.peek_until_exclusive_from(1, |c| c == '>')? {
             // get html tag
             let mut tag = String::new();
             for c in start_tag.chars() {
@@ -85,20 +87,18 @@ pub fn html_element(
                 return Ok(Some((tag, attributes, Some(content))));
             }
         }
-    }
     Ok(None)
 }
 
 /// from virtual_dom::html
 pub fn html_comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, ParseError> {
-    if "<!--" == reader.peek_string(4)? {
-        if let Some(text) = reader.peek_until_match_exclusive_from(4, "-->")? {
+    if "<!--" == reader.peek_string(4)?
+        && let Some(text) = reader.peek_until_match_exclusive_from(4, "-->")? {
             reader.consume(4)?; // skip start
             let text = reader.consume_string(text.len())?;
             reader.consume(3)?; // skip end
             return Ok(Some(Html::Comment { text }));
         }
-    }
 
     Ok(None)
 }

@@ -21,7 +21,7 @@ impl<R: Read> CharReader<R> {
         }
     }
 
-    pub fn from_string(input: &String) -> CharReader<&[u8]> {
+    pub fn from_string(input: &str) -> CharReader<&[u8]> {
         CharReader {
             reader: BufReader::<&[u8]>::new(&[]),
             buffer: input.chars().collect(),
@@ -47,11 +47,11 @@ impl<R: Read> CharReader<R> {
     /// Read a character. `pos` is 0 indexed
     pub fn peek_char(&mut self, pos: usize) -> Result<Option<char>, ParseError> {
         self.try_fill(pos + 1)?;
-        return Ok(self.buffer.get(pos).copied());
+        Ok(self.buffer.get(pos).copied())
     }
 
     pub fn peek_string(&mut self, length: usize) -> Result<String, ParseError> {
-        return self.peek_string_from(0, length);
+        self.peek_string_from(0, length)
     }
 
     // TODO(perf): return a &str[], a slice of the characters in buf. Currently not possible
@@ -71,12 +71,12 @@ impl<R: Read> CharReader<R> {
             bytes.extend(c.encode_utf8(&mut [0; 4]).bytes());
         }
         let string = unsafe { String::from_utf8_unchecked(bytes) };
-        return Ok(string);
+        Ok(string)
     }
 
     /// peek until \n or eof is reached
     pub fn peek_line(&mut self) -> Result<String, ParseError> {
-        return self.peek_line_from(0);
+        self.peek_line_from(0)
     }
 
     /// peek until \n or eof is reached
@@ -90,7 +90,7 @@ impl<R: Read> CharReader<R> {
             result.push(c);
             i += 1;
         }
-        return Ok(result);
+        Ok(result)
     }
     /// returns None if EOF is reached, to prevent false positives
     pub fn peek_until_exclusive_from(
@@ -112,7 +112,7 @@ impl<R: Read> CharReader<R> {
         }
 
         let string = self.peek_string_from(pos, i - pos)?;
-        return Ok(Some(string));
+        Ok(Some(string))
     }
 
     /// returns None if EOF is reached, to prevent false positives
@@ -120,7 +120,7 @@ impl<R: Read> CharReader<R> {
         &mut self,
         op: fn(char) -> bool,
     ) -> Result<Option<String>, ParseError> {
-        return self.peek_until_inclusive_from(0, op);
+        self.peek_until_inclusive_from(0, op)
     }
 
     /// returns None if EOF is reached, to prevent false positives
@@ -143,7 +143,7 @@ impl<R: Read> CharReader<R> {
         }
 
         let string = self.peek_string_from(pos, i - pos + 1)?;
-        return Ok(Some(string));
+        Ok(Some(string))
     }
 
     pub fn peek_until_match_exclusive_from(
@@ -172,7 +172,7 @@ impl<R: Read> CharReader<R> {
         }
 
         let string = self.peek_string_from(pos, i - pos)?;
-        return Ok(Some(string));
+        Ok(Some(string))
     }
 
     /// Peek until matches or return None when not found
@@ -180,7 +180,7 @@ impl<R: Read> CharReader<R> {
         &mut self,
         pattern: &str,
     ) -> Result<Option<String>, ParseError> {
-        return self.peek_until_match_inclusive_from(0, pattern);
+        self.peek_until_match_inclusive_from(0, pattern)
     }
 
     pub fn peek_until_match_inclusive_from(
@@ -210,13 +210,13 @@ impl<R: Read> CharReader<R> {
         }
 
         let string = self.peek_string_from(pos, i - pos)?;
-        return Ok(Some(string));
+        Ok(Some(string))
     }
 
     pub fn consume(&mut self, length: usize) -> Result<Option<()>, ParseError> {
         self.has_read = true;
         self.try_fill(length)?;
-        if self.buffer.len() == 0 {
+        if self.buffer.is_empty() {
             return Ok(None);
         }
         self.buffer.drain(0..length);
@@ -226,7 +226,7 @@ impl<R: Read> CharReader<R> {
     pub fn consume_char(&mut self) -> Result<Option<char>, ParseError> {
         self.has_read = true;
         self.try_fill(1)?;
-        if self.buffer.len() == 0 {
+        if self.buffer.is_empty() {
             Ok(None)
         } else {
             Ok(Some(self.buffer.drain(0..1).collect::<Vec<char>>()[0]))
@@ -237,48 +237,36 @@ impl<R: Read> CharReader<R> {
     pub fn consume_string(&mut self, length: usize) -> Result<String, ParseError> {
         self.has_read = true;
         self.try_fill(length)?;
-        return Ok(self
+        Ok(self
             .buffer
             .drain(0..length.min(self.buffer.len()))
-            .collect());
+            .collect())
     }
 
     /// Will read until eof or `op` is true including the true match
     pub fn consume_until_inclusive(&mut self, op: fn(char) -> bool) -> Result<String, ParseError> {
         self.has_read = true;
         let mut result = String::new();
-        loop {
-            match self.consume_char()? {
-                Some(c) => {
-                    result.push(c);
-                    if op(c) {
-                        break;
-                    }
-                }
-                None => {
-                    break;
-                }
-            };
+        while let Some(c) = self.consume_char()? {
+            result.push(c);
+            if op(c) {
+                break;
+            }
         }
-        return Ok(result);
+        Ok(result)
     }
 
     /// will read until eof or `op` is true excluding the character that matched
     pub fn consume_until_exclusive(&mut self, op: fn(char) -> bool) -> Result<String, ParseError> {
         self.has_read = true;
         let mut i = 0;
-        loop {
-            match self.peek_char(i)? {
-                Some(c) => {
-                    if op(c) {
-                        break;
-                    }
-                }
-                None => break,
-            };
+        while let Some(c) = self.peek_char(i)? {
+            if op(c) {
+                break;
+            }
             i += 1;
         }
-        return self.consume_string(i);
+        self.consume_string(i)
     }
 
     /// stop consuming by pattern, if eof returns whatever is captured
@@ -296,7 +284,7 @@ impl<R: Read> CharReader<R> {
                 None => break,
             };
         }
-        return Ok(result);
+        Ok(result)
     }
 }
 

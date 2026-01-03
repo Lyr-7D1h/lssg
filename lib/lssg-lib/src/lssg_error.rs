@@ -55,30 +55,30 @@ impl LssgError {
 }
 impl From<ParseError> for LssgError {
     fn from(error: ParseError) -> Self {
-        Self::new(&error.to_string(), LssgErrorKind::ParseError)
+        Self::new(error.to_string(), LssgErrorKind::ParseError)
     }
 }
 impl From<chrono::ParseError> for LssgError {
     fn from(value: chrono::ParseError) -> Self {
         Self::new(
-            format!("Failed to parse date: {}", value.to_string()),
+            format!("Failed to parse date: {value}"),
             LssgErrorKind::ParseError,
         )
     }
 }
 impl From<io::Error> for LssgError {
     fn from(error: io::Error) -> Self {
-        Self::new(&error.to_string(), LssgErrorKind::Io)
+        Self::new(error.to_string(), LssgErrorKind::Io)
     }
 }
 impl From<reqwest::Error> for LssgError {
     fn from(error: reqwest::Error) -> Self {
-        Self::new(&error.to_string(), LssgErrorKind::Request)
+        Self::new(error.to_string(), LssgErrorKind::Request)
     }
 }
 impl From<ZipError> for LssgError {
     fn from(error: ZipError) -> Self {
-        Self::new(&error.to_string(), LssgErrorKind::Io)
+        Self::new(error.to_string(), LssgErrorKind::Io)
     }
 }
 impl std::error::Error for LssgError {}

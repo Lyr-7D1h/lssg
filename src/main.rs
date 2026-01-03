@@ -3,10 +3,10 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use lssg_lib::{
+    Lssg,
     lmarkdown::parse_lmarkdown,
     renderer::{BlogModule, DefaultModule, ExternalModule, MediaModule, Renderer},
     sitetree::{Input, SiteTree},
-    Lssg,
 };
 use simple_logger::SimpleLogger;
 
@@ -48,7 +48,7 @@ struct Args {
 
 fn main() {
     let args: Args = Args::parse();
-    SimpleLogger::new()
+    SimpleLogger::default()
         .with_level(args.log.unwrap_or(LevelFilter::Info))
         .init()
         .unwrap();
@@ -65,14 +65,14 @@ fn main() {
         let mut site_tree =
             SiteTree::from_input(input.clone()).expect("Failed to generate site tree");
 
-        let mut renderer = Renderer::new();
-        renderer.add_module(ExternalModule::new());
-        let blog = BlogModule::new();
+        let mut renderer = Renderer::default();
+        renderer.add_module(ExternalModule::default());
+        let blog = BlogModule::default();
         renderer.add_module(blog);
         if !args.no_media_optimization {
-            renderer.add_module(MediaModule::new());
+            renderer.add_module(MediaModule::default());
         }
-        renderer.add_module(DefaultModule::new());
+        renderer.add_module(DefaultModule::default());
         renderer.init(&mut site_tree);
         renderer.after_init(&site_tree);
         let html = renderer
@@ -85,11 +85,11 @@ fn main() {
     // At this point we know output is Some(_) because of required_unless_present_any
     let output = args.output.unwrap();
     let mut lssg = Lssg::new(input, output);
-    lssg.add_module(ExternalModule::new());
-    lssg.add_module(BlogModule::new());
+    lssg.add_module(ExternalModule::default());
+    lssg.add_module(BlogModule::default());
     if !args.no_media_optimization {
-        lssg.add_module(MediaModule::new());
+        lssg.add_module(MediaModule::default());
     }
-    lssg.add_module(DefaultModule::new());
+    lssg.add_module(DefaultModule::default());
     lssg.render().expect("Failed to render");
 }

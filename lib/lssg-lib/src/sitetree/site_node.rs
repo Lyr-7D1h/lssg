@@ -19,10 +19,10 @@ fn normalize_path(path: &Path) -> PathBuf {
         match component {
             Component::ParentDir => {
                 // Only pop if we have something to pop and it's not a prefix/root
-                if let Some(last) = components.last() {
-                    if !matches!(last, Component::Prefix(_) | Component::RootDir) {
-                        components.pop();
-                    }
+                if let Some(last) = components.last()
+                    && !matches!(last, Component::Prefix(_) | Component::RootDir)
+                {
+                    components.pop();
                 }
             }
             Component::CurDir => {
@@ -48,14 +48,14 @@ impl Input {
     pub fn from_string(string: &str) -> Result<Input, LssgError> {
         // if starts with http must be absolute
         if string.starts_with("http") {
-            let url = Url::parse(&string).unwrap(); // TODO always ping url to check if exists
-            return Ok(Input::External { url });
+            let url = Url::parse(string).unwrap(); // TODO always ping url to check if exists
+            Ok(Input::External { url })
+        } else {
+            let mut path = PathBuf::from(string);
+            path = fs::canonicalize(path)?;
+
+            Ok(Input::Local { path })
         }
-
-        let mut path = PathBuf::from(&string);
-        path = fs::canonicalize(path)?;
-
-        Ok(Input::Local { path })
     }
 
     pub fn make_relative(&self, to: &Input) -> Option<String> {
@@ -63,67 +63,63 @@ impl Input {
             Input::Local { path: from_path } => match to {
                 Input::Local { path: to_path } => {
                     let from_path = if from_path.is_file() {
-                        from_path.parent().unwrap_or(&from_path)
+                        from_path.parent().unwrap_or(from_path)
                     } else {
                         from_path
                     };
-                    return diff_paths(to_path, from_path)
-                        .map(|p| p.to_str().map(|s| s.to_string()))
-                        .flatten();
+                    diff_paths(to_path, from_path)
+                        .and_then(|p| p.to_str().map(|s| s.to_string()))
                 }
-                _ => return None,
+                _ => None,
             },
             Input::External { url: from_url } => match to {
                 Input::External { url: to_url } => from_url.make_relative(to_url),
-                _ => return None,
+                _ => None,
             },
         }
     }
 
     /// check if string looks like a relative path
     pub fn is_relative(input: &str) -> bool {
-        if input.starts_with("/") || input.starts_with("http") {
-            return false;
-        }
-        return true;
+        !input.starts_with("/") && !input.starts_with("http")
     }
 
     /// Create a new Input with path relative to `self` or absolute path
     pub fn new(&self, path_string: &str) -> Result<Input, LssgError> {
         // return new if absolute
         if path_string.starts_with("http") {
-            let url = Url::parse(&path_string).map_err(|e| LssgError::parse(e.to_string()))?;
-            return Ok(Input::External { url });
-        }
+            let url = Url::parse(path_string).map_err(|e| LssgError::parse(e.to_string()))?;
+            Ok(Input::External { url })
+        } else {
+            match self {
+                Input::Local { path } => {
+                    // relative local path
+                    let path: &Path = if path.filename_from_path()?.contains(".") {
+                        path.parent().unwrap_or(path)
+                    } else {
+                        path
+                    };
+                    let mut path = path.join(path_string);
 
-        match self {
-            Input::Local { path } => {
-                // relative local path
-                let path: &Path = if path.filename_from_path()?.contains(".") {
-                    &path.parent().unwrap_or(&path)
-                } else {
-                    &path
-                };
-                let mut path = path.join(path_string);
+                    // Make path absolute if it's relative
+                    if path.is_relative() {
+                        path = std::env::current_dir()
+                            .map_err(|e| {
+                                LssgError::from(e).with_context("Failed to get current directory")
+                            })?
+                            .join(path);
+                    }
 
-                // Make path absolute if it's relative
-                if path.is_relative() {
-                    path = std::env::current_dir()
-                        .map_err(|e| {
-                            LssgError::from(e).with_context("Failed to get current directory")
-                        })?
-                        .join(path);
+                    // Normalize the path (resolve . and .. components)
+                    path = normalize_path(&path);
+
+                    Ok(Input::Local { path })
                 }
-
-                // Normalize the path (resolve . and .. components)
-                path = normalize_path(&path);
-
-                return Ok(Input::Local { path });
-            }
-            Input::External { url } => {
-                // relative url path
-                let url = url.join(path_string).unwrap(); // TODO check if cannonical
-                return Ok(Input::External { url });
+                Input::External { url } => {
+                    // relative url path
+                    let url = url.join(path_string).unwrap(); // TODO check if cannonical
+                    Ok(Input::External { url })
+                }
             }
         }
     }
@@ -137,12 +133,6 @@ impl Input {
         match self {
             Input::Local { path } => path.filename_from_path(),
             Input::External { url } => Path::new(url.path()).filename_from_path(),
-        }
-    }
-    pub fn to_string(&self) -> String {
-        match self {
-            Input::Local { path } => path.to_string_lossy().to_string(),
-            Input::External { url } => url.to_string(),
         }
     }
     pub fn readable(&self) -> Result<Box<dyn Read>, LssgError> {
@@ -164,6 +154,15 @@ impl Input {
     }
 }
 
+impl std::fmt::Display for Input {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Input::Local { path } => write!(f, "{}", path.to_string_lossy()),
+            Input::External { url } => write!(f, "{}", url),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum SiteNodeKind {
     Stylesheet(Stylesheet),
@@ -179,22 +178,17 @@ impl SiteNodeKind {
         input.to_string().ends_with(".css")
     }
     pub fn is_page(&self) -> bool {
-        if let SiteNodeKind::Page { .. } = self {
-            true
-        } else {
-            false
-        }
+        matches!(self, SiteNodeKind::Page { .. })
     }
 }
-impl ToString for SiteNodeKind {
-    fn to_string(&self) -> String {
+impl std::fmt::Display for SiteNodeKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SiteNodeKind::Stylesheet { .. } => "Stylesheet",
-            SiteNodeKind::Page { .. } => "Page",
-            SiteNodeKind::Resource { .. } => "Resource",
-            SiteNodeKind::Folder => "Folder",
+            SiteNodeKind::Stylesheet { .. } => write!(f, "Stylesheet"),
+            SiteNodeKind::Page { .. } => write!(f, "Page"),
+            SiteNodeKind::Resource { .. } => write!(f, "Resource"),
+            SiteNodeKind::Folder => write!(f, "Folder"),
         }
-        .into()
     }
 }
 

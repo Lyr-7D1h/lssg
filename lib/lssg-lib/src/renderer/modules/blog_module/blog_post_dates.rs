@@ -5,18 +5,10 @@ use crate::{lssg_error::LssgError, sitetree::Input};
 
 use super::BlogPostOptions;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct BlogPostDates {
     pub modified_on: Option<DateTime<Utc>>,
     pub created_on: Option<DateTime<Utc>>,
-}
-impl Default for BlogPostDates {
-    fn default() -> Self {
-        Self {
-            modified_on: None,
-            created_on: None,
-        }
-    }
 }
 impl BlogPostDates {
     pub fn from_post_options(
@@ -26,14 +18,13 @@ impl BlogPostDates {
         let created_on = match post_options
             .created_on
             .as_ref()
-            .map(|s| {
-                parse_date_string(&s)
+            .and_then(|s| {
+                parse_date_string(s)
                     .inspect_err(|e| {
                         warn!("Failed to parse created on '{s}': {e}");
                     })
                     .ok()
             })
-            .flatten()
         {
             Some(date) => Some(date),
             None => match input {
@@ -45,14 +36,13 @@ impl BlogPostDates {
         let modified_on = match post_options
             .modified_on
             .as_ref()
-            .map(|s| {
+            .and_then(|s| {
                 parse_date_string(s)
                     .inspect_err(|e| {
                         warn!("Failed to parse modified on '{s}': {e}");
                     })
                     .ok()
             })
-            .flatten()
         {
             Some(date) => Some(date),
             None => match input {

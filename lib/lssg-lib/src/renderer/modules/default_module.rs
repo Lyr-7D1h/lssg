@@ -15,10 +15,10 @@ use crate::{
     sitetree::{
         Input, Page, Relation, Resource, SiteId, SiteNode, SiteNodeKind, SiteTree, Stylesheet,
     },
-    tree::DFS,
+    tree::Dfs,
 };
 use virtual_dom::{
-    self, parse_html, parse_html_from_string, to_attributes, Document, DomNode, DomNodeKind, Html,
+    self, Document, DomNode, DomNodeKind, Html, parse_html, parse_html_from_string, to_attributes,
 };
 
 use crate::renderer::{RenderContext, RendererModule, TokenRenderer};
@@ -87,27 +87,21 @@ impl Default for PropegatedOptions {
     }
 }
 
-#[derive(Debug, Clone, Overwrite)]
+#[derive(Debug, Clone, Overwrite, Default)]
 pub struct SinglePageOptions {
     /// If this page is a root don't reuse options from parent
     pub root: bool,
-}
-impl Default for SinglePageOptions {
-    fn default() -> Self {
-        Self { root: false }
-    }
 }
 
 fn create_options_map(
     site_tree: &SiteTree,
 ) -> Result<HashMap<SiteId, PropegatedOptions>, LssgError> {
     let mut options_map: HashMap<SiteId, PropegatedOptions> = HashMap::new();
-    for id in DFS::new(site_tree) {
+    for id in Dfs::new(site_tree) {
         if let SiteNodeKind::Page(page) = &site_tree[id].kind {
             let mut options = if let Some(parent_options) = site_tree
                 .page_parent(id)
-                .map(|id| options_map.get(&id))
-                .flatten()
+                .and_then(|id| options_map.get(&id))
             {
                 parent_options.clone()
             } else {
@@ -139,12 +133,7 @@ fn head(document: &mut Document, context: &RenderContext, options: &PropegatedOp
     if let Some(header) = page
         .tokens()
         .iter()
-        .find(|t| {
-            if let Token::Heading { depth, .. } = t {
-                return *depth == 1;
-            }
-            false
-        })
+        .find(|t| matches!(t, Token::Heading { depth: 1, .. }))
         .cloned()
     {
         let header = tokens_to_text(&vec![header]);
@@ -210,7 +199,7 @@ fn head(document: &mut Document, context: &RenderContext, options: &PropegatedOp
     );
 
     for input in &options.head {
-        let html = match parse_html_from_string(&input) {
+        let html = match parse_html_from_string(input) {
             Ok(html) => {
                 if html.len() > 2 {
                     warn!("{html:?} has more than two html elements");
@@ -289,17 +278,10 @@ fn section_link(document: &mut Document) {
 }
 
 /// Implements all basic default behavior, like rendering all tokens and adding meta tags and title to head
+#[derive(Default)]
 pub struct DefaultModule {
     /// Map of all site pages to options. Considers options from parents.
     options_map: HashMap<SiteId, PropegatedOptions>,
-}
-
-impl DefaultModule {
-    pub fn new() -> Self {
-        Self {
-            options_map: HashMap::new(),
-        }
-    }
 }
 
 impl RendererModule for DefaultModule {
@@ -309,7 +291,7 @@ impl RendererModule for DefaultModule {
 
     /// Add all resources from ResourceOptions to SiteTree
     fn init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
-        let pages: Vec<SiteId> = DFS::new(site_tree)
+        let pages: Vec<SiteId> = Dfs::new(site_tree)
             .filter(|id| site_tree[*id].kind.is_page())
             .collect();
 
@@ -373,21 +355,21 @@ impl RendererModule for DefaultModule {
                 .collect();
 
             // update set with parent and add any links from parent
-            if let Some(parent) = site_tree.page_parent(id) {
-                if let Some(parent_set) = relation_map.get(&parent) {
-                    // 0 [28, 29, 32, 35, 37, 49]
-                    // add links from parent_set without the ones it already has
-                    let mut new_links: Vec<SiteId> = parent_set
-                        .into_iter()
-                        .filter(|id| !set.contains(id))
-                        .cloned()
-                        .collect();
-                    for to in new_links.iter() {
-                        site_tree.add_link(id, *to);
-                    }
-                    new_links.extend(set.iter());
-                    set = new_links;
+            if let Some(parent) = site_tree.page_parent(id)
+                && let Some(parent_set) = relation_map.get(&parent)
+            {
+                // 0 [28, 29, 32, 35, 37, 49]
+                // add links from parent_set without the ones it already has
+                let mut new_links: Vec<SiteId> = parent_set
+                    .iter()
+                    .filter(|id| !set.contains(id))
+                    .cloned()
+                    .collect();
+                for to in new_links.iter() {
+                    site_tree.add_link(id, *to);
                 }
+                new_links.extend(set.iter());
+                set = new_links;
             }
             relation_map.insert(id, set);
         }
@@ -480,8 +462,8 @@ impl RendererModule for DefaultModule {
                     let li = document.create_element("li");
                     ol.append_child(li.clone());
                     // don't render paragraphs inside of lists
-                    let tokens = tokens
-                        .into_iter()
+                    let tokens: Vec<Token> = tokens
+                        .iter()
                         .flat_map(|t| {
                             if let Token::Paragraph { tokens, .. } = t {
                                 return tokens.clone();
@@ -499,8 +481,8 @@ impl RendererModule for DefaultModule {
                     let li = document.create_element("li");
                     ul.append_child(li.clone());
                     // don't render paragraphs inside of lists
-                    let tokens = tokens
-                        .into_iter()
+                    let tokens: Vec<Token> = tokens
+                        .iter()
                         .flat_map(|t| {
                             if let Token::Paragraph { tokens, .. } = t {
                                 return tokens.clone();
@@ -526,10 +508,10 @@ impl RendererModule for DefaultModule {
                         .links_from(context.site_id)
                         .into_iter()
                         .find_map(|l| {
-                            if let Relation::Discovered { raw_path: path } = &l.relation {
-                                if path == src {
-                                    return Some(l.to);
-                                }
+                            if let Relation::Discovered { raw_path: path } = &l.relation
+                                && path == src
+                            {
+                                return Some(l.to);
                             }
                             None
                         });
@@ -634,7 +616,6 @@ impl RendererModule for DefaultModule {
                 }
 
                 let alt = tokens_to_text(tokens);
-                #[allow(unused_variables)]
                 if let Some(title) = title {
                     parent.append_child(dom!(<img src="{src}" alt="{alt}" title={title} />))
                 } else {
@@ -646,10 +627,10 @@ impl RendererModule for DefaultModule {
                 tr.render(document, context, blockquote.clone(), tokens);
                 parent.append_child(blockquote);
             }
-            Token::HardBreak { .. } => {
+            Token::HardBreak => {
                 parent.append_child(document.create_element("br"));
             }
-            Token::SoftBreak { .. } => {
+            Token::SoftBreak => {
                 parent.append_child(document.create_text_node(" "));
             }
             Token::Heading { depth, tokens, .. } => {
@@ -681,7 +662,7 @@ impl RendererModule for DefaultModule {
                 let mut code_html = document.create_element("code");
                 if let Some(info) = info {
                     code_html.set_attribute(
-                        "class".into(),
+                        "class",
                         &format!("language-{info} copy-to-clipboard-button"),
                     );
                     code_html.set_attribute("data-copy-state", "copy");
@@ -697,7 +678,7 @@ impl RendererModule for DefaultModule {
                 title,
             } => {
                 // ignore link if there is no text
-                if tokens.len() == 0 {
+                if tokens.is_empty() {
                     return Some(parent);
                 }
 
@@ -709,17 +690,16 @@ impl RendererModule for DefaultModule {
                         .links_from(context.site_id)
                         .into_iter()
                         .find_map(|l| {
-                            if let Relation::Discovered { raw_path: path } = &l.relation {
-                                if path == href {
-                                    return Some(l.to);
-                                }
+                            if let Relation::Discovered { raw_path: path } = &l.relation
+                                && path == href
+                            {
+                                return Some(l.to);
                             }
                             None
                         });
 
                     if let Some(to_id) = to_id {
-                        let rel_path = context.site_tree.path(to_id);
-                        rel_path
+                        context.site_tree.path(to_id)
                     } else {
                         warn!("Could not find node where {href:?} points to");
                         href.to_owned()
@@ -756,9 +736,9 @@ impl RendererModule for DefaultModule {
                 rows,
             } => {
                 use crate::lmarkdown::TableAlign;
-                
+
                 let table = document.create_element("table");
-                
+
                 // Render thead
                 let thead = document.create_element("thead");
                 let header_row = document.create_element("tr");
@@ -777,7 +757,7 @@ impl RendererModule for DefaultModule {
                 }
                 thead.append_child(header_row);
                 table.append_child(thead);
-                
+
                 // Render tbody
                 if !rows.is_empty() {
                     let tbody = document.create_element("tbody");
@@ -800,7 +780,7 @@ impl RendererModule for DefaultModule {
                     }
                     table.append_child(tbody);
                 }
-                
+
                 parent.append_child(table);
             }
         };

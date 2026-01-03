@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use log::{error, warn};
 
 use proc_virtual_dom::dom;
-use virtual_dom::{to_attributes, Document, DomNode};
+use virtual_dom::{Document, DomNode, to_attributes};
 
 use crate::{
     lmarkdown::Token,
     renderer::{
-        util::{process_href, tokens_to_text},
         RenderContext, TokenRenderer,
+        util::{process_href, tokens_to_text},
     },
     sitetree::{Page, Relation, SiteId},
 };
@@ -20,31 +20,31 @@ fn links_grid(
     parent: &DomNode,
     tr: &mut TokenRenderer,
     _attributes: &HashMap<String, String>,
-    tokens: &Vec<Token>,
+    tokens: &[Token],
 ) {
     let links: Vec<DomNode> = tokens
-        .into_iter()
+        .iter()
         .filter_map(|t| {
             if let Token::Link { tokens, href, .. } = t {
                 let href = process_href(href, context);
                 let a = dom!(<a href="{href}"><div class="default__links_grid_card"></div></a>);
                 let mut tokens = tokens.iter().peekable();
                 // if link content starts with image use it as cover
-                if let Some(first) = tokens.peek() {
-                    if let Token::Image { .. } = first {
-                        let first = tokens.next().unwrap();
-                        let cover = dom!(<div class="default__links_grid_card_cover"></div>);
-                        let s = tr.render(document, context, cover.clone(), &vec![first.clone()]);
-                        // if svg set viewbox to allow scaling
-                        match &mut *s.first_child().unwrap().kind_mut() {
-                            virtual_dom::DomNodeKind::Element { attributes, .. } => {
-                                attributes.insert("width".into(), "100%".into());
-                                attributes.insert("height".into(), "auto".into());
-                            }
-                            _ => error!("should be an element"),
+                if let Some(first) = tokens.peek()
+                    && let Token::Image { .. } = first
+                {
+                    let first = tokens.next().unwrap();
+                    let cover = dom!(<div class="default__links_grid_card_cover"></div>);
+                    let s = tr.render(document, context, cover.clone(), std::slice::from_ref(first));
+                    // if svg set viewbox to allow scaling
+                    match &mut *s.first_child().unwrap().kind_mut() {
+                        virtual_dom::DomNodeKind::Element { attributes, .. } => {
+                            attributes.insert("width".into(), "100%".into());
+                            attributes.insert("height".into(), "auto".into());
                         }
-                        a.first_child().unwrap().append_child(cover);
+                        _ => error!("should be an element"),
                     }
+                    a.first_child().unwrap().append_child(cover);
                 }
                 let tokens = Vec::from_iter(tokens.cloned());
                 let title = tokens_to_text(&tokens);
@@ -58,7 +58,7 @@ fn links_grid(
             }
         })
         .collect();
-    let grid: DomNode = dom!(<div class="default__links_grid">{links}</div>).into();
+    let grid: DomNode = dom!(<div class="default__links_grid">{links}</div>);
     parent.append_child(grid);
 }
 
@@ -68,55 +68,53 @@ fn links_boxes(
     parent: &DomNode,
     tr: &mut TokenRenderer,
     _attributes: &HashMap<String, String>,
-    tokens: &Vec<Token>,
+    tokens: &[Token],
 ) {
-    let links: DomNode = dom!(<nav class="default__links"></nav>).into();
+    let links: DomNode = dom!(<nav class="default__links"></nav>);
     parent.append_child(links.clone());
     for t in tokens {
-        match t {
-            Token::Link {
-                tokens,
-                href,
-                title,
-            } => {
-                let mut href = href.clone();
+        if let Token::Link {
+            tokens,
+            href,
+            title,
+        } = t
+        {
+            let mut href = href.clone();
 
-                // if a local link to a page get site path to the page
-                if Page::is_href_to_page(&href) {
-                    // find site id where href is pointing to
-                    let to_id = context
-                        .site_tree
-                        .links_from(context.site_id)
-                        .into_iter()
-                        .find_map(|l| {
-                            if let Relation::Discovered { raw_path: path } = &l.relation {
-                                if *path == href {
-                                    return Some(l.to);
-                                }
-                            }
-                            None
-                        });
-
-                    href = match to_id {
-                        Some(to_id) => context.site_tree.path(to_id),
-                        None => {
-                            warn!("Could not find node where {href:?} points to, ignoring..");
-                            continue;
+            // if a local link to a page get site path to the page
+            if Page::is_href_to_page(&href) {
+                // find site id where href is pointing to
+                let to_id = context
+                    .site_tree
+                    .links_from(context.site_id)
+                    .into_iter()
+                    .find_map(|l| {
+                        if let Relation::Discovered { raw_path: path } = &l.relation
+                            && *path == href
+                        {
+                            return Some(l.to);
                         }
+                        None
+                    });
+
+                href = match to_id {
+                    Some(to_id) => context.site_tree.path(to_id),
+                    None => {
+                        warn!("Could not find node where {href:?} points to, ignoring..");
+                        continue;
                     }
                 }
-
-                let a: DomNode = if let Some(title) = title {
-                    dom!(<a href="{href}" title="{title}"><div class="default__links_box"></div></a>).into()
-                } else {
-                    dom!(<a href="{href}"><div class="default__links_box"></div></a>).into()
-                };
-
-                let div = a.first_child().unwrap();
-                tr.render(document, context, div, tokens);
-                links.append_child(a);
             }
-            _ => {}
+
+            let a: DomNode = if let Some(title) = title {
+                dom!(<a href="{href}" title="{title}"><div class="default__links_box"></div></a>)
+            } else {
+                dom!(<a href="{href}"><div class="default__links_box"></div></a>)
+            };
+
+            let div = a.first_child().unwrap();
+            tr.render(document, context, div, tokens);
+            links.append_child(a);
         }
     }
 }
@@ -127,7 +125,7 @@ fn links(
     parent: &DomNode,
     tr: &mut TokenRenderer,
     attributes: &HashMap<String, String>,
-    tokens: &Vec<Token>,
+    tokens: &[Token],
 ) {
     if attributes.contains_key("boxes") {
         links_boxes(document, context, parent, tr, attributes, tokens);
@@ -145,19 +143,19 @@ fn carousel(
     parent: &DomNode,
     tr: &mut TokenRenderer,
     _attributes: &HashMap<String, String>,
-    tokens: &Vec<Token>,
+    tokens: &[Token],
 ) {
     let carousel = dom!(<div class="default__carausel"></div>);
 
     let main = dom!(<div class="default__carausel_main"></div>);
-    let mut tokens = tokens.into_iter();
+    let mut tokens = tokens.iter();
 
     let item =
         || dom!(<div class="default__carausel_item" onclick="default__toggleModal(event)"></div>);
     match tokens.next() {
         Some(t) => {
             let item = item();
-            tr.render(document, context, item.clone(), &vec![t.clone()]);
+            tr.render(document, context, item.clone(), std::slice::from_ref(t));
             main.append_child(item);
         }
         None => return,
@@ -168,7 +166,7 @@ fn carousel(
         let items: Vec<DomNode> = tokens
             .map(|t| {
                 let item = item();
-                tr.render(document, context, item.clone(), &vec![t.clone()]);
+                tr.render(document, context, item.clone(), std::slice::from_ref(t));
                 item
             })
             .collect();
@@ -212,13 +210,13 @@ fn sitetree_recurs(
         let (a, b) = (*a, *b);
         let a_name = &ctx.site_tree[a].name;
         let b_name = &ctx.site_tree[b].name;
-        let a_has_children = map[*a].len() > 0;
-        let b_has_children = map[*b].len() > 0;
+        let a_has_children = !map[*a].is_empty();
+        let b_has_children = !map[*b].is_empty();
 
         // Sort by has_children first (true before false), then by name
         b_has_children
             .cmp(&a_has_children)
-            .then_with(|| a_name.cmp(&b_name))
+            .then_with(|| a_name.cmp(b_name))
     });
     let children: Vec<DomNode> = children
         .into_iter()
@@ -231,7 +229,7 @@ fn sitetree_recurs(
 
     let node = &ctx.site_tree[id];
     let name = &node.name;
-    let has_children = children.len() > 0;
+    let has_children = !children.is_empty();
     let name = format!("{name}{}", if has_children { "/" } else { "" });
     let path = ctx.site_tree.path(id);
     if has_children {
@@ -255,7 +253,7 @@ pub fn render_html(
     tr: &mut TokenRenderer,
     tag: &str,
     attributes: &HashMap<String, String>,
-    tokens: &Vec<Token>,
+    tokens: &[Token],
 ) -> Option<DomNode> {
     match tag {
         "centered" => {

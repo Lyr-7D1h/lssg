@@ -8,11 +8,11 @@ use serde_extensions::Overwrite;
 use crate::{
     lmarkdown::Token,
     renderer::{
+        RenderContext,
         modules::blog_module::{
             collect_roots::{PostPage, RootPage},
             constants::BLOG_STYLESHEET,
         },
-        RenderContext,
     },
     sitetree::{SiteId, SiteNode, Stylesheet},
 };
@@ -25,21 +25,16 @@ mod collect_roots;
 mod constants;
 mod rss;
 
-#[derive(Overwrite, Clone, Debug, Deserialize)]
+#[derive(Overwrite, Clone, Debug, Deserialize, Default)]
 pub struct BlogRootOptions {
+    #[serde(default)]
     rss: RssOptions,
     /// Use dates from file system to create updated on and modified on tags
     /// by default false
+    #[serde(default)]
     use_fs_dates: bool,
 }
-impl Default for BlogRootOptions {
-    fn default() -> Self {
-        Self {
-            rss: RssOptions::default(),
-            use_fs_dates: false,
-        }
-    }
-}
+
 #[derive(Overwrite, Clone, Debug, Deserialize)]
 pub struct BlogPostOptions {
     /// Use blog rendering for this page, if false it will still index this page
@@ -62,6 +57,7 @@ impl Default for BlogPostOptions {
     }
 }
 
+#[derive(Default)]
 pub struct BlogModule {
     roots: HashMap<SiteId, RootPage>,
     /// Local variable to keep track if date has been inserted
@@ -82,7 +78,7 @@ impl BlogModule {
             .roots
             .values()
             .find_map(|root| root.posts.get(&site_id))?;
-        if page.post_options.render == false {
+        if !page.post_options.render {
             return None;
         }
         Some(page)
@@ -142,9 +138,7 @@ impl RendererModule for BlogModule {
         let site_id = context.site_id;
 
         // if not a blog page
-        let Some(blog_page) = self.post_page(site_id) else {
-            return None;
-        };
+        let blog_page = self.post_page(site_id)?;
 
         // add article meta data
         if let Some(date) = &blog_page.dates.modified_on {
@@ -177,9 +171,7 @@ impl RendererModule for BlogModule {
         let site_id = context.site_id;
 
         // if not a blog page
-        let Some(blog_page) = self.post_page(site_id).cloned() else {
-            return None;
-        };
+        let blog_page = self.post_page(site_id).cloned()?;
 
         match token {
             Token::Heading { depth, .. } if *depth == 1 && !self.has_inserted_date => {
@@ -190,7 +182,7 @@ impl RendererModule for BlogModule {
                     document,
                     context,
                     parent.clone(),
-                    &vec![token.clone()],
+                    std::slice::from_ref(token),
                 );
                 if let Some(date) = blog_page.dates.to_pretty_string() {
                     parent.append_child(dom!(<p class="blog__date">{date}</p>));
@@ -200,7 +192,7 @@ impl RendererModule for BlogModule {
             Token::Link {
                 tokens: text, href, ..
             } => {
-                if text.len() == 0 {
+                if text.is_empty() {
                     return Some(parent);
                 }
 
@@ -211,7 +203,7 @@ impl RendererModule for BlogModule {
                         document,
                         context,
                         parent.clone(),
-                        &vec![token.clone()],
+                        std::slice::from_ref(token),
                     );
                     parent.append_child(dom!(<svg width="1em" height="1em" viewBox="0 0 24 24" style="cursor:pointer"><g stroke-width="2.1" stroke="#666" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 13.5 17 19.5 5 19.5 5 7.5 11 7.5"></polyline><path d="M14,4.5 L20,4.5 L20,10.5 M20,4.5 L11,13.5"></path></g></svg>));
                     return Some(parent);
@@ -219,10 +211,10 @@ impl RendererModule for BlogModule {
             }
             _ => {}
         }
-        return None;
+        None
     }
 }
 
 pub fn is_href_external(href: &str) -> bool {
-    return href.starts_with("http") || href.starts_with("mailto:");
+    href.starts_with("http") || href.starts_with("mailto:")
 }

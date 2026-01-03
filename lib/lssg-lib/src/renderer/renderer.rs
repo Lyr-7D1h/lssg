@@ -1,8 +1,8 @@
 use log::{debug, error};
 
 use crate::{
-    sitetree::{SiteId, SiteNodeKind, SiteTree},
     LssgError,
+    sitetree::{SiteId, SiteNodeKind, SiteTree},
 };
 use virtual_dom::Document;
 
@@ -11,15 +11,12 @@ use super::{RenderContext, TokenRenderer};
 
 /// HtmlRenderer is responsible for the process of converting the site tree into the final HTML output.
 /// It does this by managing a queue of tokens to be rendered and delegating the rendering process to different modules.
+#[derive(Default)]
 pub struct Renderer {
     modules: Vec<Box<dyn RendererModule>>,
 }
 
 impl Renderer {
-    pub fn new() -> Renderer {
-        Renderer { modules: vec![] }
-    }
-
     pub fn add_module(&mut self, module: impl RendererModule + 'static) {
         self.modules.push(Box::new(module));
     }

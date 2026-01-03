@@ -11,20 +11,19 @@ pub trait Tree<Id = usize> {
     fn get(&self, id: Id) -> &Self::Node;
 }
 
-pub struct DFS<'n, Id, T: Tree<Id>> {
+pub struct Dfs<'n, Id, T: Tree<Id>> {
     stack: Vec<Id>,
     tree: &'n T,
 }
 
-impl<'n, Id, T: Tree<Id>> DFS<'n, Id, T> {
+impl<'n, Id, T: Tree<Id>> Dfs<'n, Id, T> {
     pub fn new(tree: &'n T) -> Self {
-        let mut stack = Vec::new();
-        stack.push(tree.root());
-        DFS { stack, tree }
+        let stack = vec![tree.root()];
+        Dfs { stack, tree }
     }
 }
 
-impl<'n, Id: Copy, T: Tree<Id>> Iterator for DFS<'n, Id, T> {
+impl<'n, Id: Copy, T: Tree<Id>> Iterator for Dfs<'n, Id, T> {
     type Item = Id;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -68,7 +67,7 @@ impl<'n, Id: Copy, T: Tree<Id>> Iterator for Ancestors<'n, Id, T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::tree::{Ancestors, DFS};
+    use crate::tree::{Ancestors, Dfs};
 
     use super::{Node, Tree};
 
@@ -135,7 +134,7 @@ mod tests {
             ],
         };
 
-        let order: Vec<usize> = DFS::new(&tree).collect();
+        let order: Vec<usize> = Dfs::new(&tree).collect();
         assert_eq!(order, vec![0, 1, 6, 3, 5, 2, 4])
     }
 

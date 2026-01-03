@@ -42,7 +42,7 @@ impl Page {
                 }
             }
         }
-        return hrefs;
+        hrefs
     }
 
     /// Discover any images inside of the page
@@ -60,7 +60,7 @@ impl Page {
                 }
             }
         }
-        return srcs;
+        srcs
     }
 
     pub fn attributes(&self) -> Option<toml::Table> {
@@ -84,7 +84,7 @@ impl Page {
     // example https://github.com/Lyr-7D1h/airap/blob/master/README.md
     // will render a readme even though this might not be appropiate
     pub fn is_href_to_page(href: &str) -> bool {
-        href.ends_with(".md") && Input::is_relative(&href)
+        href.ends_with(".md") && Input::is_relative(href)
     }
 
     pub fn tokens(&self) -> &Vec<Token> {

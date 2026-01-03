@@ -11,6 +11,7 @@ use crate::{
 // https://github.com/songquanpeng/md2html/blob/main/lexer/lexer.go
 // demo: https://marked.js.org/demo/
 // demo: https://spec.commonmark.org/dingus/
+
 /// A function to get the next markdown token using recursive decent.
 /// Will first parse a block token (token for one or multiple lines) and then parse for any inline tokens when needed.
 pub fn read_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token>, ParseError> {
@@ -21,7 +22,7 @@ pub fn read_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token>, Par
         parse_block_token_text(t)?;
     }
 
-    return Ok(block_tokens);
+    Ok(block_tokens)
 }
 
 /// parse text inside of block tokens to inline tokens
@@ -30,7 +31,7 @@ fn parse_block_token_text(block_token: &mut Token) -> Result<(), ParseError> {
         // Html is special because it can contains any kind of token
         Token::Html { tokens, .. } => {
             *tokens = tokens
-                .into_iter()
+                .iter_mut()
                 .map(|t| {
                     // take into account that paragraphs have been changed to text
                     if let Token::Text { text } = t {
@@ -106,7 +107,7 @@ fn parse_block_token_text(block_token: &mut Token) -> Result<(), ParseError> {
         }
     };
 
-    return Ok(());
+    Ok(())
 }
 
 /// Table column alignment
@@ -236,7 +237,7 @@ impl Token {
             match self {
                 Token::Bold { text, .. } => text,
                 Token::Text { text, .. } => text,
-                Token::SoftBreak { .. } => " ",
+                Token::SoftBreak => " ",
                 _ => return None,
             }
             .into(),
@@ -244,8 +245,7 @@ impl Token {
     }
 
     pub fn is_block_token(&self) -> bool {
-        match self {
-            Token::Attributes { .. }
+        matches!(self, Token::Attributes { .. }
             | Token::BulletList { .. }
             | Token::OrderedList { .. }
             | Token::Heading { .. }
@@ -253,8 +253,6 @@ impl Token {
             | Token::Paragraph { .. }
             | Token::BlockQuote { .. }
             | Token::Table { .. }
-            | Token::CodeBlock { .. } => true,
-            _ => false,
-        }
+            | Token::CodeBlock { .. })
     }
 }
