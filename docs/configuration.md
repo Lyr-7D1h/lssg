@@ -13,6 +13,7 @@ Core rendering for markdown and HTML structure. Required for all pages.
 | `root` | Boolean | `false` | Disable parent inheritance |
 | `title` | String | First H1 | Page title for browser tab and SEO |
 | `language` | String | `"en"` | HTML language attribute |
+| `section_links` | Boolean | `true` | Show link icons on h2 headers on hover |
 | `meta` | Object | `{}` | Custom meta tags (key-value pairs) |
 | `head` | Array[String] | `[]` | Custom HTML elements for `<head>` |
 
@@ -97,6 +98,7 @@ Downloads and integrates ZIP contents: HTML pages, CSS stylesheets, and resource
 <!--
 title = "My Blog Post"
 language = "en"
+section_links = true
 
 [meta]
 description = "A great post about Rust"

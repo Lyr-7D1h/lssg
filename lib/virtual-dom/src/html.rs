@@ -243,7 +243,10 @@ fn comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io::Error
 pub fn is_void_element(tag: &str) -> bool {
     match tag {
         "base" | "img" | "br" | "col" | "embed" | "hr" | "area" | "input" | "link" | "meta"
-        | "param" | "source" | "track" | "wbr" => true,
+        | "param" | "source" | "track" | "wbr" 
+        // SVG void-like elements
+        | "circle" | "ellipse" | "line" | "path" | "polygon" | "polyline" | "rect" 
+        | "stop" | "use" => true,
         _ => false,
     }
 }
@@ -436,6 +439,82 @@ This should be text
                     attributes: to_attributes([("class", "c")]),
                     children: vec![],
                 }],
+            }],
+        }];
+        let tokens = parse_html(input.as_bytes()).unwrap();
+        assert_eq!(expected, tokens);
+    }
+
+    #[test]
+    fn test_head() {
+        let input = r#"
+  <head>
+    <meta content="art,simulation,technology" name="keywords" />
+    <script src="./assets/main-B0Asn3MK.js" type="module" crossorigin></script>
+    <link rel="modulepreload" crossorigin href="./assets/creature-BZHPYSn1.js" />
+    <link rel="stylesheet" crossorigin href="./assets/main-CjrOOoWN.css" />
+  </head>
+        "#;
+        let expected = vec![Html::Element {
+            tag: "head".into(),
+            attributes: HashMap::new(),
+            children: vec![
+                Html::Element {
+                    tag: "meta".into(),
+                    attributes: to_attributes([
+                        ("content", "art,simulation,technology"),
+                        ("name", "keywords"),
+                    ]),
+                    children: vec![],
+                },
+                Html::Element {
+                    tag: "script".into(),
+                    attributes: to_attributes([
+                        ("src", "./assets/main-B0Asn3MK.js"),
+                        ("type", "module"),
+                        ("crossorigin", ""),
+                    ]),
+                    children: vec![],
+                },
+                Html::Element {
+                    tag: "link".into(),
+                    attributes: to_attributes([
+                        ("rel", "modulepreload"),
+                        ("crossorigin", ""),
+                        ("href", "./assets/creature-BZHPYSn1.js"),
+                    ]),
+                    children: vec![],
+                },
+                Html::Element {
+                    tag: "link".into(),
+                    attributes: to_attributes([
+                        ("rel", "stylesheet"),
+                        ("crossorigin", ""),
+                        ("href", "./assets/main-CjrOOoWN.css"),
+                    ]),
+                    children: vec![],
+                },
+            ],
+        }];
+        let tokens = parse_html(input.as_bytes()).unwrap();
+        assert_eq!(expected, tokens);
+    }
+
+    #[test]
+    fn test_svg() {
+        let input = r#"<svg xmlns="http://www.w3.org/2000/svg" width="20" viewBox="0 0 640 640" height="20"><path d="M451.5 160C434.9 160 418.8 164.5 404.7 172.7"/></svg>"#;
+        let expected = vec![Html::Element {
+            tag: "svg".into(),
+            attributes: to_attributes([
+                ("xmlns", "http://www.w3.org/2000/svg"),
+                ("width", "20"),
+                ("viewBox", "0 0 640 640"),
+                ("height", "20"),
+            ]),
+            children: vec![Html::Element {
+                tag: "path".into(),
+                attributes: to_attributes([("d", "M451.5 160C434.9 160 418.8 164.5 404.7 172.7")]),
+                children: vec![],
             }],
         }];
         let tokens = parse_html(input.as_bytes()).unwrap();

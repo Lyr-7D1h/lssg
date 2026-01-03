@@ -16,7 +16,7 @@ use crate::{
     },
     sitetree::{SiteId, SiteNode, Stylesheet},
 };
-use virtual_dom::{to_attributes, Document, DomNode};
+use virtual_dom::{Document, DomNode};
 
 use super::{RendererModule, TokenRenderer};
 
@@ -184,23 +184,18 @@ impl RendererModule for BlogModule {
         match token {
             Token::Heading { depth, .. } if *depth == 1 && !self.has_inserted_date => {
                 self.has_inserted_date = true;
-                let content = document.create_element_with_attributes(
-                    "div",
-                    to_attributes([("id", "blog__content")]),
-                );
                 // render heading
                 tr.render_down(
                     self,
                     document,
                     context,
-                    content.clone(),
+                    parent.clone(),
                     &vec![token.clone()],
                 );
                 if let Some(date) = blog_page.dates.to_pretty_string() {
-                    content.append_child(dom!(<div class="blog__date">{date}</div>));
+                    parent.append_child(dom!(<p class="blog__date">{date}</p>));
                 }
-                parent.append_child(content.clone());
-                return Some(content);
+                return Some(parent);
             }
             Token::Link {
                 tokens: text, href, ..
@@ -225,29 +220,6 @@ impl RendererModule for BlogModule {
             _ => {}
         }
         return None;
-    }
-
-    fn after_render<'n>(&mut self, document: &mut Document, _context: &RenderContext<'n>) {
-        // Add link icons to each sub header
-        if let Some(post) = document.body.get_element_by_id("blog__post") {
-            for mut heading in post.get_elements_by_tag_name("h2") {
-                let id = match heading.get_attribute("id") {
-                    Some(id) => id,
-                    None => {
-                        let id = heading.inner_text().to_ascii_lowercase().replace(" ", "-");
-                        heading.set_attribute("id", &id);
-                        id
-                    }
-                };
-                heading.prepend(
-                    dom!(
-                    <a href="#{id}" class="section-link" aria-hidden=true>
-                        <svg xmlns="http://www.w3.org/2000/svg" height="16" width="20" viewBox="0 0 640 512"><path d="M579.8 267.7c56.5-56.5 56.5-148 0-204.5c-50-50-128.8-56.5-186.3-15.4l-1.6 1.1c-14.4 10.3-17.7 30.3-7.4 44.6s30.3 17.7 44.6 7.4l-1.6 1.1c-32.1-22.9-76-19.3-103.8 8.6c31.5 31.5 31.5 82.5 0 114L422.3 334.8c-31.5 31.5-82.5 31.5-114 0c-27.9-27.9-31.5-71.8-8.6-103.8l1.1-1.6c10.3-14.4 6.9-34.4-7.4-44.6s-34.4-6.9-44.6 7.4l-1.1 1.6C206.5 251.2 213 330 263 380c56.5 56.5 148 56.5 204.5 0L579.8 267.7zM60.2 244.3c-56.5 56.5-56.5 148 0 204.5c50 50 128.8 56.5 186.3 15.4l1.6-1.1c14.4-10.3 17.7-30.3 7.4-44.6s-30.3-17.7-44.6-7.4l-1.6 1.1c-32.1-22.9-76 19.3-103.8-8.6C74 372 74 321 105.5 289.5L217.7 177.2c31.5-31.5 82.5-31.5 114 0c27.9 27.9 31.5 71.8 8.6 103.9l-1.1 1.6c-10.3 14.4-6.9 34.4 7.4 44.6s34.4-6.9 44.6-7.4l1.1-1.6C433.5 260.8 427 182 377 132c-56.5-56.5-148-56.5-204.5 0L60.2 244.3z"/></svg>
-                    </a>)
-
-                );
-            }
-        }
     }
 }
 

@@ -106,8 +106,12 @@ pub fn html_comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, 
 /// check if a html tag is a void tag (it can not have children)
 fn is_void_element(tag: &str) -> bool {
     match tag {
+        // HTML void elements
         "base" | "img" | "br" | "col" | "embed" | "hr" | "area" | "input" | "link" | "meta"
-        | "param" | "source" | "track" | "wbr" => true,
+        | "param" | "source" | "track" | "wbr" 
+        // SVG void-like elements
+        | "circle" | "ellipse" | "line" | "path" | "polygon" | "polyline" | "rect" 
+        | "stop" | "use" => true,
         _ => false,
     }
 }

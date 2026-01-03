@@ -445,3 +445,14 @@ body:has(.default__side-menu) #default__content {
   font-size: 14px;
   opacity: 0.8;
 }
+
+.default__section-link {
+  opacity: 0;
+  position: absolute;
+  float: left;
+  padding-right: 4px;
+  margin-left: -1em;
+}
+h2:hover .default__section-link {
+  opacity: 1;
+}
