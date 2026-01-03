@@ -388,8 +388,8 @@ impl RendererModule for DefaultModule {
         let body = &document.body;
 
         // move all dom elements to under #content
-        let content =
-            document.create_element_with_attributes("main", to_attributes([("id", "content")]));
+        let content = document
+            .create_element_with_attributes("main", to_attributes([("id", "default__content")]));
         for child in body.children() {
             child.detach();
             content.append_child(child);
@@ -650,7 +650,11 @@ impl RendererModule for DefaultModule {
             Token::CodeBlock { text: code, info } => {
                 let mut code_html = document.create_element("code");
                 if let Some(info) = info {
-                    code_html.set_attribute("class".into(), &format!("language-{info}"));
+                    code_html.set_attribute(
+                        "class".into(),
+                        &format!("language-{info} copy-to-clipboard-button"),
+                    );
+                    code_html.set_attribute("data-copy-state", "copy");
                 }
                 code_html.append_child(document.create_text_node(code));
                 let pre = document.create_element("pre");

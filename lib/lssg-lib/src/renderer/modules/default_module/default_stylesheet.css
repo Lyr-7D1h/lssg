@@ -73,23 +73,6 @@ li {
   text-align: left;
 }
 
-.default__sitetree,
-pre,
-body pre[class*="language-"],
-ul,
-ol,
-h1,
-h2,
-h3,
-h4,
-h5,
-h6,
-p,
-blockquote {
-  margin-left: 35vw;
-  margin-right: 35vw;
-}
-
 /* Reset margins for nested lists */
 ul ul,
 ul ol,
@@ -102,78 +85,11 @@ li ol {
   padding-left: 2em;
 }
 
-@media only screen and (max-width: 1100px) {
-  .default__sitetree,
-  pre,
-  body pre[class*="language-"],
-  ul,
-  ol,
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6,
-  p,
-  blockquote {
-    margin-left: 25vw;
-    margin-right: 25vw;
-  }
-
-  /* Reset margins for nested lists */
-  ul ul,
-  ul ol,
-  ol ul,
-  ol ol,
-  li ul,
-  li ol {
-    margin-left: 0;
-    margin-right: 0;
-    padding-left: 2em;
-  }
-}
-@media only screen and (max-width: 768px) {
-  .default__sitetree,
-  pre,
-  body pre[class*="language-"],
-  ul,
-  ol,
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6,
-  p {
-    margin-left: 10px;
-    margin-right: 10px;
-  }
-
-  /* Reset margins for nested lists */
-  ul ul,
-  ul ol,
-  ol ul,
-  ol ol,
-  li ul,
-  li ol {
-    margin-left: 0;
-    margin-right: 0;
-    padding-left: 2em;
-  }
-
-  h1 {
-    font-size: 32px;
-  }
-  p {
-    font-size: 18px;
-  }
-}
-
 video {
   max-width: 100%;
 }
 
-#content {
+#default__content {
   overflow: hidden;
   text-overflow: ellipsis;
   margin: 0;
@@ -185,6 +101,53 @@ video {
   min-height: -o-calc(100% - 30px);
   /* Standard */
   min-height: calc(100vh - 30px);
+}
+
+/* Constrain content elements to max-width and center them */
+#default__content .default__sitetree,
+#default__content pre,
+#default__content pre[class*="language-"],
+#default__content .code-toolbar,
+#default__content ul,
+#default__content ol,
+#default__content h1,
+#default__content h2,
+#default__content h3,
+#default__content h4,
+#default__content h5,
+#default__content h6,
+#default__content p,
+#default__content blockquote {
+  max-width: 680px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media only screen and (max-width: 768px) {
+  #default__content .default__sitetree,
+  #default__content pre,
+  #default__content pre[class*="language-"],
+  #default__content .code-toolbar,
+  #default__content ul,
+  #default__content ol,
+  #default__content h1,
+  #default__content h2,
+  #default__content h3,
+  #default__content h4,
+  #default__content h5,
+  #default__content h6,
+  #default__content p,
+  #default__content blockquote {
+    margin-left: 10px;
+    margin-right: 10px;
+  }
+
+  h1 {
+    font-size: 32px;
+  }
+  p {
+    font-size: 18px;
+  }
 }
 #default__footer {
   font-size: 16px;
@@ -306,7 +269,7 @@ nav.default__links a {
 }
 
 /* Adjust content margin when side menu is present */
-body:has(.default__side-menu) #content {
+body:has(.default__side-menu) #default__content {
   margin-left: 270px;
 }
 
@@ -318,8 +281,8 @@ body:has(.default__side-menu) #content {
     border-right: none;
     border-bottom: 1px solid #d0d7de;
   }
-  
-  body:has(.default__side-menu) #content {
+
+  body:has(.default__side-menu) #default__content {
     margin-left: 0;
   }
 }
