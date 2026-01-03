@@ -12,7 +12,6 @@ use crate::{
         RenderContext, TokenRenderer,
     },
     sitetree::{Page, Relation, SiteId},
-    tree::Node,
 };
 
 fn links_grid(
@@ -71,7 +70,7 @@ fn links_boxes(
     _attributes: &HashMap<String, String>,
     tokens: &Vec<Token>,
 ) {
-    let links: DomNode = dom!(<nav class="links"></nav>).into();
+    let links: DomNode = dom!(<nav class="default__links"></nav>).into();
     parent.append_child(links.clone());
     for t in tokens {
         match t {
@@ -108,9 +107,9 @@ fn links_boxes(
                 }
 
                 let a: DomNode = if let Some(title) = title {
-                    dom!(<a href="{href}" title="{title}"><div class="box"></div></a>).into()
+                    dom!(<a href="{href}" title="{title}"><div class="default__links_box"></div></a>).into()
                 } else {
-                    dom!(<a href="{href}"><div class="box"></div></a>).into()
+                    dom!(<a href="{href}"><div class="default__links_box"></div></a>).into()
                 };
 
                 let div = a.first_child().unwrap();
@@ -180,34 +179,21 @@ fn carousel(
 }
 
 pub fn sitetree(ctx: &RenderContext, parent: &DomNode, attributes: &HashMap<String, String>) {
-    let ignore_list = attributes
+    let ignore_list: Vec<&str> = attributes
         .get("ignore")
         .map(|s| s.split(',').collect())
         .unwrap_or(vec![]);
 
-    let mut map = vec![Vec::new(); ctx.site_tree.len()];
+    let mut map = ctx.site_tree.flatten_to_pages();
 
-    let mut queue = vec![(ctx.site_tree.root(), ctx.site_tree.root())];
-    while let Some((id, parent)) = queue.pop() {
-        let mut children = vec![];
-        for child in ctx.site_tree[id].children() {
-            let child = *child;
-            let name = &ctx.site_tree[child].name.as_str();
-            if ignore_list.contains(name) {
-                continue;
-            }
-            let child_parent = match &ctx.site_tree[child].kind {
-                crate::sitetree::SiteNodeKind::Page(_) => {
-                    children.push(child);
-                    child
-                }
-                _ => parent,
-            };
-            // Pages become the new parent for their descendants, while non-page nodes
-            // inherit the parent from their ancestor page (flattening the hierarchy)
-            queue.push((child, child_parent));
+    // Filter out ignored nodes
+    if !ignore_list.is_empty() {
+        for node_children in &mut map {
+            node_children.retain(|child_id| {
+                let name = ctx.site_tree[*child_id].name.as_str();
+                !ignore_list.contains(&name)
+            });
         }
-        map[*parent].append(&mut children);
     }
 
     let tree = sitetree_recurs(ctx.site_tree.root(), &map, ctx, true);
@@ -275,7 +261,7 @@ pub fn render_html(
         "centered" => {
             let centered = DomNode::create_element_with_attributes(
                 "div",
-                to_attributes([("class", "centered")]),
+                to_attributes([("class", "default__centered")]),
             );
             tr.render(document, context, centered.clone(), tokens);
             parent.append_child(centered);

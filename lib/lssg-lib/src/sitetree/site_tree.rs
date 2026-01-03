@@ -126,7 +126,7 @@ impl SiteTree {
             if p == parent_id {
                 return true;
             }
-            parent = self.nodes[*id].parent
+            parent = self.nodes[*p].parent
         }
         return false;
     }
@@ -191,6 +191,37 @@ impl SiteTree {
 
     pub fn ids(&self) -> Vec<SiteId> {
         (0..self.nodes.len()).map(SiteId::from).collect()
+    }
+
+    /// Creates a flattened map where non-page nodes are removed and only pages
+    /// are tracked as children. Returns a Vec where each index corresponds to a SiteId
+    /// and contains a Vec of its page children (direct or inherited through non-page nodes).
+    ///
+    /// # Returns
+    /// A Vec<Vec<SiteId>> where map[node_id] contains all page children of that node
+    pub fn flatten_to_pages(&self) -> Vec<Vec<SiteId>> {
+        let mut map = vec![Vec::new(); self.nodes.len()];
+
+        let mut queue = vec![(self.root, self.root)];
+        while let Some((id, parent)) = queue.pop() {
+            let mut children = vec![];
+            for child in &self.nodes[*id].children {
+                let child = *child;
+                let child_parent = match &self.nodes[*child].kind {
+                    SiteNodeKind::Page(_) => {
+                        children.push(child);
+                        child
+                    }
+                    _ => parent,
+                };
+                // Pages become the new parent for their descendants, while non-page nodes
+                // inherit the parent from their ancestor page (flattening the hierarchy)
+                queue.push((child, child_parent));
+            }
+            map[*parent].append(&mut children);
+        }
+
+        map
     }
 
     /// add an external relation between two site nodes

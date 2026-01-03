@@ -196,35 +196,35 @@ video {
 }
 
 /* <centered> */
-.centered {
+.default__centered {
   text-align: center;
 }
-.centered > h1,
-.centered > h2,
-.centered > h3,
-.centered > h4,
-.centered > h5,
-.centered > h6,
-.centered > p {
+.default__centered > h1,
+.default__centered > h2,
+.default__centered > h3,
+.default__centered > h4,
+.default__centered > h5,
+.default__centered > h6,
+.default__centered > p {
   text-align: center;
 }
 
 /* links */
-nav.links {
+nav.default__links {
   width: 100%;
   float: left;
 }
-nav.links i {
+nav.default__links i {
   font-size: 2em;
   margin-right: 20px;
 }
-nav.links a {
+nav.default__links a {
   display: inline-block;
   vertical-align: top;
   color: black;
   text-decoration: none;
 }
-.box {
+.default__links_box {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -238,13 +238,90 @@ nav.links a {
   margin: 20px;
   word-wrap: break-word;
 }
-.box:hover {
+.default__links_box:hover {
   box-shadow: 8px 8px 8px 8px rgba(0, 0, 0, 0.2);
 }
 
-.breadcrumbs {
+.default__breadcrumbs {
   padding: 20px;
   text-align: left;
+}
+
+.default__side-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 250px;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 20px;
+  background-color: #f6f8fa;
+  border-right: 1px solid #d0d7de;
+}
+
+.default__side-menu ul {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.default__side-menu ul ul {
+  padding-left: 15px;
+  margin-top: 5px;
+  margin-bottom: 5px;
+}
+
+.default__side-menu li {
+  margin: 5px 0;
+}
+
+.side-menu__link {
+  display: block;
+  padding: 5px 10px;
+  text-decoration: none;
+  color: #24292f;
+  border-radius: 6px;
+  transition: background-color 150ms;
+}
+
+.side-menu__link:hover {
+  background-color: #d0d7de;
+}
+
+.side-menu__link--active {
+  background-color: #0969da;
+  color: white;
+  font-weight: bold;
+}
+
+.side-menu__link--active:hover {
+  background-color: #0860ca;
+}
+
+.side-menu__folder {
+  display: block;
+  padding: 5px 10px;
+  color: #656d76;
+  font-weight: bold;
+}
+
+/* Adjust content margin when side menu is present */
+body:has(.default__side-menu) #content {
+  margin-left: 270px;
+}
+
+@media only screen and (max-width: 768px) {
+  .default__side-menu {
+    position: relative;
+    width: 100%;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid #d0d7de;
+  }
+  
+  body:has(.default__side-menu) #content {
+    margin-left: 0;
+  }
 }
 
 .default__links_grid {
