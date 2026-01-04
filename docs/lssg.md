@@ -41,6 +41,6 @@ image="https://lyrx.dev/icon.png"
 
 Recursively generate static html, css, js files from a single markdown file.
 
-This generator has many features and makes it easy to keep a single source of truth (your markdown files) and generate a whole web of static site files based on links within your entry markdown file.
+This generator has many features and makes it easy to keep a single source of truth (your markdown files) and generate a whole web of static files based on links within your entry markdown file.
 
 This uses a custom Markdown parser which will not necessarily follow [official specifications](https://commonmark.org/). I'm making it to support html elements inside the markdown better as well as support other syntaxes and to support high customization of the formatting language used. Writing a custom parser makes bugs more likely, PR's are welcome!

@@ -13,12 +13,11 @@ This content will be centered.
 </centered>
 ```
 
-**Generated HTML:**
-```html
-<div class="default__centered">
-  <p>This content will be centered.</p>
-</div>
-```
+**Result:**
+
+<centered>
+This content will be centered.
+</centered>
 
 ## `<links>`
 
@@ -37,20 +36,13 @@ Display links as styled boxes in a navigation layout.
 </links>
 ```
 
-**Generated HTML:**
-```html
-<nav class="default__links">
-  <a href="/project1.html" title="First project">
-    <div class="default__links_box">Project 1</div>
-  </a>
-  <a href="/project2.html">
-    <div class="default__links_box">Project 2</div>
-  </a>
-  <a href="/project3.html" title="Third project">
-    <div class="default__links_box">Project 3</div>
-  </a>
-</nav>
-```
+**Result:**
+
+<links boxes>
+[Installation](./install.md "How to install LSSG")
+[Usage](./usage.md "How to use LSSG")
+[Configuration](./configuration.md "Configure your site")
+</links>
 
 ### Links Grid
 
@@ -65,32 +57,13 @@ Display links as a grid of cards with optional cover images.
 </links>
 ```
 
-**Generated HTML:**
-```html
-<div class="default__links_grid">
-  <a href="/project1.html">
-    <div class="default__links_grid_card">
-      <div class="default__links_grid_card_cover">
-        <img src="cover1.jpg" alt="Cover">
-      </div>
-      <h2 class="default__links_grid_card_title">Project 1</h2>
-    </div>
-  </a>
-  <a href="/project2.html">
-    <div class="default__links_grid_card">
-      <div class="default__links_grid_card_cover">
-        <img src="cover2.jpg" alt="Cover">
-      </div>
-      <h2 class="default__links_grid_card_title">Project 2</h2>
-    </div>
-  </a>
-  <a href="/project3.html">
-    <div class="default__links_grid_card">
-      <h2 class="default__links_grid_card_title">Project 3</h2>
-    </div>
-  </a>
-</div>
-```
+**Result:**
+
+<links grid>
+[LMarkdown](./lmarkdown.md)
+[Architecture](./architecture.md)
+[Tutorials](./tutorials.md)
+</links>
 
 **Notes:**
 - If link content starts with an image, it becomes the cover
@@ -111,27 +84,14 @@ Create an image carousel with a main display and thumbnails.
 </carousel>
 ```
 
-**Generated HTML:**
-```html
-<div class="default__carausel">
-  <div class="default__carausel_main">
-    <div class="default__carausel_item" onclick="default__toggleModal(event)">
-      <img src="image1.jpg" alt="Image 1">
-    </div>
-  </div>
-  <div class="default__carausel_other">
-    <div class="default__carausel_item" onclick="default__toggleModal(event)">
-      <img src="image2.jpg" alt="Image 2">
-    </div>
-    <div class="default__carausel_item" onclick="default__toggleModal(event)">
-      <img src="image3.jpg" alt="Image 3">
-    </div>
-    <div class="default__carausel_item" onclick="default__toggleModal(event)">
-      <img src="image4.jpg" alt="Image 4">
-    </div>
-  </div>
-</div>
-```
+**Result:**
+
+<carousel>
+![Bear Image](./custom_elements/bear.jpg)
+![Bear Image](./custom_elements/bear.jpg)
+![Bear Image](./custom_elements/bear.jpg)
+![Bear Image](./custom_elements/bear.jpg)
+</carousel>
 
 **Notes:**
 - First image appears in main display
@@ -152,25 +112,9 @@ With ignore list:
 <sitetree ignore="404,blog">
 ```
 
-**Generated HTML:**
-```html
-<div class="default__sitetree">
-  <div class="default__sitetree_folder">
-    <a href="/docs/">docs/</a>
-    <div class="default__sitetree_folder_content">
-      <div class="default__sitetree_file">
-        <a href="/docs/install.html">install</a>
-      </div>
-      <div class="default__sitetree_file">
-        <a href="/docs/usage.html">usage</a>
-      </div>
-    </div>
-  </div>
-  <div class="default__sitetree_file">
-    <a href="/about.html">about</a>
-  </div>
-</div>
-```
+**Result:**
+
+<sitetree></sitetree>
 
 **Attributes:**
 - `ignore` - Comma-separated list of page names to exclude
@@ -179,21 +123,3 @@ With ignore list:
 - Folders are sorted before files
 - Within each group, items are sorted alphabetically
 - Folders display with trailing `/`
-
-## Custom Attributes
-
-All custom elements support standard HTML attributes:
-
-```markdown
-<centered id="hero" class="my-class" style="color: red;">
-Content here
-</centered>
-```
-
-Any unrecognized HTML tag will be rendered as-is with its attributes:
-
-```markdown
-<myCustomTag data-value="123">
-Custom content
-</myCustomTag>
-```

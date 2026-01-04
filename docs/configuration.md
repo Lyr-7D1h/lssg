@@ -2,6 +2,27 @@
 
 LSSG uses a modular architecture where different modules handle specific rendering and processing tasks. Configure them via [TOML](https://toml.io/en/) comments at the start of markdown files.
 
+## Resource Discovery
+
+LSSG automatically discovers and copies resources (CSS, JavaScript, images, fonts, etc.) to your build output directory.
+
+### How It Works
+
+1. **Automatic Detection**: LSSG scans your markdown files and HTML for resource references
+2. **Recursive Copy**: Resources are copied from your source directory to the corresponding location in the build directory
+3. **Relative Path Preservation**: The directory structure is maintained, ensuring links remain functional
+4. **Supported Resources**: CSS, JavaScript, images (JPG, PNG, SVG, GIF, WebP), fonts, videos, and other static assets
+
+### Resource Locations
+
+Resources can be:
+- Referenced directly in markdown: `![Image](./images/photo.jpg)`
+- Imported in CSS files: `@import url('fonts/custom.css');`
+- Linked in HTML: `<script src="./script.js"></script>`
+- Used as custom elements: `<carousel>![](image.jpg)</carousel>`
+
+All discovered resources are automatically included in the build output without manual configuration.
+
 ## Default Module
 
 Core rendering for markdown and HTML structure. Required for all pages.
