@@ -38,6 +38,19 @@ Core rendering for markdown and HTML structure. Required for all pages.
 | `meta` | Object | `{}` | Custom meta tags (key-value pairs) |
 | `head` | Array[String] | `[]` | Custom HTML elements for `<head>` |
 
+### Navigation Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `nav.kind` | String | `"breadcrumbs"` | Navigation type: `"breadcrumbs"`, `"sidemenu"`, or `"none"` |
+| `nav.include_root` | Boolean | `false` | Include root page in side menu (only applies to `sidemenu`) |
+| `nav.name_map` | Object | `{}` | Custom display names for pages (key: page name, value: display name) |
+
+**Navigation Types:**
+- `breadcrumbs`: Shows path from root to current page (e.g., `/parent/child/current`)
+- `sidemenu`: Displays hierarchical page structure with nested pages (max depth: 3)
+- `none`: Disables navigation completely
+
 ### Footer Options
 
 | Option | Type | Default | Description |
@@ -124,6 +137,11 @@ section_links = true
 [meta]
 description = "A great post about Rust"
 author = "Your Name"
+
+[nav]
+kind = "sidemenu"
+include_root = true
+name_map = { home = "Home Page", blog = "Blog Posts" }
 
 [blog.post]
 created_on = "2025-01-03"

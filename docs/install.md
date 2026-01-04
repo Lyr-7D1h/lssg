@@ -1,5 +1,9 @@
 # Installation
 
+## Requirements
+
+- ffmpeg (when using media optimization use `--no-media-optimization` to skip this requirement)
+
 ## Install from [cargo](https://doc.rust-lang.org/cargo/getting-started/installation.html)
 
 ```bash

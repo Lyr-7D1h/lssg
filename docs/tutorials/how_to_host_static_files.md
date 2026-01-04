@@ -2,6 +2,6 @@
 
 ## Cloudflare
 
-1. [Install LSSG](../README.md#install)
-2. [Build static files](../README.md#usage)
+1. [Install LSSG](../install.md)
+2. [Build static files](../usage.md)
 3. [Upload static files to Cloudflare pages](https://developers.cloudflare.com/pages/get-started/)

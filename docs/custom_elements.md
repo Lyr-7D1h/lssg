@@ -51,17 +51,17 @@ Display links as a grid of cards with optional cover images.
 **Markdown:**
 ```markdown
 <links grid>
-[![Cover](cover1.jpg) Project 1](./project1.md)
-[![Cover](cover2.jpg) Project 2](./project2.md)
-[Project 3](./project3.md)
+[![Bear Image](./custom_elements/bear.jpg) LMarkdown](./lmarkdown.md)
+[![Bear Image](./custom_elements/bear.jpg) Architecture](./architecture.md)
+[Tutorials](./tutorials.md)
 </links>
 ```
 
 **Result:**
 
 <links grid>
-[LMarkdown](./lmarkdown.md)
-[Architecture](./architecture.md)
+[![Bear Image](./custom_elements/bear.jpg) LMarkdown](./lmarkdown.md)
+[![Bear Image](./custom_elements/bear.jpg) Architecture](./architecture.md)
 [Tutorials](./tutorials.md)
 </links>
 

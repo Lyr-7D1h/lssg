@@ -24,3 +24,38 @@ lssg https://raw.githubusercontent.com/Lyr-7D1h/lssg/master/examples/lyrx/home.m
 
 > [!NOTE]
 > Any local links from the input markdown file to other markdown files have to be contained within the parent folder of your input markdown file
+
+## More options
+
+See `lssg --help` for more options
+
+```
+Usage: lssg [OPTIONS] <INPUT> [OUTPUT]
+
+Arguments:
+  <INPUT>
+          a reference to the first markdown input file this can either be a path (eg. ./my_blog/index.md) or an url (eg. http://github.com/p
+roject/readme.md)
+
+  [OUTPUT]
+          path to put the static files into, any needed parent folders are automatically created
+
+Options:
+  -s, --single-page
+          Print output of a single page
+
+  -a, --ast
+          Print ast tokens of a single page
+
+  -l, --log <LOG>
+          "TRACE", "DEBUG", "INFO", "WARN", "ERROR"
+
+  -n, --no-media-optimization
+          Enable media optimization (images and videos)
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
+```
