@@ -219,7 +219,7 @@ nav.default__links a {
   width: 250px;
   height: 100vh;
   overflow-y: auto;
-  padding: 20px;
+  padding: 5px;
   background-color: #f6f8fa;
   border-right: 1px solid #d0d7de;
 }
@@ -267,7 +267,7 @@ body:has(.default__side-menu) #default__content {
   margin-left: 270px;
 }
 
-@media only screen and (max-width: 768px) {
+@media only screen and (max-width: 975px) {
   .default__side-menu {
     position: relative;
     width: 100%;
