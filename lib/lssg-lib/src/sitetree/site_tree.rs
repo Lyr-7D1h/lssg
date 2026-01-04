@@ -5,7 +5,7 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-use log::{debug, warn};
+use log::{debug, info, warn};
 
 use crate::{LssgError, sitetree::SiteId, tree::Tree};
 
@@ -261,7 +261,7 @@ impl SiteTree {
     ) -> Result<SiteId, LssgError> {
         // return id if file already exists
         if let Some(id) = self.input_to_id.get(&input) {
-            warn!(
+            info!(
                 "{} already exists using existing node instead",
                 input.filename()?
             );

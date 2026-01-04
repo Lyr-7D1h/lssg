@@ -13,7 +13,7 @@ readme = "README.md"
 [dependencies]
 simple_logger = "4.2.0"
 clap = { version = "4.4.6", features = ["derive"] }
-lssg-lib = { path = "./lib/lssg-lib/", version = "1.0.0" }
+lssg-lib = { path = "./lib/lssg-lib/" }
 log = "0.4.20"
 regex = "1.10.4"
 
