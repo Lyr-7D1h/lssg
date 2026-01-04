@@ -92,14 +92,6 @@ pub struct SiteTree {
     rel_graph: RelationalGraph,
 }
 
-/// Type of link discovered during BFS traversal
-enum LinkType {
-    EmptyText, // Link with no text content
-    Page,      // Link to another page
-    Image,     // Image reference
-    Other,     // Other types of links
-}
-
 impl SiteTree {
     pub fn len(&self) -> usize {
         self.nodes.len()
@@ -119,7 +111,7 @@ impl SiteTree {
             id_to_input: HashMap::new(),
             rel_graph: RelationalGraph::new(),
         };
-        tree.add_page_under_parent(input, None)?;
+        tree.add_page_and_discover(input, None)?;
         Ok(tree)
     }
 
@@ -279,7 +271,7 @@ impl SiteTree {
         let id = if SiteNodeKind::input_is_stylesheet(&input) {
             self.add_stylesheet_from_input(input.clone(), parent_id)?
         } else if SiteNodeKind::input_is_page(&input) {
-            self.add_page_from_input(input.clone(), parent_id)?
+            self.add_page_and_discover(input.clone(), Some(parent_id))?
         } else {
             parent_id = self.create_folders(&input, parent_id);
             let id = self.add(SiteNode {
@@ -296,161 +288,116 @@ impl SiteTree {
         Ok(id)
     }
 
-    /// Add a page node to tree and discover any other new pages
-    /// will error if input is not a markdown file
-    fn add_page_from_input(&mut self, input: Input, parent: SiteId) -> Result<SiteId, LssgError> {
-        self.add_page_under_parent(input, Some(parent))
-    }
-
     /// Add a page node to tree and discover any other new pages with possibility of adding root
-    fn add_page_under_parent(
+    fn add_page_and_discover(
         &mut self,
         input: Input,
-        mut parent: Option<SiteId>,
+        parent: Option<SiteId>,
     ) -> Result<SiteId, LssgError> {
         if let Some(id) = self.input_to_id.get(&input) {
-            // TODO if this page exists should the location of the page be updated?
             return Ok(*id);
         }
 
-        if let Some(parent) = &mut parent {
-            *parent = self.create_folders(&input, *parent);
+        // BFS queue (parent_id, parent_input, href)
+        // parent_id is None when root
+        // href is None when first page added
+        type LinkItem = (Option<SiteId>, Input, Option<String>);
+
+        let mut queue = VecDeque::<LinkItem>::new();
+        queue.push_front((parent, input.clone(), None));
+
+        fn visit(
+            tree: &mut SiteTree,
+            queue: &mut VecDeque<LinkItem>,
+        ) -> Result<Option<SiteId>, LssgError> {
+            let Some((parent_id, parent_input, href)) = queue.pop_front() else {
+                return Ok(None);
+            };
+            let input = match href.as_ref() {
+                Some(href) => match parent_input.new(href) {
+                    Ok(input) => input,
+                    Err(e) => {
+                        warn!("Invalid path {href}: {e}");
+                        return Ok(None);
+                    }
+                },
+                None => parent_input,
+            };
+
+            let child_id = if SiteNodeKind::input_is_page(&input) {
+                if let Some(&existing_id) = tree.input_to_id.get(&input) {
+                    existing_id
+                } else {
+                    let new_id = tree.add_page(input.clone(), parent_id)?;
+                    // Queue the new page's links and images
+                    if let SiteNodeKind::Page(page) = &tree.nodes[*new_id].kind {
+                        queue.extend(
+                            page.links()
+                                .into_iter()
+                                .filter_map(|(_, href, ..)| {
+                                    if !Page::is_href_to_page(href) {
+                                        return None;
+                                    }
+                                    Some((Some(new_id), input.clone(), Some(href.clone())))
+                                })
+                                .chain(page.images().into_iter().map(|(_, src, _)| {
+                                    (Some(new_id), input.clone(), Some(src.clone()))
+                                })),
+                        );
+                    }
+                    new_id
+                }
+            } else {
+                // input can only be added under an input
+                let Some(parent_id) = parent_id else {
+                    log::error!("Cant add resources without a parent: {input:?}");
+                    return Ok(None);
+                };
+                match tree.add_from_input(input.clone(), parent_id) {
+                    Ok(id) => id,
+                    Err(e) => {
+                        log::error!("Failed to add {input}: {e}");
+                        return Ok(None);
+                    }
+                }
+            };
+
+            if let Some(parent) = parent_id
+                && let Some(href) = href
+            {
+                tree.rel_graph
+                    .add(parent, child_id, Relation::Discovered { raw_path: href });
+            }
+
+            visit(tree, queue)?;
+
+            Ok(Some(child_id))
         }
 
-        // create early because of the need of an parent id
+        let id =
+            visit(self, &mut queue)?.ok_or(LssgError::io(format!("Failed to add {input:?}")))?;
+        Ok(id)
+    }
+
+    fn add_page(&mut self, input: Input, parent: Option<SiteId>) -> Result<SiteId, LssgError> {
+        let parent = parent.map(|p| self.create_folders(&input, p));
         let page = Page::from_input(&input)?;
         let id = self.add(SiteNode {
             name: input.filestem().unwrap_or("root".to_string()),
-            parent,
+            parent: parent,
             children: vec![],
             kind: SiteNodeKind::Page(page),
         });
 
-        // register input
+        // Register the new page
         self.input_to_id.insert(input.clone(), id);
         self.id_to_input.insert(id, input.clone());
-
-        let page = match &self.nodes[*id].kind {
-            SiteNodeKind::Page(page) => page,
-            _ => panic!("has to be page"),
-        };
-
-        // BFS queue (parent_id, parent_input, link_type, href)
-        let mut bfs_queue: VecDeque<(SiteId, Input, LinkType, String)> = page
-            .links()
-            .into_iter()
-            .map(|(text, href, ..)| {
-                let link_type = if text.is_empty() {
-                    LinkType::EmptyText
-                } else if Page::is_href_to_page(href) {
-                    LinkType::Page
-                } else {
-                    LinkType::Other
-                };
-                (id, input.clone(), link_type, href.clone())
-            })
-            .chain(
-                page.images()
-                    .into_iter()
-                    .filter(|(_, src, _)| Input::is_relative(src))
-                    .map(|(_, src, _)| (id, input.clone(), LinkType::Image, src.clone())),
-            )
-            .collect();
-
-        while let Some((parent_id, parent_input, link_type, href)) = bfs_queue.pop_front() {
-            let new_input = match parent_input.new(&href) {
-                Ok(input) => input,
-                Err(e) => {
-                    warn!("Invalid path {href}: {e}");
-                    continue;
-                }
-            };
-
-            match link_type {
-                LinkType::EmptyText => {
-                    let child_id = self.add_from_input(new_input, parent_id)?;
-                    self.rel_graph.add(
-                        parent_id,
-                        child_id,
-                        Relation::Discovered { raw_path: href },
-                    );
-                }
-                LinkType::Page => {
-                    // Check if page already exists
-                    if let Some(&existing_id) = self.input_to_id.get(&new_input) {
-                        self.rel_graph.add(
-                            parent_id,
-                            existing_id,
-                            Relation::Discovered { raw_path: href },
-                        );
-                        continue;
-                    }
-
-                    // Create folders and add the page
-                    let page_parent = Some(self.create_folders(&new_input, parent_id));
-                    let page = Page::from_input(&new_input)?;
-                    let new_id = self.add(SiteNode {
-                        name: new_input.filestem().unwrap_or("root".to_string()),
-                        parent: page_parent,
-                        children: vec![],
-                        kind: SiteNodeKind::Page(page),
-                    });
-
-                    // Register the new page
-                    self.input_to_id.insert(new_input.clone(), new_id);
-                    self.id_to_input.insert(new_id, new_input.clone());
-                    self.rel_graph
-                        .add(parent_id, new_id, Relation::Discovered { raw_path: href });
-
-                    // Queue the new page's links and images
-                    if let SiteNodeKind::Page(page) = &self.nodes[*new_id].kind {
-                        for (text, link_href, ..) in page.links() {
-                            let link_type = if text.is_empty() {
-                                LinkType::EmptyText
-                            } else if Page::is_href_to_page(link_href) {
-                                LinkType::Page
-                            } else {
-                                LinkType::Other
-                            };
-                            bfs_queue.push_back((
-                                new_id,
-                                new_input.clone(),
-                                link_type,
-                                link_href.clone(),
-                            ));
-                        }
-
-                        for (_, src, _) in page.images() {
-                            if Input::is_relative(src) {
-                                bfs_queue.push_back((
-                                    new_id,
-                                    new_input.clone(),
-                                    LinkType::Image,
-                                    src.clone(),
-                                ));
-                            }
-                        }
-                    }
-                }
-                LinkType::Image => {
-                    let child_id = self.add_from_input(new_input, parent_id)?;
-                    self.rel_graph.add(
-                        parent_id,
-                        child_id,
-                        Relation::Discovered { raw_path: href },
-                    );
-                }
-                LinkType::Other => {
-                    // Skip non-page, non-empty links
-                }
-            }
-        }
 
         Ok(id)
     }
 
     /// Add a stylesheet and all resources needed by the stylesheet
-    pub fn add_stylesheet_from_input(
+    fn add_stylesheet_from_input(
         &mut self,
         input: Input,
         mut parent: SiteId,
@@ -466,7 +413,6 @@ impl SiteTree {
             })
             .collect();
 
-        let parent = self.create_folders(&input, parent);
         let stylesheet_id = self.add(SiteNode {
             name: input.filename()?,
             parent: Some(parent),
