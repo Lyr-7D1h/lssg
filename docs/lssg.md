@@ -28,6 +28,10 @@ subject="technology"
 image="https://lyrx.dev/icon.png"
 -->
 
+[](./lib/fontawesome.css)
+[](./lib/fa-solid.css)
+[](./lib/fa-brands.css)
+
 [](./install.md)
 [](./usage.md)
 [](./configuration.md) 
@@ -38,6 +42,12 @@ image="https://lyrx.dev/icon.png"
 [](./tutorials.md)
 
 # Lyr's Static Site Generator
+
+<p style="text-align: left">
+[<i class="fa-brands fa-github"></i>Repository](https://github.com/Lyr-7D1h/lssg)
+[<i class="fa-brands fa-rust"></i>Crates.io](https://crates.io/crates/lssg)
+</p>
+
 
 Recursively generate static html, css, js files from a single markdown file.
 

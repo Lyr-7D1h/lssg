@@ -4,12 +4,12 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-use crate::{path_extension::PathExtension, sitetree::SiteId, tree::Node, LssgError};
+use crate::{LssgError, path_extension::PathExtension, sitetree::SiteId, tree::Node};
 use pathdiff::diff_paths;
 use reqwest::Url;
 
 use super::stylesheet::Stylesheet;
-use super::{page::Page, Resource};
+use super::{Resource, page::Page};
 
 /// Resolve `.` and `..` components
 fn normalize_path(path: &Path) -> PathBuf {
@@ -67,8 +67,7 @@ impl Input {
                     } else {
                         from_path
                     };
-                    diff_paths(to_path, from_path)
-                        .and_then(|p| p.to_str().map(|s| s.to_string()))
+                    diff_paths(to_path, from_path).and_then(|p| p.to_str().map(|s| s.to_string()))
                 }
                 _ => None,
             },
@@ -86,6 +85,11 @@ impl Input {
 
     /// Create a new Input with path relative to `self` or absolute path
     pub fn new(&self, path_string: &str) -> Result<Input, LssgError> {
+        // if empty just return a clone
+        if path_string.is_empty() {
+            return Ok(self.clone());
+        }
+
         // return new if absolute
         if path_string.starts_with("http") {
             let url = Url::parse(path_string).map_err(|e| LssgError::parse(e.to_string()))?;
@@ -117,12 +121,30 @@ impl Input {
                 }
                 Input::External { url } => {
                     // relative url path
-                    let url = url.join(path_string).unwrap(); // TODO check if cannonical
+                    let url = url
+                        .join(path_string)
+                        .map_err(|e| LssgError::parse(e.to_string()))?;
                     Ok(Input::External { url })
                 }
             }
         }
     }
+
+    /// Check if the input exists (local file exists or external URL is reachable)
+    pub fn exists(&self) -> bool {
+        match self {
+            Input::Local { path } => path.exists(),
+            Input::External { url } => {
+                // Try to make a HEAD request to check if URL is reachable
+                reqwest::blocking::Client::new()
+                    .head(url.clone())
+                    .send()
+                    .map(|response| response.status().is_success())
+                    .unwrap_or(false)
+            }
+        }
+    }
+
     pub fn filestem(&self) -> Result<String, LssgError> {
         match self {
             Input::Local { path } => path.filestem_from_path(),

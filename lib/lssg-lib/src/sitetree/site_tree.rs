@@ -335,7 +335,11 @@ impl SiteTree {
                             page.links()
                                 .into_iter()
                                 .filter_map(|(_, href, ..)| {
-                                    if !Page::is_href_to_page(href) {
+                                    if !Input::is_relative(href) {
+                                        return None;
+                                    }
+                                    if !input.new(href).ok().is_some_and(|i| i.exists()) {
+                                        log::info!("Ignoring {href}, does not exist or not valid");
                                         return None;
                                     }
                                     Some((Some(new_id), input.clone(), Some(href.clone())))

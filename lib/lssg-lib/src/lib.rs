@@ -113,7 +113,9 @@ impl Lssg {
                     stylesheet.write(&path)?;
                 }
                 SiteNodeKind::Resource(resource) => {
-                    resource.write(&path)?;
+                    if let Err(e) = resource.write(&path) {
+                        log::error!("Failed to write resource to {path:?}: {e}")
+                    }
                 }
                 SiteNodeKind::Folder => {
                     info!("Creating folder {path:?}",);

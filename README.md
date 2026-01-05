@@ -1,5 +1,7 @@
 # Lyr's Static Site Generator
 
+[![Crates.io](https://img.shields.io/crates/v/lssg.svg)](https://crates.io/crates/lssg)
+
 Recursively generate static html, css, js files from a single markdown file.
 
 This uses a custom Markdown parser which will not necessarily follow [official specifications](https://commonmark.org/). I'm making it to support custom html elements inside of the markdown better. Writing a custom parser makes bugs more likely, PR's are welcome!
