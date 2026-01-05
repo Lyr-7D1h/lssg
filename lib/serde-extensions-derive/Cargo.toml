@@ -1,10 +1,13 @@
 [package]
 name = "serde-extensions-derive"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
 authors = ["Lyr-7D1h <lyr-7d1h@pm.me>"]
 license = "MIT"
 description = "Extensions for serde serializable structs"
+repository = "https://github.com/Lyr-7D1h/lssg"
+keywords = ["serde", "derive", "macro", "overwrite"]
+categories = ["encoding"]
 
 [lib]
 proc-macro = true

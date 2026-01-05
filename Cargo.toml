@@ -9,17 +9,18 @@ repository = "https://github.com/Lyr-7D1h/lssg"
 keywords = ["ssg", "markdown", "parser"]
 categories = ["web-programming"]
 readme = "README.md"
+exclude = ["docs", "examples", "build"]
 
 [dependencies]
-simple_logger = "4.2.0"
-clap = { version = "4.4.6", features = ["derive"] }
-lssg-lib = { path = "./lib/lssg-lib/" }
-log = "0.4.20"
-regex = "1.10.4"
+simple_logger = "5.1.0"
+clap = { version = "4.5.54", features = ["derive"] }
+lssg-lib = { path = "./lib/lssg-lib/", version = "1.0.0" }
+log = "0.4.29"
+regex = "1.12.2"
 
 [workspace]
 members = [
-  "lib/char-reader",
+  "lib/lssg-char-reader",
   "lib/lssg-lib",
   "lib/proc-virtual-dom",
   "lib/serde-extensions",

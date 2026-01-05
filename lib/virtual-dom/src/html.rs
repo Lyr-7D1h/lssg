@@ -1,6 +1,6 @@
 use std::{collections::HashMap, io, io::Read};
 
-use char_reader::CharReader;
+use lssg_char_reader::CharReader;
 
 use crate::DomNode;
 
@@ -206,9 +206,7 @@ type Element = (String, HashMap<String, String>, Option<String>);
 /// parse html from start to end and return (tag, attributes, innerHtml)
 ///
 /// seperated to make logic more reusable
-fn element(
-    reader: &mut CharReader<impl Read>,
-) -> Result<Option<Element>, io::Error> {
+fn element(reader: &mut CharReader<impl Read>) -> Result<Option<Element>, io::Error> {
     if let Some('<') = reader.peek_char(0)? {
         if let Some((tag, attributes, tag_content_length, void_element)) =
             element_start_tag(reader)?

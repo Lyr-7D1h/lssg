@@ -1,0 +1,12 @@
+[package]
+name = "lssg-char-reader"
+version = "1.0.0"
+edition = "2021"
+authors = ["Lyr-7D1h <lyr-7d1h@pm.me>"]
+description = "A simple streaming character reader useful for parsing"
+license = "MIT"
+repository = "https://github.com/Lyr-7D1h/lssg"
+keywords = ["parser", "reader", "streaming", "character", "lexer"]
+categories = ["parser-implementations", "text-processing"]
+
+[dependencies]

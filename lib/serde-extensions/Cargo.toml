@@ -1,16 +1,19 @@
 [package]
 name = "serde-extensions"
-version = "0.1.1"
+version = "1.0.0"
 edition = "2021"
 authors = ["Lyr-7D1h <lyr-7d1h@pm.me>"]
 description = "Extensions for serde serializable structs"
 license = "MIT"
+repository = "https://github.com/Lyr-7D1h/lssg"
+keywords = ["serde", "overwrite", "merge", "config"]
+categories = ["encoding"]
 readme = "README.md"
 
 [dependencies]
-serde-extensions-derive = { version = "0.1.0", path = "../serde-extensions-derive" }
-serde = {version="1.0.192", features = ["derive"]}
-serde-value = "0.7"
+serde-extensions-derive = { version = "^1.0", path = "../serde-extensions-derive" }
+serde = { version = "1.0.228", features = ["derive"] }
+serde-value = "0.7.0"
 
 [dev-dependencies]
-toml = "0.8.8"
+toml = "0.9.8"

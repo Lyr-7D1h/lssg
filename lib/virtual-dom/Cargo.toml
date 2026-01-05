@@ -1,7 +1,13 @@
 [package]
 name = "virtual-dom"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
+authors = ["Lyr-7D1h <lyr-7d1h@pm.me>"]
+license = "MIT"
+description = "A virtual DOM implementation for HTML manipulation"
+repository = "https://github.com/Lyr-7D1h/lssg"
+keywords = ["virtual-dom", "html", "dom", "parser"]
+categories = ["parser-implementations", "web-programming"]
 
 [dependencies]
-char-reader = {path="../char-reader"}
+lssg-char-reader = { path = "../lssg-char-reader", version = "^1.0" }
