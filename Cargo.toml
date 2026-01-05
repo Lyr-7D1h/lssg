@@ -1,6 +1,6 @@
 [package]
 name = "lssg"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2024"
 authors = ["Lyr-7D1h <lyr-7d1h@pm.me>"]
 license = "MIT"
@@ -14,7 +14,7 @@ exclude = ["docs", "examples", "build"]
 [dependencies]
 simple_logger = "5.1.0"
 clap = { version = "4.5.54", features = ["derive"] }
-lssg-lib = { path = "./lib/lssg-lib/", version = "1.0.0" }
+lssg-lib = { path = "./lib/lssg-lib/", version = "1.0.1" }
 log = "0.4.29"
 regex = "1.12.2"
 
