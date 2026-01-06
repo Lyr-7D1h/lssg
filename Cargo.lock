@@ -856,6 +856,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde-extensions",
+ "serde-value",
  "toml",
  "virtual-dom",
  "webp",

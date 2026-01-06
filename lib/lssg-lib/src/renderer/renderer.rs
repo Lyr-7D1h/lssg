@@ -31,7 +31,7 @@ impl Renderer {
             .filter_map(|(i, module)| match module.init(site_tree) {
                 Ok(_) => None,
                 Err(e) => {
-                    error!("Failed to do site_init on {}: {e}", module.id());
+                    error!("Failed to initialize for module '{}': {e}", module.id());
                     Some(i)
                 }
             })
@@ -51,7 +51,10 @@ impl Renderer {
             .filter_map(|(i, module)| match module.after_init(site_tree) {
                 Ok(_) => None,
                 Err(e) => {
-                    error!("Failed to do site_init on {}: {e}", module.id());
+                    error!(
+                        "Failed to run after initialize for module '{}': {e}",
+                        module.id()
+                    );
                     Some(i)
                 }
             })

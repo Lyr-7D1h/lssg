@@ -5,7 +5,11 @@ head=[
 ]
 root=true
 
-[nav]
+
+[[nav]]
+kind = "breadcrumbs"
+use_global_root = true
+[[nav]]
 kind = "sidemenu"
 include_root = true
 [nav.name_map]

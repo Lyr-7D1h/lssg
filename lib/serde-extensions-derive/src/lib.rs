@@ -77,21 +77,3 @@ fn impl_optional_macro(ast: &syn::DeriveInput) -> TokenStream {
     };
     gen.into()
 }
-
-// fn is_vec_type(ty: &Type) -> bool {
-//     if let Type::Path(path) = ty {
-//         if let Some(segment) = path.path.segments.last() {
-//             return segment.ident.to_string() == "Vec";
-//         }
-//     }
-//     false
-// }
-//
-// fn is_hashmap_type(ty: &Type) -> bool {
-//     if let Type::Path(path) = ty {
-//         if let Some(segment) = path.path.segments.last() {
-//             return segment.ident.to_string() == "HashMap";
-//         }
-//     }
-//     false
-// }

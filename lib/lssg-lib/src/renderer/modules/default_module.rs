@@ -11,7 +11,7 @@ use serde_extensions::Overwrite;
 use crate::{
     lmarkdown::Token,
     lssg_error::LssgError,
-    renderer::modules::default_module::nav::NavOptions,
+    renderer::{modules::default_module::nav::NavOptions, util::OneOrManyOption},
     sitetree::{
         Input, Page, Relation, Resource, SiteId, SiteNode, SiteNodeKind, SiteTree, Stylesheet,
     },
@@ -68,7 +68,7 @@ struct PropegatedOptions {
     pub head: Vec<String>,
     /// Custom html fields in the footer
     pub footer: FooterOptions,
-    pub nav: NavOptions,
+    pub nav: OneOrManyOption<NavOptions>,
     /// Enable section links on h2 headers (default: true)
     pub section_links: bool,
 }
@@ -81,7 +81,7 @@ impl Default for PropegatedOptions {
             language: "en".into(),
             head: vec![],
             footer: FooterOptions::default(),
-            nav: NavOptions::default(),
+            nav: OneOrManyOption::One(NavOptions::default()),
             section_links: true,
         }
     }
@@ -101,9 +101,7 @@ pub struct SinglePageOptions {
     pub root: bool,
 }
 
-fn create_options_map(
-    site_tree: &SiteTree,
-) -> Result<HashMap<SiteId, PropegatedOptionsWithRoot>, LssgError> {
+fn create_options_map(site_tree: &SiteTree) -> HashMap<SiteId, PropegatedOptionsWithRoot> {
     let mut options_map: HashMap<SiteId, PropegatedOptionsWithRoot> = HashMap::new();
     for id in Dfs::new(site_tree) {
         if let SiteNodeKind::Page(page) = &site_tree[id].kind {
@@ -129,7 +127,10 @@ fn create_options_map(
             if let Some(attributes) = page.attributes() {
                 options
                     .overwrite(attributes)
-                    .map_err(|e| LssgError::parse(format!("Failed to parse options: {e}")))?;
+                    .inspect_err(|e| {
+                        log::error!("Failed to parse options for page {id}, using defaults: {e}")
+                    })
+                    .unwrap_or_default();
             }
 
             options_map.insert(
@@ -141,7 +142,7 @@ fn create_options_map(
             );
         }
     }
-    Ok(options_map)
+    options_map
 }
 
 /// Render everything meant to go into <head>
@@ -405,7 +406,7 @@ impl RendererModule for DefaultModule {
 
     fn after_init(&mut self, site_tree: &SiteTree) -> Result<(), LssgError> {
         // save options map after site tree has been created to get all pages
-        self.options_map = create_options_map(site_tree)?;
+        self.options_map = create_options_map(site_tree);
         Ok(())
     }
 

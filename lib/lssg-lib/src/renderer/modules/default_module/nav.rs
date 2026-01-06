@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_extensions::Overwrite;
 use virtual_dom::{Document, DomNode, to_attributes};
 
@@ -8,7 +8,7 @@ use crate::renderer::RenderContext;
 
 use super::PropegatedOptionsWithRoot;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum NavKind {
     Breadcrumbs,
@@ -16,20 +16,31 @@ pub enum NavKind {
     SideMenu,
     None,
 }
+impl Overwrite for NavKind {
+    fn overwrite<'de, D>(&mut self, d: D) -> Result<(), D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        *self = Deserialize::deserialize(d)?;
+        Ok(())
+    }
+}
 
-#[derive(Debug, Clone, Deserialize, Overwrite)]
+#[derive(Debug, Clone, Deserialize, Serialize, Overwrite)]
 pub(super) struct NavOptions {
-    kind: Option<NavKind>,
-    include_root: Option<bool>,
-    name_map: Option<HashMap<String, String>>,
+    kind: NavKind,
+    include_root: bool,
+    use_global_root: bool,
+    name_map: HashMap<String, String>,
 }
 
 impl Default for NavOptions {
     fn default() -> Self {
         Self {
-            kind: Some(NavKind::Breadcrumbs),
-            include_root: Some(false),
-            name_map: None,
+            kind: NavKind::Breadcrumbs,
+            include_root: true,
+            use_global_root: false,
+            name_map: HashMap::new(),
         }
     }
 }
@@ -38,6 +49,7 @@ fn breadcrumbs(
     document: &Document,
     ctx: &RenderContext,
     root_site_id: crate::sitetree::SiteId,
+    include_root: bool,
 ) -> DomNode {
     let site_id = ctx.site_id;
     let site_tree = ctx.site_tree;
@@ -49,14 +61,17 @@ fn breadcrumbs(
     let parents = site_tree.parents(site_id);
 
     // Filter parents to only include those up to (and including) the root_site_id
-    let filtered_parents: Vec<_> = parents
+    let mut filtered_parents = parents
         .into_iter()
         .rev()
         .skip_while(|p| *p != root_site_id)
-        .collect();
+        .peekable();
 
-    let parents_length = filtered_parents.len();
-    for (i, p) in filtered_parents.into_iter().enumerate() {
+    if !include_root {
+        filtered_parents.next();
+    }
+
+    while let Some(p) = filtered_parents.next() {
         let el = match &site_tree[p].kind {
             crate::sitetree::SiteNodeKind::Page(_) => document.create_element_with_attributes(
                 "a",
@@ -67,7 +82,7 @@ fn breadcrumbs(
         };
         el.append_child(document.create_text_node(site_tree[p].name.clone()));
         nav.append_child(el);
-        if i != parents_length - 1 {
+        if filtered_parents.peek().is_some() {
             nav.append_child(document.create_text_node("/"));
         }
     }
@@ -75,15 +90,11 @@ fn breadcrumbs(
     nav
 }
 
-fn format_node_name(name: &str, name_map: Option<&HashMap<String, String>>) -> String {
-    // Check if there's a custom mapping for this name
-    if let Some(map) = name_map {
-        map.get(name)
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| name.to_string())
-    } else {
-        name.to_string()
-    }
+fn format_node_name(name: &str, name_map: &HashMap<String, String>) -> String {
+    name_map
+        .get(name)
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| name.to_string())
 }
 
 fn side_menu(
@@ -91,7 +102,7 @@ fn side_menu(
     ctx: &RenderContext,
     root_site_id: crate::sitetree::SiteId,
     include_root: bool,
-    name_map: Option<&HashMap<String, String>>,
+    name_map: &HashMap<String, String>,
 ) -> DomNode {
     let site_id = ctx.site_id;
     let site_tree = ctx.site_tree;
@@ -152,7 +163,7 @@ fn build_menu_tree(
     node_id: crate::sitetree::SiteId,
     current_id: crate::sitetree::SiteId,
     depth: usize,
-    name_map: Option<&HashMap<String, String>>,
+    name_map: &HashMap<String, String>,
 ) -> DomNode {
     let ul = document.create_element("ul");
 
@@ -202,27 +213,30 @@ fn build_menu_tree(
 }
 
 pub fn nav(opts_wrapper: &PropegatedOptionsWithRoot, document: &mut Document, ctx: &RenderContext) {
-    if let Some(kind) = &opts_wrapper.options.nav.kind {
+    for opt in opts_wrapper.options.nav.as_slice().iter() {
         // Use root_site_id from the wrapper or fall back to the site tree root
-        let root_id = opts_wrapper
-            .root_site_id
-            .unwrap_or_else(|| ctx.site_tree.root());
-
-        let el = match kind {
-            NavKind::None => return,
-            NavKind::Breadcrumbs => {
-                // don't show breadcrumbs on root
-                if ctx.site_id == root_id {
-                    return;
-                }
-                breadcrumbs(document, ctx, root_id)
-            }
-            NavKind::SideMenu => {
-                let include_root = opts_wrapper.options.nav.include_root.unwrap_or(false);
-                let name_map = opts_wrapper.options.nav.name_map.as_ref();
-                side_menu(document, ctx, root_id, include_root, name_map)
-            }
+        let root_id = if opt.use_global_root {
+            ctx.site_tree.root()
+        } else {
+            opts_wrapper
+                .root_site_id
+                .unwrap_or_else(|| ctx.site_tree.root())
         };
+
+        let name_map = &opt.name_map;
+        let include_root = opt.include_root;
+        let el = match opt.kind {
+            NavKind::None => continue,
+            NavKind::Breadcrumbs => {
+                // never show root on breadcrumbs
+                if ctx.site_id == root_id {
+                    continue;
+                }
+                breadcrumbs(document, ctx, root_id, include_root)
+            }
+            NavKind::SideMenu => side_menu(document, ctx, root_id, include_root, name_map),
+        };
+
         document.body.prepend(el);
     }
 }
