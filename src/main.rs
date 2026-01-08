@@ -14,11 +14,16 @@ use simple_logger::SimpleLogger;
 #[derive(Parser, Debug)]
 #[command(
     author = "Lyr",
-    version = "0.1.0",
+    version = env!("CARGO_PKG_VERSION"),
     about = "Lyr's Static Site Generator - Command Line Interface",
-    long_about = "Generate static websites using the command line"
+    long_about = "Generate static websites using the command line",
+    disable_version_flag = true
 )]
 struct Args {
+    /// Print version information
+    #[arg(short = 'v', long = "version", action = clap::ArgAction::Version)]
+    version: (),
+
     /// a reference to the first markdown input file
     /// this can either be a path (eg. ./my_blog/index.md)
     /// or an url (eg. http://github.com/project/readme.md)
