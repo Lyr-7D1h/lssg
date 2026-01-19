@@ -9,20 +9,19 @@
 - [Alert support](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts)
 - Code highlighting support
 - Use [Shadow dom](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM) for encapsulating imported html pages to prevent conflicting js and css
+- Transforms html into lmarkdown
+    - enables archiving and a consistent view of content for non markdown pages. Think of old blogs or other content that you can integrate in your current setup
 - Support for relative base website.com/blog/index.html
     - See `<base href="http://yourdomain.com/">`
 - Update documentation
 - Make async
     - reqwest calls async
-- Add recovery and logging instead of panicking
-    - panic on broken link
 - Download and install links to external resources (fonts, CSS, enc.)
-- Make importing pages from notion easier
 - Don't load all files into memory, might cause issues for large resource files or big sites
-- Add file minification for CSS
+- Add file minification for CSS and JS
 - Improve blog module
     - tags
-    - Better index page
+    - Index page
         - Show and sort by date
         - Small blog post summary
 - Statistics module
