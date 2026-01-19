@@ -700,6 +700,12 @@ impl RendererModule for DefaultModule {
                 pre.append_child(code_html);
                 parent.append_child(pre)
             }
+            Token::Autolink { href, text } => {
+                let mut a = document.create_element("a");
+                a.set_attribute("href", href);
+                a.append_child(document.create_text_node(text));
+                parent.append_child(a);
+            }
             Token::Link {
                 tokens,
                 href,

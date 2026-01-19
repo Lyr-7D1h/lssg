@@ -2,6 +2,7 @@
 
 ## Planned Features
 
+- Full Github Markdown Flavor support https://github.github.com/gfm/#raw-html
 - YAML frontmatter metadata support
 - Trees like the ones https://owickstrom.github.io/the-monospace-web/
 - [Emoji support](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#using-emoji)

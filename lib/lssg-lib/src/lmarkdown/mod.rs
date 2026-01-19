@@ -503,4 +503,140 @@ test='<test></test>'
         let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
         assert_eq!(tokens, expected);
     }
+
+    // GFM Autolinks Extension Tests
+    // https://github.github.com/gfm/#autolinks-extension-
+
+    #[test]
+    fn test_autolink_www() {
+        // Example 622
+        let input = "www.commonmark.org";
+        let expected = vec![p(vec![Token::Autolink {
+            href: "http://www.commonmark.org".into(),
+            text: "www.commonmark.org".into(),
+        }])];
+        let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_autolink_www_with_path() {
+        // Example 623
+        let input = "Visit www.commonmark.org/help for more information.";
+        let expected = vec![p(vec![
+            text("Visit "),
+            Token::Autolink {
+                href: "http://www.commonmark.org/help".into(),
+                text: "www.commonmark.org/help".into(),
+            },
+            text(" for more information."),
+        ])];
+        let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_autolink_www_trailing_punctuation() {
+        // Example 624
+        let input = r#"Visit www.commonmark.org.
+Visit www.commonmark.org/a.b."#;
+        let expected = vec![Token::Paragraph {
+            text: "Visit www.commonmark.org.\nVisit www.commonmark.org/a.b.".into(),
+            tokens: vec![
+                text("Visit "),
+                Token::Autolink {
+                    href: "http://www.commonmark.org".into(),
+                    text: "www.commonmark.org".into(),
+                },
+                text("."),
+                Token::SoftBreak,
+                text("Visit "),
+                Token::Autolink {
+                    href: "http://www.commonmark.org/a.b".into(),
+                    text: "www.commonmark.org/a.b".into(),
+                },
+                text("."),
+            ],
+        }];
+        let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_autolink_http() {
+        // Example 629 - modified to match standard markdown behavior
+        // Single newline creates softbreak, not paragraph boundary
+        let input = r#"http://commonmark.org
+(Visit https://encrypted.google.com/search?q=Markup+(business))"#;
+        let expected = vec![Token::Paragraph {
+            text: "http://commonmark.org\n(Visit https://encrypted.google.com/search?q=Markup+(business))".into(),
+            tokens: vec![
+                Token::Autolink {
+                    href: "http://commonmark.org".into(),
+                    text: "http://commonmark.org".into(),
+                },
+                Token::SoftBreak,
+                text("(Visit "),
+                Token::Autolink {
+                    href: "https://encrypted.google.com/search?q=Markup+(business)".into(),
+                    text: "https://encrypted.google.com/search?q=Markup+(business)".into(),
+                },
+                text(")"),
+            ],
+        }];
+        let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_autolink_email() {
+        // Example 630
+        let input = "foo@bar.baz";
+        let expected = vec![p(vec![Token::Autolink {
+            href: "mailto:foo@bar.baz".into(),
+            text: "foo@bar.baz".into(),
+        }])];
+        let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_autolink_email_with_plus() {
+        // Example 631
+        let input = "hello@mail+xyz.example isn't valid, but hello+xyz@mail.example is.";
+        let expected = vec![p(vec![
+            text("hello@mail+xyz.example isn't valid, but "),
+            Token::Autolink {
+                href: "mailto:hello+xyz@mail.example".into(),
+                text: "hello+xyz@mail.example".into(),
+            },
+            text(" is."),
+        ])];
+        let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_autolink_not_in_angle_brackets() {
+        // Example 620 - http without angle brackets should autolink with extension
+        let input = "http://example.com";
+        let expected = vec![p(vec![Token::Autolink {
+            href: "http://example.com".into(),
+            text: "http://example.com".into(),
+        }])];
+        let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_autolink_email_not_in_angle_brackets() {
+        // Example 621 - email without angle brackets should autolink with extension
+        let input = "foo@bar.example.com";
+        let expected = vec![p(vec![Token::Autolink {
+            href: "mailto:foo@bar.example.com".into(),
+            text: "foo@bar.example.com".into(),
+        }])];
+        let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+        assert_eq!(tokens, expected);
+    }
 }

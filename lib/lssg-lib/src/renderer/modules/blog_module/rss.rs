@@ -93,9 +93,7 @@ impl RssFeed {
 
         // Set last build date to the most recent post's date if enabled
         if rss_opts.last_build_date_enabled.unwrap_or(true) {
-            feed.last_build_date = posts
-                .first()
-                .and_then(|(_, post)| post.dates.created_on);
+            feed.last_build_date = posts.first().and_then(|(_, post)| post.dates.created_on);
         }
 
         // Add RSS items for each post

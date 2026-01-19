@@ -93,11 +93,14 @@ impl<R: Read> CharReader<R> {
         Ok(result)
     }
     /// returns None if EOF is reached, to prevent false positives
-    pub fn peek_until_exclusive_from(
+    pub fn peek_until_exclusive_from<F>(
         &mut self,
         pos: usize,
-        op: fn(char) -> bool,
-    ) -> Result<Option<String>, ParseError> {
+        mut op: F,
+    ) -> Result<Option<String>, ParseError>
+    where
+        F: FnMut(char) -> bool,
+    {
         let mut i = pos;
         loop {
             match self.peek_char(i)? {
@@ -116,19 +119,22 @@ impl<R: Read> CharReader<R> {
     }
 
     /// returns None if EOF is reached, to prevent false positives
-    pub fn peek_until_inclusive(
-        &mut self,
-        op: fn(char) -> bool,
-    ) -> Result<Option<String>, ParseError> {
+    pub fn peek_until_inclusive<F>(&mut self, op: F) -> Result<Option<String>, ParseError>
+    where
+        F: FnMut(char) -> bool,
+    {
         self.peek_until_inclusive_from(0, op)
     }
 
     /// returns None if EOF is reached, to prevent false positives
-    pub fn peek_until_inclusive_from(
+    pub fn peek_until_inclusive_from<F>(
         &mut self,
         pos: usize,
-        op: fn(char) -> bool,
-    ) -> Result<Option<String>, ParseError> {
+        mut op: F,
+    ) -> Result<Option<String>, ParseError>
+    where
+        F: FnMut(char) -> bool,
+    {
         let mut i = pos;
         loop {
             match self.peek_char(i)? {
@@ -244,7 +250,10 @@ impl<R: Read> CharReader<R> {
     }
 
     /// Will read until eof or `op` is true including the true match
-    pub fn consume_until_inclusive(&mut self, op: fn(char) -> bool) -> Result<String, ParseError> {
+    pub fn consume_until_inclusive<F>(&mut self, mut op: F) -> Result<String, ParseError>
+    where
+        F: FnMut(char) -> bool,
+    {
         self.has_read = true;
         let mut result = String::new();
         while let Some(c) = self.consume_char()? {
@@ -257,7 +266,10 @@ impl<R: Read> CharReader<R> {
     }
 
     /// will read until eof or `op` is true excluding the character that matched
-    pub fn consume_until_exclusive(&mut self, op: fn(char) -> bool) -> Result<String, ParseError> {
+    pub fn consume_until_exclusive<F>(&mut self, mut op: F) -> Result<String, ParseError>
+    where
+        F: FnMut(char) -> bool,
+    {
         self.has_read = true;
         let mut i = 0;
         while let Some(c) = self.peek_char(i)? {

@@ -229,6 +229,20 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
             }
         }
 
+        // GFM autolinks extension - only at beginning of line, after whitespace, or after delimiters
+        let can_autolink = tokens.is_empty()
+            || matches!(
+                tokens.last(),
+                Some(Token::Text { text }) if text.ends_with(|c: char| c.is_whitespace() || matches!(c, '*' | '_' | '~' | '('))
+            )
+            || matches!(tokens.last(), Some(Token::SoftBreak | Token::HardBreak));
+        if can_autolink {
+            if let Some(autolink) = autolink(c, reader)? {
+                tokens.push(autolink);
+                continue;
+            }
+        }
+
         let c = reader.consume_char().unwrap().expect("has to be a char");
 
         // line breaks
@@ -263,4 +277,135 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
     }
 
     Ok(tokens)
+}
+
+fn strip_trailing_punctuation(url: &str) -> String {
+    let mut result = url.to_string();
+
+    loop {
+        let mut changed = false;
+
+        // Strip simple punctuation
+        while result.ends_with(|c: char| matches!(c, '.' | ',' | '!' | '?' | ':' | ';')) {
+            result.pop();
+            changed = true;
+        }
+
+        // Strip unbalanced closing parens
+        while result.ends_with(')') {
+            let open_count = result.matches('(').count();
+            let close_count = result.matches(')').count();
+
+            if close_count > open_count {
+                result.pop();
+                changed = true;
+            } else {
+                break;
+            }
+        }
+
+        if !changed {
+            break;
+        }
+    }
+
+    result
+}
+
+fn peek_until_whitespace_or_eof(reader: &mut CharReader<impl Read>) -> Result<String, ParseError> {
+    if let Some(text) =
+        reader.peek_until_exclusive_from(0, |c| c.is_whitespace() || c == '<' || c == '>')?
+    {
+        Ok(text)
+    } else {
+        // Reached EOF - get all remaining text
+        let mut len = 0;
+        while reader.peek_char(len)?.is_some() {
+            len += 1;
+        }
+        reader.peek_string(len)
+    }
+}
+
+fn consume_and_create_autolink(
+    reader: &mut CharReader<impl Read>,
+    text: String,
+    href: String,
+) -> Result<Token, ParseError> {
+    reader.consume(text.len())?;
+    Ok(Token::Autolink { href, text })
+}
+
+fn autolink(c: char, reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
+    // www. autolinks
+    if c == 'w' && "ww." == reader.peek_string_from(1, 3)? {
+        let full_text = peek_until_whitespace_or_eof(reader)?;
+
+        if let Some(domain_part) = full_text.strip_prefix("www.") {
+            let domain_end = domain_part
+                .char_indices()
+                .find(|(_, c)| !c.is_alphanumeric() && *c != '-' && *c != '_' && *c != '.')
+                .map(|(i, _)| i)
+                .unwrap_or(domain_part.len());
+
+            let domain = &domain_part[..domain_end];
+
+            if domain.contains('.') && domain.len() > 1 {
+                let url = strip_trailing_punctuation(&full_text);
+                return consume_and_create_autolink(reader, url.clone(), format!("http://{url}"))
+                    .map(Some);
+            }
+        }
+    }
+
+    // scheme-based URLs (http://, https://, ftp://, etc.)
+    if c.is_alphabetic() {
+        let potential_url = peek_until_whitespace_or_eof(reader)?;
+
+        if let Some(scheme_pos) = potential_url.find("://") {
+            let scheme = &potential_url[..scheme_pos];
+
+            if (2..=32).contains(&scheme.len())
+                && scheme
+                    .chars()
+                    .all(|c| c.is_alphanumeric() || matches!(c, '.' | '-' | '+'))
+            {
+                let url = strip_trailing_punctuation(&potential_url);
+
+                if url.len() > scheme_pos + 3 {
+                    return consume_and_create_autolink(reader, url.clone(), url).map(Some);
+                }
+            }
+        }
+    }
+
+    // Email autolinks
+    if c.is_alphanumeric() || matches!(c, '_' | '-' | '.') {
+        let potential_email = peek_until_whitespace_or_eof(reader)?;
+
+        if let Some(at_pos) = potential_email.find('@') {
+            let (local, domain) = (&potential_email[..at_pos], &potential_email[at_pos + 1..]);
+
+            if !local.is_empty()
+                && domain.contains('.')
+                && domain.len() > 2
+                && local
+                    .chars()
+                    .all(|c| c.is_alphanumeric() || matches!(c, '_' | '-' | '.' | '+'))
+                && domain
+                    .chars()
+                    .all(|c| c.is_alphanumeric() || matches!(c, '.' | '-'))
+            {
+                let email = strip_trailing_punctuation(&potential_email);
+                return consume_and_create_autolink(
+                    reader,
+                    email.clone(),
+                    format!("mailto:{email}"),
+                )
+                .map(Some);
+            }
+        }
+    }
+
+    Ok(None)
 }

@@ -175,6 +175,10 @@ pub enum Token {
         src: String,
         title: Option<String>,
     },
+    Autolink {
+        href: String,
+        text: String,
+    },
     Link {
         /// The text portion of a link that contains Tokens
         tokens: Vec<Token>,
@@ -237,6 +241,7 @@ impl Token {
             match self {
                 Token::Bold { text, .. } => text,
                 Token::Text { text, .. } => text,
+                Token::Autolink { text, .. } => text,
                 Token::SoftBreak => " ",
                 _ => return None,
             }
@@ -245,14 +250,17 @@ impl Token {
     }
 
     pub fn is_block_token(&self) -> bool {
-        matches!(self, Token::Attributes { .. }
-            | Token::BulletList { .. }
-            | Token::OrderedList { .. }
-            | Token::Heading { .. }
-            | Token::Html { .. }
-            | Token::Paragraph { .. }
-            | Token::BlockQuote { .. }
-            | Token::Table { .. }
-            | Token::CodeBlock { .. })
+        matches!(
+            self,
+            Token::Attributes { .. }
+                | Token::BulletList { .. }
+                | Token::OrderedList { .. }
+                | Token::Heading { .. }
+                | Token::Html { .. }
+                | Token::Paragraph { .. }
+                | Token::BlockQuote { .. }
+                | Token::Table { .. }
+                | Token::CodeBlock { .. }
+        )
     }
 }
