@@ -2,13 +2,14 @@ use log::error;
 use serde_extensions::Overwrite;
 
 use crate::{
+    LssgError,
     lmarkdown::Token,
     sitetree::{Page, SiteTree},
-    LssgError,
 };
 use virtual_dom::{Document, DomNode};
 
 mod external_module;
+pub mod model_module;
 pub use external_module::*;
 mod blog_module;
 pub use blog_module::*;
@@ -21,6 +22,13 @@ pub mod util;
 use super::{RenderContext, TokenRenderer};
 
 /// Implement a custom RendererModule
+///
+/// Function order:
+/// ```
+/// | Changing site tree | Look at final site tree | Page Rendering
+/// init()               -> after_init()           -> render_page() -> render_body() -> after_render()
+/// ```
+///
 #[allow(unused)]
 pub trait RendererModule {
     /// Return a static identifier for this module
@@ -41,11 +49,7 @@ pub trait RendererModule {
     /// Modify DomTree before rendering page
     ///
     /// return Some(String) if you want to render the page yourself and ignore renderer for this page
-    fn render_page<'n>(
-        &mut self,
-        dom: &mut Document,
-        context: &RenderContext<'n>,
-    ) -> Option<String> {
+    fn render_page<'n>(&mut self, dom: &mut Document, ctx: &RenderContext<'n>) -> Option<String> {
         None
     }
 
@@ -55,7 +59,7 @@ pub trait RendererModule {
     fn render_body<'n>(
         &mut self,
         document: &mut Document,
-        context: &RenderContext<'n>,
+        ctx: &RenderContext<'n>,
         parent: DomNode,
         token: &Token,
         tr: &mut TokenRenderer,
@@ -64,7 +68,7 @@ pub trait RendererModule {
     }
 
     /// Gets called after body has been rendered, can be used for final changes to the dom
-    fn after_render<'n>(&mut self, document: &mut Document, context: &RenderContext<'n>) {}
+    fn after_render<'n>(&mut self, document: &mut Document, ctx: &RenderContext<'n>) {}
 
     /// get options by overwriting provided `default` with Token::Attributes
     fn options_with_default<D: Overwrite + Default>(&self, page: &Page, mut default: D) -> D
@@ -81,9 +85,10 @@ pub trait RendererModule {
             }
 
             if let Some(v) = toml.get(self.id())
-                && let Err(e) = default.overwrite(v.clone()) {
-                    error!("Failed to parse options for '{}' module: {e}", self.id())
-                }
+                && let Err(e) = default.overwrite(v.clone())
+            {
+                error!("Failed to parse options for '{}' module: {e}", self.id())
+            }
         }
         default
     }
@@ -104,9 +109,10 @@ pub trait RendererModule {
             }
 
             if let Some(v) = toml.get(self.id())
-                && let Err(e) = o.overwrite(v.clone()) {
-                    error!("Failed to parse options for '{}' module: {e}", self.id())
-                }
+                && let Err(e) = o.overwrite(v.clone())
+            {
+                error!("Failed to parse options for '{}' module: {e}", self.id())
+            }
         }
         o
     }

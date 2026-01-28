@@ -22,8 +22,8 @@ impl std::fmt::Debug for Resource {
 }
 
 impl Resource {
-    pub fn new_fetched(input: Input) -> Result<Resource, LssgError> {
-        Ok(Resource::Fetched { input })
+    pub fn new_fetched(input: Input) -> Resource {
+        Resource::Fetched { input }
     }
 
     pub fn from_readable(mut content: impl Read) -> Result<Resource, LssgError> {

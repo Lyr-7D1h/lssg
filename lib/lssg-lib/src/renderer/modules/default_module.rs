@@ -228,7 +228,6 @@ fn head(document: &mut Document, context: &RenderContext, options: &PropegatedOp
                 }
                 _ => {}
             },
-            _ => {}
         }
     }
 
@@ -364,7 +363,7 @@ impl RendererModule for DefaultModule {
             )),
         ];
         for id in default_links.iter() {
-            site_tree.add_link(site_tree.root(), *id);
+            site_tree.add_link(site_tree.root(), *id, Relation::External);
         }
 
         let mut relation_map: HashMap<SiteId, Vec<SiteId>> = HashMap::new();
@@ -387,7 +386,6 @@ impl RendererModule for DefaultModule {
                             _ => None,
                         }
                     }
-                    _ => None,
                 })
                 .collect();
 
@@ -414,7 +412,7 @@ impl RendererModule for DefaultModule {
                 .cloned()
                 .collect();
             for to in new_links.iter() {
-                site_tree.add_link(id, *to);
+                site_tree.add_link(id, *to, Relation::External);
             }
             new_links.extend(set.iter());
             relation_map.insert(id, new_links);

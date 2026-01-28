@@ -543,6 +543,20 @@ body:has(.default__side-menu) #default__content {
   }
 }
 
+/* Fix model-viewer height in carousel */
+.default__carausel_slide_inner model-viewer {
+  height: min(500px, 60vh);
+  width: 100%;
+  min-height: 300px;
+}
+
+@media only screen and (max-width: 768px) {
+  .default__carousel model-viewer {
+    height: min(400px, 50vh);
+    min-height: 250px;
+  }
+}
+
 @media only screen and (max-width: 480px) {
   .default__carausel_thumb {
     width: 70px;

@@ -2,13 +2,11 @@ use std::ops::{Index, IndexMut};
 
 use crate::sitetree::SiteId;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Relation {
-    /// Parent-child relationship
-    Family,
-    /// Relation set by module logic
+    /// Related externally, meaning without a discovered path
     External,
-    /// Found relation by parsing a file
+    /// Found relation by parsing a file and finding a path
     Discovered { raw_path: String },
 }
 
@@ -45,6 +43,7 @@ impl RelationalGraph {
         self[to].push(link.clone());
     }
 
+    /// Get all the links from `node_id` to nodes
     pub fn links_from(&self, node_id: SiteId) -> Vec<&Link> {
         self.links[*node_id]
             .iter()

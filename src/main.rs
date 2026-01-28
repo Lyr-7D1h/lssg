@@ -5,7 +5,9 @@ use clap::Parser;
 use lssg_lib::{
     Lssg,
     lmarkdown::parse_lmarkdown,
-    renderer::{BlogModule, DefaultModule, ExternalModule, MediaModule, Renderer},
+    renderer::{
+        BlogModule, DefaultModule, ExternalModule, MediaModule, Renderer, model_module::ModelModule,
+    },
     sitetree::{Input, SiteTree},
 };
 use simple_logger::SimpleLogger;
@@ -66,18 +68,19 @@ fn main() {
         return;
     }
 
+    let mut renderer = Renderer::default();
+    renderer.add_module(ModelModule::default());
+    renderer.add_module(ExternalModule::default());
+    renderer.add_module(BlogModule::default());
+    if !args.no_media_optimization {
+        renderer.add_module(MediaModule::default());
+    }
+    renderer.add_module(DefaultModule::default());
+
     if args.single_page {
         let mut site_tree =
             SiteTree::from_input(input.clone()).expect("Failed to generate site tree");
 
-        let mut renderer = Renderer::default();
-        renderer.add_module(ExternalModule::default());
-        let blog = BlogModule::default();
-        renderer.add_module(blog);
-        if !args.no_media_optimization {
-            renderer.add_module(MediaModule::default());
-        }
-        renderer.add_module(DefaultModule::default());
         renderer.init(&mut site_tree);
         renderer.after_init(&site_tree);
         let html = renderer
@@ -89,12 +92,6 @@ fn main() {
 
     // At this point we know output is Some(_) because of required_unless_present_any
     let output = args.output.unwrap();
-    let mut lssg = Lssg::new(input, output);
-    lssg.add_module(ExternalModule::default());
-    lssg.add_module(BlogModule::default());
-    if !args.no_media_optimization {
-        lssg.add_module(MediaModule::default());
-    }
-    lssg.add_module(DefaultModule::default());
+    let mut lssg = Lssg::new(input, output, renderer);
     lssg.render().expect("Failed to render");
 }

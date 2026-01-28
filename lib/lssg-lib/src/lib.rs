@@ -33,7 +33,7 @@ use std::{
 
 use log::info;
 use lssg_error::LssgError;
-use renderer::{Renderer, RendererModule};
+use renderer::Renderer;
 use sitetree::Input;
 
 use crate::{
@@ -48,17 +48,12 @@ pub struct Lssg {
 }
 
 impl Lssg {
-    pub fn new(input: Input, output_directory: PathBuf) -> Lssg {
-        let renderer = Renderer::default();
+    pub fn new(input: Input, output_directory: PathBuf, renderer: Renderer) -> Lssg {
         Lssg {
             input,
             output_directory,
             renderer,
         }
-    }
-
-    pub fn add_module(&mut self, module: impl RendererModule + 'static) {
-        self.renderer.add_module(module)
     }
 
     pub fn render(&mut self) -> Result<(), LssgError> {

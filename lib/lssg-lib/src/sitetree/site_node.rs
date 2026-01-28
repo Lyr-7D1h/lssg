@@ -89,7 +89,7 @@ impl Input {
     }
 
     /// Create a new Input with path relative to `self` or absolute path
-    pub fn new(&self, path_string: &str) -> Result<Input, LssgError> {
+    pub fn join(&self, path_string: &str) -> Result<Input, LssgError> {
         // if empty just return a clone
         if path_string.is_empty() {
             return Ok(self.clone());
