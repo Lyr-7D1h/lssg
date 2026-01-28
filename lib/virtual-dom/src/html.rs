@@ -44,6 +44,7 @@ fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, io::Er
     let mut key = String::new();
     let mut value = String::new();
     let mut in_value = false;
+    let mut quote_char: Option<char> = None;
     let mut i = 0;
     while i < chars.len() {
         match chars[i] {
@@ -56,9 +57,10 @@ fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, io::Er
                 }
             }
             '=' => match chars.get(i + 1) {
-                Some('"') | Some('\'') => {
+                Some(&q @ '"') | Some(&q @ '\'') => {
                     i += 1;
-                    in_value = true
+                    in_value = true;
+                    quote_char = Some(q);
                 }
                 _ => {
                     // '=' not followed by a quote
@@ -69,7 +71,10 @@ fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, io::Er
                     }
                 }
             },
-            '\'' | '"' if in_value => in_value = false,
+            '\'' | '"' if in_value && Some(chars[i]) == quote_char => {
+                in_value = false;
+                quote_char = None;
+            }
             c => {
                 if in_value {
                     value.push(c)
