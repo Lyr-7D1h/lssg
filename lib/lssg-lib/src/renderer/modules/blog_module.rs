@@ -14,7 +14,7 @@ use crate::{
             constants::BLOG_STYLESHEET,
         },
     },
-    sitetree::{SiteId, SiteNode, Stylesheet},
+    sitetree::{Relation, SiteId, SiteNode, Stylesheet},
 };
 use virtual_dom::{Document, DomNode};
 
@@ -65,13 +65,6 @@ pub struct BlogModule {
 }
 
 impl BlogModule {
-    pub fn new() -> Self {
-        Self {
-            has_inserted_date: false,
-            roots: HashMap::new(),
-        }
-    }
-
     /// Get blog page for render
     fn post_page(&self, site_id: SiteId) -> Option<&PostPage> {
         let page = self
@@ -104,7 +97,7 @@ impl RendererModule for BlogModule {
 
         for (root_id, root) in roots.iter() {
             for page_id in root.posts.keys() {
-                site_tree.add_link(*page_id, default_stylesheet);
+                site_tree.add_link(*page_id, default_stylesheet, Relation::External);
             }
 
             // Generate RSS feed if enabled

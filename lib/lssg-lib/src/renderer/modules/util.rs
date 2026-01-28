@@ -20,6 +20,7 @@ pub fn tokens_to_text(tokens: &Vec<Token>) -> String {
     result
 }
 
+/// Translate href to page path
 pub fn process_href(href: &String, context: &RenderContext) -> String {
     if Page::is_href_to_page(href) {
         let to_id = context

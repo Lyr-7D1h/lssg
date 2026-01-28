@@ -3,15 +3,19 @@
 ## Planned Features
 
 - YAML frontmatter metadata support
+- Search module 
+    - generate sitetree.json
+    - search through every entry of sitetree
+    - recognize posts and other information
+- Support Obsidian Flavored Markdown
+    - https://help.obsidian.md/obsidian-flavored-markdown
 - Trees like the ones https://owickstrom.github.io/the-monospace-web/
 - [Emoji support](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#using-emoji)
 - [Footnote support](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#footnotes)
 - [Alert support](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts)
 - Code highlighting support
-- Use [Shadow dom](https://developer.mozilla.org/en-US/docs/Web/API/Web_components/Using_shadow_DOM) for encapsulating imported html pages to prevent conflicting js and css
 - Support for relative base website.com/blog/index.html
     - See `<base href="http://yourdomain.com/">`
-- Update documentation
 - Make async
     - reqwest calls async
 - Add recovery and logging instead of panicking

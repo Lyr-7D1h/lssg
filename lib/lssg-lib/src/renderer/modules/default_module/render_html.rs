@@ -96,6 +96,7 @@ fn links_boxes(
                     .find_map(|l| {
                         if let Relation::Discovered { raw_path: path } = &l.relation
                             && *path == href
+                            && context.site_tree[l.to].kind.is_page()
                         {
                             return Some(l.to);
                         }

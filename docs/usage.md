@@ -12,7 +12,7 @@ This is how you would generate lyrx from its content
 lssg ./examples/lyrx/home.md ./build
 ```
 
-You can use a simple html live reload server to view changes as you develop like [live-server](https://github.com/tapio/live-server)
+You can use a simple html live reload server to preview changes made as you write like [live-server](https://github.com/tapio/live-server) (`live-server ./build`)
 
 ## Using remote markdown files
 

@@ -39,6 +39,7 @@ path = "feed.xml"
 [](./living_space.md)
 [](./art.md)
 [](./projects.md)
+[](./models.md)
 <!-- TOOD: add learning resources -->
 <!-- [](./learning) -->
 <!-- TODO: add my learning schedule -->

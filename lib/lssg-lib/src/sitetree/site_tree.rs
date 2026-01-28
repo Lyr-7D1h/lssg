@@ -189,6 +189,16 @@ impl SiteTree {
         (0..self.nodes.len()).map(SiteId::from).collect()
     }
 
+    pub fn pages(&self) -> impl Iterator<Item = (SiteId, &Page)> {
+        self.nodes.iter().enumerate().filter_map(|(i, node)| {
+            if let SiteNodeKind::Page(page) = &node.kind {
+                Some((SiteId(i), page))
+            } else {
+                None
+            }
+        })
+    }
+
     /// Creates a flattened map where non-page nodes are removed and only pages
     /// are tracked as children. Returns a Vec where each index corresponds to a SiteId
     /// and contains a Vec of its page children (direct or inherited through non-page nodes).
@@ -222,8 +232,8 @@ impl SiteTree {
 
     /// add an external relation between two site nodes
     /// This will help create resources necessary for `from`
-    pub fn add_link(&mut self, from: SiteId, to: SiteId) {
-        self.rel_graph.add(from, to, Relation::External);
+    pub fn add_link(&mut self, from: SiteId, to: SiteId, relation: Relation) {
+        self.rel_graph.add(from, to, relation);
     }
 
     /// Get all the relations from a single node to other nodes
@@ -244,7 +254,6 @@ impl SiteTree {
         let id = SiteId::from(self.nodes.len());
         if let Some(parent) = node.parent {
             self.nodes[*parent].children.push(id);
-            self.rel_graph.add(parent, id, Relation::Family);
         }
         debug!("Adding {:?} to tree", node.name);
         self.nodes.push(node);
@@ -278,7 +287,7 @@ impl SiteTree {
                 name: input.filename()?,
                 parent: Some(parent_id),
                 children: vec![],
-                kind: SiteNodeKind::Resource(Resource::new_fetched(input.clone())?),
+                kind: SiteNodeKind::Resource(Resource::new_fetched(input.clone())),
             });
             self.input_to_id.insert(input.clone(), id);
             self.id_to_input.insert(id, input.clone());
@@ -431,7 +440,7 @@ impl SiteTree {
                 name: input.filename()?,
                 parent: Some(parent),
                 children: vec![],
-                kind: SiteNodeKind::Resource(Resource::new_fetched(input.clone())?),
+                kind: SiteNodeKind::Resource(Resource::new_fetched(input.clone())),
             });
             self.rel_graph.add(
                 stylesheet_id,

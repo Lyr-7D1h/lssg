@@ -2,13 +2,14 @@ use log::error;
 use serde_extensions::Overwrite;
 
 use crate::{
+    LssgError,
     lmarkdown::Token,
     sitetree::{Page, SiteTree},
-    LssgError,
 };
 use virtual_dom::{Document, DomNode};
 
 mod external_module;
+pub mod model_module;
 pub use external_module::*;
 mod blog_module;
 pub use blog_module::*;
@@ -21,6 +22,13 @@ pub mod util;
 use super::{RenderContext, TokenRenderer};
 
 /// Implement a custom RendererModule
+///
+/// Function order:
+/// ```
+/// | Changing site tree | Look at final site tree | Page Rendering
+/// init()               -> after_init()           -> render_page() -> render_body() -> after_render()
+/// ```
+///
 #[allow(unused)]
 pub trait RendererModule {
     /// Return a static identifier for this module
@@ -81,9 +89,10 @@ pub trait RendererModule {
             }
 
             if let Some(v) = toml.get(self.id())
-                && let Err(e) = default.overwrite(v.clone()) {
-                    error!("Failed to parse options for '{}' module: {e}", self.id())
-                }
+                && let Err(e) = default.overwrite(v.clone())
+            {
+                error!("Failed to parse options for '{}' module: {e}", self.id())
+            }
         }
         default
     }
@@ -104,9 +113,10 @@ pub trait RendererModule {
             }
 
             if let Some(v) = toml.get(self.id())
-                && let Err(e) = o.overwrite(v.clone()) {
-                    error!("Failed to parse options for '{}' module: {e}", self.id())
-                }
+                && let Err(e) = o.overwrite(v.clone())
+            {
+                error!("Failed to parse options for '{}' module: {e}", self.id())
+            }
         }
         o
     }

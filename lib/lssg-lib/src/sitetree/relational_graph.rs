@@ -4,11 +4,9 @@ use crate::sitetree::SiteId;
 
 #[derive(Debug, Clone)]
 pub enum Relation {
-    /// Parent-child relationship
-    Family,
-    /// Relation set by module logic
+    /// Related externally, meaning without a discovered path
     External,
-    /// Found relation by parsing a file
+    /// Found relation by parsing a file and finding a path
     Discovered { raw_path: String },
 }
 
