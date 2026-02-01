@@ -7,7 +7,11 @@ use std::{
 
 use log::{debug, info, warn};
 
-use crate::{LssgError, sitetree::SiteId, tree::Tree};
+use crate::{
+    LssgError,
+    sitetree::{Javascript, SiteId},
+    tree::Tree,
+};
 
 use super::{
     Input, Resource, SiteNode, SiteNodeKind,
@@ -272,6 +276,8 @@ impl SiteTree {
             self.add_stylesheet_from_input(input.clone(), parent_id)?
         } else if SiteNodeKind::input_is_page(&input) {
             self.add_page_and_discover(input.clone(), Some(parent_id))?
+        } else if SiteNodeKind::input_is_javascript(&input) {
+            self.add_javascript_from_input(input, parent_id)?
         } else {
             parent_id = self.create_folders(&input, parent_id);
             let id = self.add(SiteNode {
@@ -388,7 +394,7 @@ impl SiteTree {
         let page = Page::from_input(&input)?;
         let id = self.add(SiteNode {
             name: input.filestem().unwrap_or("root".to_string()),
-            parent: parent,
+            parent,
             children: vec![],
             kind: SiteNodeKind::Page(page),
         });
@@ -398,6 +404,52 @@ impl SiteTree {
         self.id_to_input.insert(id, input.clone());
 
         Ok(id)
+    }
+
+    fn add_javascript_from_input(
+        &mut self,
+        input: Input,
+        mut parent: SiteId,
+    ) -> Result<SiteId, LssgError> {
+        parent = self.create_folders(&input, parent);
+
+        let javascript = Javascript::try_from(&input)?;
+        let links: Vec<String> = javascript
+            .links()
+            .into_iter()
+            .map(|p| p.to_string())
+            .collect();
+
+        let stylesheet_id = self.add(SiteNode {
+            name: input.filename()?,
+            parent: Some(parent),
+            children: vec![],
+            kind: SiteNodeKind::Javascript(javascript),
+        });
+
+        for link in links {
+            let input = input.new(&link)?;
+            let parent = self.create_folders(&input, parent);
+            let resource_id = self.add(SiteNode {
+                name: input.filename()?,
+                parent: Some(parent),
+                children: vec![],
+                kind: SiteNodeKind::Resource(Resource::new_fetched(input.clone())?),
+            });
+            self.rel_graph.add(
+                stylesheet_id,
+                resource_id,
+                Relation::Discovered { raw_path: link },
+            );
+            self.input_to_id.insert(input.clone(), resource_id);
+            self.id_to_input.insert(resource_id, input);
+        }
+
+        // register input
+        self.input_to_id.insert(input.clone(), stylesheet_id);
+        self.id_to_input.insert(stylesheet_id, input);
+
+        Ok(stylesheet_id)
     }
 
     /// Add a stylesheet and all resources needed by the stylesheet

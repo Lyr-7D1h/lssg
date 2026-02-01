@@ -4,7 +4,12 @@ use std::{
     path::{Component, Path, PathBuf},
 };
 
-use crate::{LssgError, path_extension::PathExtension, sitetree::SiteId, tree::Node};
+use crate::{
+    LssgError,
+    path_extension::PathExtension,
+    sitetree::{SiteId, javascript::Javascript},
+    tree::Node,
+};
 use pathdiff::diff_paths;
 use reqwest::Url;
 
@@ -188,6 +193,7 @@ impl std::fmt::Display for Input {
 #[derive(Debug)]
 pub enum SiteNodeKind {
     Stylesheet(Stylesheet),
+    Javascript(Javascript),
     Page(Page),
     Resource(Resource),
     Folder,
@@ -199,6 +205,9 @@ impl SiteNodeKind {
     pub fn input_is_stylesheet(input: &Input) -> bool {
         input.to_string().ends_with(".css")
     }
+    pub fn input_is_javascript(input: &Input) -> bool {
+        input.to_string().ends_with(".js")
+    }
     pub fn is_page(&self) -> bool {
         matches!(self, SiteNodeKind::Page { .. })
     }
@@ -207,6 +216,7 @@ impl std::fmt::Display for SiteNodeKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             SiteNodeKind::Stylesheet { .. } => write!(f, "Stylesheet"),
+            SiteNodeKind::Javascript(..) => write!(f, "Javascript"),
             SiteNodeKind::Page { .. } => write!(f, "Page"),
             SiteNodeKind::Resource { .. } => write!(f, "Resource"),
             SiteNodeKind::Folder => write!(f, "Folder"),
@@ -238,6 +248,14 @@ impl SiteNode {
             parent: Some(parent),
             children: vec![],
             kind: SiteNodeKind::Stylesheet(stylesheet),
+        }
+    }
+    pub fn javascript(name: impl Into<String>, parent: SiteId, javascript: Javascript) -> SiteNode {
+        SiteNode {
+            name: name.into(),
+            parent: Some(parent),
+            children: vec![],
+            kind: SiteNodeKind::Javascript(javascript),
         }
     }
     pub fn resource(name: impl Into<String>, parent: SiteId, resource: Resource) -> SiteNode {

@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    iter::{self},
+};
 
 use constants::{DEFAULT_JS, DEFAULT_STYLESHEET};
 use log::{error, warn};
@@ -178,10 +181,10 @@ fn head(document: &mut Document, context: &RenderContext, options: &PropegatedOp
     }
 
     // add stylesheets and favicon
-    // reverse the order of insertion because latest css is applied last
+    // NOTE: reverse the order of insertion because latest css is applied last
     for link in site_tree.links_from(site_id).into_iter().rev() {
         match link.relation {
-            Relation::External | Relation::Discovered { .. } => match site_tree[link.to].kind {
+            Relation::External | Relation::Discovered { .. } => match &site_tree[link.to].kind {
                 SiteNodeKind::Resource { .. } if site_tree[link.to].name == "favicon.ico" => {
                     head.append_child(document.create_element_with_attributes(
                         "link",
@@ -192,11 +195,27 @@ fn head(document: &mut Document, context: &RenderContext, options: &PropegatedOp
                         ]),
                     ));
                 }
+                SiteNodeKind::Javascript(javascript) => {
+                    let mode = javascript.mode();
+                    let path = site_tree.rel_path(site_id, link.to);
+                    let el = document.create_element_with_attributes(
+                        "script",
+                        to_attributes(
+                            mode.attributes()
+                                .iter()
+                                .map(|(a, b)| (a.to_string(), b.to_string()))
+                                .chain(iter::once(("src".to_string(), path))),
+                        ),
+                    );
+                    if mode.in_body() {
+                        document.body.prepend(el);
+                    } else {
+                        head.append_child(el);
+                    }
+                }
                 SiteNodeKind::Resource { .. } if site_tree[link.to].name.ends_with("js") => {
                     let path = &site_tree.rel_path(site_id, link.to);
-                    document
-                        .body
-                        .append_child(dom!(<script src="{path}"></script>));
+                    head.append_child(dom!(<script src="{path}" defer></script>));
                 }
                 SiteNodeKind::Stylesheet { .. } => {
                     head.append_child(document.create_element_with_attributes(

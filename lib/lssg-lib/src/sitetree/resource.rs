@@ -52,7 +52,7 @@ impl Resource {
         Ok(buf)
     }
 
-    pub fn write(&mut self, path: &Path) -> Result<(), LssgError> {
+    pub fn write(&self, path: &Path) -> Result<(), LssgError> {
         info!("Writing resource {path:?}",);
         let mut file = File::create(path)?;
         io::copy(&mut self.readable()?, &mut file)?;

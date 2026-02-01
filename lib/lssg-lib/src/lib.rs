@@ -93,11 +93,29 @@ impl Lssg {
                 .output_directory
                 .join(rel_path)
                 .canonicalize_nonexistent_path();
-            match &mut site_tree[site_id].kind {
+            match &site_tree[site_id].kind {
+                SiteNodeKind::Javascript(javascript) => {
+                    let mut javascript = javascript.clone();
+
+                    // update javascript import paths
+                    for link in site_tree.links_from(site_id) {
+                        if let Relation::Discovered { raw_path } = &link.relation {
+                            let updated_resource = site_tree.rel_path(
+                                site_tree[site_id]
+                                    .parent
+                                    .expect("stylesheet must have parent"),
+                                link.to,
+                            );
+                            javascript.update_resource(raw_path, &updated_resource);
+                        }
+                    }
+
+                    javascript.write(&path)?;
+                }
                 SiteNodeKind::Stylesheet(stylesheet) => {
                     let mut stylesheet = stylesheet.clone();
 
-                    // update resources to stylesheet sitenode path
+                    // update stylesheet imports in content
                     for link in site_tree.links_from(site_id) {
                         if let Relation::Discovered { raw_path } = &link.relation {
                             let updated_resource = site_tree.rel_path(
