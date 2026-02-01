@@ -337,32 +337,220 @@ body:has(.default__side-menu) #default__content {
 
 .default__carausel {
   width: 70vw;
-  display: flex;
-  flex-wrap: wrap;
-  margin: auto;
-  padding-top: 25px;
-  padding-bottom: 25px;
+  margin: 2rem auto;
+  position: relative;
 }
-.default__carausel_main {
-  width: calc(80% - 30px);
-  padding: 15px;
-}
-.default__carausel_other {
-  width: calc(20% - 30px);
-  padding: 15px;
-}
-.default__carausel_item * {
+
+/* Main viewport */
+.default__carausel_viewport {
+  overflow: hidden;
   width: 100%;
+  max-height: 80vh;
+  border-radius: 12px;
+  background: transparent;
+  position: relative;
+  cursor: pointer;
+  touch-action: pan-y;
+  user-select: none;
 }
-.default__carausel_item {
+
+.default__carausel_container {
+  display: flex;
+  transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  backface-visibility: hidden;
+  will-change: transform;
+  transform: translate3d(0%, 0, 0);
+}
+
+.default__carausel_slide {
+  flex: 0 0 100%;
+  min-width: 0;
+  position: relative;
+}
+
+.default__carausel_slide_inner {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+}
+
+.default__carausel_slide_inner * {
   width: 100%;
   height: auto;
-  cursor: pointer;
+  object-fit: contain;
+  max-height: 80vh;
+  display: block;
 }
+
+/* Navigation buttons */
+.default__carausel_navigation {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  z-index: 10;
+}
+
+.default__carausel_btn {
+  pointer-events: auto;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  font-size: 2rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  user-select: none;
+  padding: 0;
+}
+
+.default__carausel_btn:hover {
+  background: rgba(255, 255, 255, 1);
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}
+
+.default__carausel_btn:active {
+  transform: scale(0.95);
+}
+
+.default__carausel_btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Thumbnails */
+.default__carausel_thumbs_viewport {
+  margin-top: 1rem;
+  overflow: hidden;
+  width: 100%;
+}
+
+.default__carausel_thumbs_container {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+.default__carausel_thumbs_container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.default__carausel_thumbs_container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.default__carausel_thumbs_container::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.default__carausel_thumbs_container::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.default__carausel_thumb {
+  flex: 0 0 auto;
+  width: 100px;
+  height: 80px;
+  border: 3px solid transparent;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--bg-secondary, #f5f5f5);
+  padding: 0;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  opacity: 0.5;
+  transform: scale(0.9);
+}
+
+.default__carausel_thumb:hover {
+  opacity: 0.8;
+  transform: scale(0.95);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.default__carausel_thumb.is-active {
+  opacity: 1;
+  transform: scale(1);
+  border-color: var(--primary-color, #007bff);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+.default__carausel_thumb_inner {
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.default__carausel_thumb_inner * {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 @media only screen and (max-width: 768px) {
-  .default__carausel_other,
-  .default__carausel_main {
-    width: 100%;
+  .default__carausel {
+    margin: 1rem auto;
+  }
+
+  .default__carausel_viewport {
+    border-radius: 8px;
+  }
+
+  .default__carausel_slide_inner {
+    min-height: 300px;
+  }
+
+  .default__carausel_slide_inner * {
+    max-height: 400px;
+  }
+
+  .default__carausel_btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1.5rem;
+  }
+
+  .default__carausel_navigation {
+    padding: 0.5rem;
+  }
+
+  .default__carausel_thumb {
+    width: 80px;
+    height: 64px;
+  }
+}
+
+@media only screen and (max-width: 480px) {
+  .default__carausel_thumb {
+    width: 70px;
+    height: 56px;
+  }
+
+  .default__carausel_thumbs_container {
+    gap: 0.5rem;
   }
 }
 
