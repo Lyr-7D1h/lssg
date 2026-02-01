@@ -22,6 +22,13 @@ impl std::fmt::Debug for Resource {
 }
 
 impl Resource {
+    pub fn input(&self) -> Option<&Input> {
+        match self {
+            Resource::Static { .. } => None,
+            Resource::Fetched { input } => Some(input),
+        }
+    }
+
     pub fn new_fetched(input: Input) -> Resource {
         Resource::Fetched { input }
     }

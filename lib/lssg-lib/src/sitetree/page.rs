@@ -9,17 +9,18 @@ use super::Input;
 #[derive(Debug)]
 pub struct Page {
     tokens: Vec<Token>,
+    input: Option<Input>,
 }
 impl Page {
     pub fn empty() -> Page {
-        Page { tokens: vec![] }
+        Page {
+            tokens: vec![],
+            input: None,
+        }
     }
 
-    pub fn from_input(input: &Input) -> Result<Page, LssgError> {
-        let tokens = parse_lmarkdown(input.readable()?).map_err(|e| {
-            LssgError::from(e).with_context(format!("Failed to parse markdown {input:?}"))
-        })?;
-        Ok(Page { tokens })
+    pub fn input(&self) -> Option<&Input> {
+        self.input.as_ref()
     }
 
     /// Discover any links inside of the page will return vec with (text, href)
@@ -106,6 +107,20 @@ impl Page {
     }
 }
 
+impl TryFrom<Input> for Page {
+    type Error = LssgError;
+
+    fn try_from(input: Input) -> Result<Self, Self::Error> {
+        let tokens = parse_lmarkdown(input.readable()?).map_err(|e| {
+            LssgError::from(e).with_context(format!("Failed to parse markdown {input:?}"))
+        })?;
+        Ok(Page {
+            tokens,
+            input: Some(input),
+        })
+    }
+}
+
 struct AllTokensIter<'a> {
     queue: Vec<&'a Token>,
 }
@@ -138,7 +153,10 @@ This is a paragraph with a [link text](http://example.com) inside.
 Another paragraph with **bold** and _emphasis_."#;
 
         let tokens = parse_lmarkdown(markdown.as_bytes()).unwrap();
-        let page = Page { tokens };
+        let page = Page {
+            tokens,
+            input: None,
+        };
 
         // Collect all tokens
         let all_tokens: Vec<&Token> = page.iter_all_tokens().collect();
@@ -163,7 +181,10 @@ Another paragraph with **bold** and _emphasis_."#;
 - Item 2"#;
 
         let tokens = parse_lmarkdown(markdown.as_bytes()).unwrap();
-        let page = Page { tokens };
+        let page = Page {
+            tokens,
+            input: None,
+        };
 
         let all_tokens: Vec<&Token> = page.iter_all_tokens().collect();
 

@@ -80,6 +80,7 @@ impl ScriptMode {
 /// JavaScript representation for resource discovering and HTML generation
 #[derive(Debug, Clone)]
 pub struct Javascript {
+    input: Option<Input>,
     content: String,
     /// map from raw matching string to path
     links: HashMap<String, JavascriptLink>,
@@ -92,10 +93,15 @@ impl Javascript {
         readable.read_to_string(&mut content)?;
         let links = parse_links(&content);
         Ok(Javascript {
+            input: None,
             content,
             links,
             mode: ScriptMode::default(),
         })
+    }
+
+    pub fn input(&self) -> Option<&Input> {
+        self.input.as_ref()
     }
 
     pub fn mode(&self) -> ScriptMode {

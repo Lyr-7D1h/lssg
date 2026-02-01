@@ -10,7 +10,7 @@ use log::{debug, info, warn};
 use crate::{
     LssgError,
     sitetree::{Javascript, SiteId},
-    tree::Tree,
+    tree::{Dfs, Tree},
 };
 
 use super::{
@@ -89,10 +89,6 @@ pub struct SiteTree {
     // used for detecting if inputs are outside of the root input file
     root_input: Input,
 
-    /// cannonical paths to node ids
-    input_to_id: HashMap<Input, SiteId>,
-    /// reverse mapping: node ids to inputs
-    id_to_input: HashMap<SiteId, Input>,
     rel_graph: RelationalGraph,
 }
 
@@ -111,8 +107,6 @@ impl SiteTree {
             nodes: vec![],
             root: SiteId(0),
             root_input: input.clone(),
-            input_to_id: HashMap::new(),
-            id_to_input: HashMap::new(),
             rel_graph: RelationalGraph::new(),
         };
         tree.add_page_and_discover(input, None)?;
@@ -133,7 +127,31 @@ impl SiteTree {
 
     /// try and get the input of a node if input exists
     pub fn get_input(&self, id: SiteId) -> Option<&Input> {
-        self.id_to_input.get(&id)
+        match &self.get(id)?.kind {
+            SiteNodeKind::Stylesheet(stylesheet) => stylesheet.input(),
+            SiteNodeKind::Javascript(javascript) => javascript.input(),
+            SiteNodeKind::Page(page) => page.input(),
+            SiteNodeKind::Resource(resource) => resource.input(),
+            SiteNodeKind::Folder => None,
+        }
+    }
+
+    fn unitialized(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn get_id_from_input(&self, input: &Input) -> Option<SiteId> {
+        if self.unitialized() {
+            return None;
+        }
+        for child in Dfs::new(self) {
+            if let Some(child_input) = self.get_input(child)
+                && child_input == input
+            {
+                return Some(child);
+            }
+        }
+        None
     }
 
     // get a node by name by checking the children of `id`
@@ -148,10 +166,8 @@ impl SiteTree {
         self.root
     }
 
-    pub fn get(&self, id: SiteId) -> Result<&SiteNode, LssgError> {
-        self.nodes.get(*id).ok_or(LssgError::sitetree(format!(
-            "Could not find {id} in SiteTree"
-        )))
+    pub fn get(&self, id: SiteId) -> Option<&SiteNode> {
+        self.nodes.get(*id)
     }
 
     /// get next parent of page
@@ -282,12 +298,12 @@ impl SiteTree {
         mut parent_id: SiteId,
     ) -> Result<SiteId, LssgError> {
         // return id if file already exists
-        if let Some(id) = self.input_to_id.get(&input) {
+        if let Some(id) = self.get_id_from_input(&input) {
             info!(
                 "{} already exists using existing node instead",
                 input.filename()?
             );
-            return Ok(*id);
+            return Ok(id);
         }
 
         let id = if SiteNodeKind::input_is_stylesheet(&input) {
@@ -304,22 +320,20 @@ impl SiteTree {
                 children: vec![],
                 kind: SiteNodeKind::Resource(Resource::new_fetched(input.clone())),
             });
-            self.input_to_id.insert(input.clone(), id);
-            self.id_to_input.insert(id, input.clone());
             id
         };
 
         Ok(id)
     }
 
-    /// Add a page node to tree and discover any other new pages with possibility of adding root
+    /// Add a page node to tree and discover any other new pages with possibility of adding root (when parent is `None`)
     fn add_page_and_discover(
         &mut self,
         input: Input,
         parent: Option<SiteId>,
     ) -> Result<SiteId, LssgError> {
-        if let Some(id) = self.input_to_id.get(&input) {
-            return Ok(*id);
+        if let Some(id) = self.get_id_from_input(&input) {
+            return Ok(id);
         }
 
         // BFS queue (parent_id, parent_input, href)
@@ -349,7 +363,7 @@ impl SiteTree {
             };
 
             let child_id = if SiteNodeKind::input_is_page(&input) {
-                if let Some(&existing_id) = tree.input_to_id.get(&input) {
+                if let Some(existing_id) = tree.get_id_from_input(&input) {
                     existing_id
                 } else {
                     let new_id = tree.add_page(input.clone(), parent_id)?;
@@ -376,7 +390,6 @@ impl SiteTree {
                     new_id
                 }
             } else {
-                // input can only be added under an input
                 let Some(parent_id) = parent_id else {
                     log::error!("Cant add resources without a parent: {input:?}");
                     return Ok(None);
@@ -407,19 +420,17 @@ impl SiteTree {
         Ok(id)
     }
 
+    /// Add a page without discovering others
     fn add_page(&mut self, input: Input, parent: Option<SiteId>) -> Result<SiteId, LssgError> {
         let parent = parent.map(|p| self.create_folders(&input, p));
-        let page = Page::from_input(&input)?;
+        let name = input.filestem().unwrap_or("root".to_string());
+        let page = Page::try_from(input)?;
         let id = self.add(SiteNode {
-            name: input.filestem().unwrap_or("root".to_string()),
+            name,
             parent,
             children: vec![],
             kind: SiteNodeKind::Page(page),
         });
-
-        // Register the new page
-        self.input_to_id.insert(input.clone(), id);
-        self.id_to_input.insert(id, input.clone());
 
         Ok(id)
     }
@@ -459,13 +470,7 @@ impl SiteTree {
                 resource_id,
                 Relation::Discovered { raw_path: link },
             );
-            self.input_to_id.insert(input.clone(), resource_id);
-            self.id_to_input.insert(resource_id, input);
         }
-
-        // register input
-        self.input_to_id.insert(input.clone(), stylesheet_id);
-        self.id_to_input.insert(stylesheet_id, input);
 
         Ok(stylesheet_id)
     }
@@ -478,7 +483,7 @@ impl SiteTree {
     ) -> Result<SiteId, LssgError> {
         parent = self.create_folders(&input, parent);
 
-        let stylesheet = Stylesheet::try_from(&input)?;
+        let stylesheet = Stylesheet::try_from(input.clone())?;
         let stylesheet_links: Vec<String> = stylesheet
             .links()
             .into_iter()
@@ -508,13 +513,7 @@ impl SiteTree {
                 resource_id,
                 Relation::Discovered { raw_path: link },
             );
-            self.input_to_id.insert(input.clone(), resource_id);
-            self.id_to_input.insert(resource_id, input);
         }
-
-        // register input
-        self.input_to_id.insert(input.clone(), stylesheet_id);
-        self.id_to_input.insert(stylesheet_id, input);
 
         Ok(stylesheet_id)
     }
@@ -531,7 +530,7 @@ impl SiteTree {
             if matches!(self[parent].kind, SiteNodeKind::Folder) {
                 folders.push(self[parent].name.as_str());
             }
-            if let Some(input) = self.id_to_input.get(&parent) {
+            if let Some(input) = self.get_input(parent) {
                 base = input.clone();
             };
             current = parent;
@@ -574,11 +573,7 @@ impl SiteTree {
 
     pub fn remove(&mut self, id: SiteId) {
         self.rel_graph.remove_all(id);
-        // Remove from bidirectional input mappings
-        if let Some(input) = self.id_to_input.remove(&id) {
-            self.input_to_id.remove(&input);
-        }
-        todo!("remove from tree");
+        todo!("soft remove from tree");
     }
 
     /// Concat resources and minify what can be minified

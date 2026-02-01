@@ -5,7 +5,7 @@ use std::{fs::write, io::Read};
 use log::info;
 use regex::Regex;
 
-use crate::{sitetree::Input, LssgError};
+use crate::{LssgError, sitetree::Input};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum StylesheetLink {
@@ -16,6 +16,7 @@ pub enum StylesheetLink {
 /// Stylesheet representation for resource discovering and condensing multiple stylesheets into one
 #[derive(Debug, Clone)]
 pub struct Stylesheet {
+    input: Option<Input>,
     content: String,
     /// map from raw matching string to path
     links: HashMap<String, StylesheetLink>,
@@ -53,11 +54,19 @@ impl Stylesheet {
         let mut content = String::new();
         readable.read_to_string(&mut content)?;
         let links = links(&content);
-        Ok(Stylesheet { content, links })
+        Ok(Stylesheet {
+            content,
+            links,
+            input: None,
+        })
     }
 
     pub fn links(&self) -> Vec<&StylesheetLink> {
         self.links.values().collect()
+    }
+
+    pub fn input(&self) -> Option<&Input> {
+        self.input.as_ref()
     }
 
     /// Append stylesheet and discover local referenced resources
@@ -77,11 +86,18 @@ impl Stylesheet {
     }
 }
 
-impl TryFrom<&Input> for Stylesheet {
+impl TryFrom<Input> for Stylesheet {
     type Error = LssgError;
 
-    fn try_from(value: &Input) -> Result<Self, Self::Error> {
-        Self::from_readable(value.readable()?)
+    fn try_from(input: Input) -> Result<Self, Self::Error> {
+        let mut content = String::new();
+        input.readable()?.read_to_string(&mut content)?;
+        let links = links(&content);
+        Ok(Stylesheet {
+            input: Some(input),
+            content,
+            links,
+        })
     }
 }
 

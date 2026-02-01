@@ -7,6 +7,7 @@ pub trait Node<Id = usize> {
 /// Implement this trait to get generic functionality over tree structures
 pub trait Tree<Id = usize> {
     type Node: Node<Id>;
+    /// None if unitialized
     fn root(&self) -> Id;
     fn get(&self, id: Id) -> &Self::Node;
 }

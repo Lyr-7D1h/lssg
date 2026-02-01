@@ -67,7 +67,9 @@ impl Renderer {
     /// Transform site id into a html page
     pub fn render(&mut self, site_tree: &SiteTree, site_id: SiteId) -> Result<String, LssgError> {
         // get the site node
-        let site_node = site_tree.get(site_id)?;
+        let site_node = site_tree
+            .get(site_id)
+            .ok_or(LssgError::render(format!("Failed to find {site_id}")))?;
         let page = match &site_node.kind {
             SiteNodeKind::Page(page) => page,
             _ => return Err(LssgError::render("Invalid node type given")),
