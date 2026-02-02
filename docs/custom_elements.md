@@ -23,7 +23,7 @@ This content will be centered.
 
 Create styled link collections in different layouts.
 
-### Links Boxes
+### `<links boxes>`
 
 Display links as styled boxes in a navigation layout.
 
@@ -44,7 +44,7 @@ Display links as styled boxes in a navigation layout.
 [Configuration](./configuration.md "Configure your site")
 </links>
 
-### Links Grid
+### `<links grid>`
 
 Display links as a grid of cards with optional cover images.
 
@@ -72,31 +72,63 @@ Display links as a grid of cards with optional cover images.
 
 ## `<carousel>`
 
-Create an image carousel with a main display and thumbnails.
+Create an image carousel with a main display and thumbnails. Supports images and 3D model-viewer elements.
 
 **Markdown:**
 ```markdown
 <carousel>
+<model-viewer alt="JBL Holder Band" src="./models/band.gltf" ar shadow-intensity="1" camera-controls touch-action="pan-y"></model-viewer>
+<model-viewer alt="JBL Holder Frame" src="./models/jbl_holder.gltf" ar shadow-intensity="1" camera-controls touch-action="pan-y"></model-viewer>
 ![Image 1](image1.jpg)
 ![Image 2](image2.jpg)
-![Image 3](image3.jpg)
-![Image 4](image4.jpg)
 </carousel>
 ```
 
 **Result:**
 
 <carousel>
-![Bear Image](./custom_elements/bear.jpg)
-![Bear Image](./custom_elements/bear.jpg)
+<model-viewer alt="JBL Holder Band" src="./custom_elements/jbl_holder.gltf" ar shadow-intensity="1" camera-controls touch-action="pan-y"></model-viewer>
 ![Bear Image](./custom_elements/bear.jpg)
 ![Bear Image](./custom_elements/bear.jpg)
 </carousel>
 
-**Notes:**
-- First image appears in main display
-- Remaining images appear as thumbnails
-- Items are clickable with modal functionality
+## `<model-viewer>`
+
+Display interactive 3D models using [Google's model-viewer component](https://modelviewer.dev/). Supports GLTF/GLB formats with camera controls, AR capabilities, and auto-rotation. 
+
+Any resource links referenced in `model-viewer` attributes are preserved in the rendered output.
+
+**Markdown:**
+```markdown
+<centered>
+  <model-viewer 
+    style="height:400px"
+    alt="JBL Speaker Holder" 
+    src="./models/jbl_holder.gltf" 
+    ar 
+    shadow-intensity="1" 
+    camera-controls 
+    touch-action="pan-y">
+  </model-viewer>
+</centered>
+```
+
+**Result:**
+
+<centered>
+<model-viewer style="height: 400px" alt="Bike Speaker Holder" src="./custom_elements/jbl_holder.gltf" ar shadow-intensity="1" camera-controls touch-action="pan-y"></model-viewer>
+</centered>
+
+**Common Attributes:**
+- `src` - Path to the 3D model file (.gltf or .glb)
+- `alt` - Alternative text description
+- `camera-controls` - Enable mouse/touch camera controls
+- `ar` - Enable AR viewing on supported devices
+- `shadow-intensity` - Shadow darkness (0-1)
+- `touch-action` - CSS touch action policy
+- `auto-rotate` - Automatically rotate the model
+- `auto-rotate-delay` - Delay before starting rotation (ms)
+
 
 ## `<sitetree>`
 

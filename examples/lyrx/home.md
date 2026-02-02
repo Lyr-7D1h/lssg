@@ -46,6 +46,7 @@ path = "feed.xml"
 <!-- [](./learning_schedule) -->
 <centered>
 # LyrX
+</centered>
 
 <!-- no paragraphs allowed in custom html -->
 <p style="text-align: left">
@@ -64,4 +65,3 @@ Hi! My name is Ivo. I go by Lyr online. Welcome to my online space! I like to th
 [<i class="fa-solid fa-cube"></i>Thingiverse](https://www.thingiverse.com/lyr_7d1h/designs)
 [<i class="fa-solid fa-graduation-cap"></i>Learning](https://lyrx.notion.site/d8f006e42b04415bbb72b3998b40e969)
 </p>
-</centered>
