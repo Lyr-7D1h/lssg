@@ -15,9 +15,7 @@ use crate::{
     lmarkdown::Token,
     lssg_error::LssgError,
     renderer::{modules::default_module::nav::NavOptions, util::OneOrManyOption},
-    sitetree::{
-        Input, Page, Relation, Resource, SiteId, SiteNode, SiteNodeKind, SiteTree, Stylesheet,
-    },
+    sitetree::{Input, Relation, Resource, SiteId, SiteNode, SiteNodeKind, SiteTree, Stylesheet},
     tree::Dfs,
 };
 use virtual_dom::{
@@ -492,7 +490,7 @@ impl RendererModule for DefaultModule {
     fn render_body<'n>(
         &mut self,
         document: &mut Document,
-        context: &super::RenderContext<'n>,
+        ctx: &super::RenderContext<'n>,
         parent: DomNode,
         token: &crate::lmarkdown::Token,
         tr: &mut TokenRenderer,
@@ -516,7 +514,7 @@ impl RendererModule for DefaultModule {
                             vec![t.clone()]
                         })
                         .collect();
-                    tr.render(document, context, li, &tokens);
+                    tr.render(document, ctx, li, &tokens);
                 }
                 parent.append_child(ol);
             }
@@ -535,7 +533,7 @@ impl RendererModule for DefaultModule {
                             vec![t.clone()]
                         })
                         .collect();
-                    tr.render(document, context, li, &tokens);
+                    tr.render(document, ctx, li, &tokens);
                 }
                 parent.append_child(ul);
             }
@@ -548,9 +546,9 @@ impl RendererModule for DefaultModule {
                 let mut resource_id = None;
                 // if local page return relative src
                 let src = if Input::is_relative(src) {
-                    let to_id = context
+                    let to_id = ctx
                         .site_tree
-                        .links_from(context.site_id)
+                        .links_from(ctx.site_id)
                         .into_iter()
                         .find_map(|l| {
                             if let Relation::Discovered { raw_path: path } = &l.relation
@@ -563,7 +561,7 @@ impl RendererModule for DefaultModule {
 
                     if let Some(to_id) = to_id {
                         resource_id = Some(to_id);
-                        context.site_tree.path(to_id)
+                        ctx.site_tree.path(to_id)
                     } else {
                         warn!("Could not find node where {src:?} points to");
                         src.to_owned()
@@ -575,7 +573,7 @@ impl RendererModule for DefaultModule {
                 // inject svg into html
                 if src.ends_with(".svg") {
                     let readable = if let Some(id) = resource_id {
-                        match &context.site_tree[id].kind {
+                        match &ctx.site_tree[id].kind {
                             SiteNodeKind::Resource(r) => r.readable(),
                             _ => {
                                 warn!("svg is not found as a resource");
@@ -669,7 +667,7 @@ impl RendererModule for DefaultModule {
             }
             Token::BlockQuote { tokens, .. } => {
                 let blockquote = document.create_element("blockquote");
-                tr.render(document, context, blockquote.clone(), tokens);
+                tr.render(document, ctx, blockquote.clone(), tokens);
                 parent.append_child(blockquote);
             }
             Token::HardBreak => {
@@ -680,12 +678,12 @@ impl RendererModule for DefaultModule {
             }
             Token::Heading { depth, tokens, .. } => {
                 let heading = document.create_element(format!("h{depth}"));
-                tr.render(document, context, heading.clone(), tokens);
+                tr.render(document, ctx, heading.clone(), tokens);
                 parent.append_child(heading)
             }
             Token::Paragraph { tokens, .. } => {
                 let p = document.create_element("p");
-                tr.render(document, context, p.clone(), tokens);
+                tr.render(document, ctx, p.clone(), tokens);
                 parent.append_child(p)
             }
             Token::Bold { text } => {
@@ -733,28 +731,21 @@ impl RendererModule for DefaultModule {
                     return Some(parent);
                 }
 
-                let href = &process_href(href, context);
-                // if local page return relative path
-                let href = if Page::is_href_to_page(href) {
-                    let to_id = context
-                        .site_tree
-                        .links_from(context.site_id)
-                        .into_iter()
-                        .find_map(|l| {
-                            if let Relation::Discovered { raw_path: path } = &l.relation
-                                && path == href
-                            {
-                                return Some(l.to);
-                            }
-                            None
-                        });
-
-                    if let Some(to_id) = to_id {
-                        context.site_tree.path(to_id)
-                    } else {
-                        warn!("Could not find node where {href:?} points to");
-                        href.to_owned()
-                    }
+                let href = &process_href(href, ctx);
+                // if link to resource add path
+                let href = if let Some(to_id) = ctx
+                    .site_tree
+                    .links_from(ctx.site_id)
+                    .into_iter()
+                    .find_map(|l| {
+                        if let Relation::Discovered { raw_path: path } = &l.relation
+                            && path == href
+                        {
+                            return Some(l.to);
+                        }
+                        None
+                    }) {
+                    ctx.site_tree.path(to_id)
                 } else {
                     href.to_owned()
                 };
@@ -764,7 +755,7 @@ impl RendererModule for DefaultModule {
                     attributes.insert("title".to_owned(), title.to_owned());
                 }
                 let a = document.create_element_with_attributes("a", attributes);
-                tr.render(document, context, a.clone(), tokens);
+                tr.render(document, ctx, a.clone(), tokens);
                 parent.append_child(a);
             }
             Token::Text { text } => {
@@ -775,9 +766,9 @@ impl RendererModule for DefaultModule {
                 attributes,
                 tokens,
             } => {
-                if let Some(parent) = render_html::render_html(
-                    document, context, &parent, tr, tag, attributes, tokens,
-                ) {
+                if let Some(parent) =
+                    render_html::render_html(document, ctx, &parent, tr, tag, attributes, tokens)
+                {
                     return Some(parent);
                 }
             }
@@ -803,7 +794,7 @@ impl RendererModule for DefaultModule {
                             TableAlign::None => {}
                         }
                     }
-                    tr.render(document, context, th.clone(), cell_tokens);
+                    tr.render(document, ctx, th.clone(), cell_tokens);
                     header_row.append_child(th);
                 }
                 thead.append_child(header_row);
@@ -824,7 +815,7 @@ impl RendererModule for DefaultModule {
                                     TableAlign::None => {}
                                 }
                             }
-                            tr.render(document, context, td.clone(), cell_tokens);
+                            tr.render(document, ctx, td.clone(), cell_tokens);
                             tr_elem.append_child(td);
                         }
                         tbody.append_child(tr_elem);
