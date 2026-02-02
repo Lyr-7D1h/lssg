@@ -31,6 +31,7 @@ pub(super) struct NavOptions {
     kind: NavKind,
     include_root: bool,
     use_global_root: bool,
+    ignore: Vec<String>,
     name_map: HashMap<String, String>,
 }
 
@@ -40,6 +41,7 @@ impl Default for NavOptions {
             kind: NavKind::Breadcrumbs,
             include_root: true,
             use_global_root: false,
+            ignore: Vec::new(),
             name_map: HashMap::new(),
         }
     }
@@ -50,6 +52,7 @@ fn breadcrumbs(
     ctx: &RenderContext,
     root_site_id: crate::sitetree::SiteId,
     include_root: bool,
+    ignore: &[String],
 ) -> DomNode {
     let site_id = ctx.site_id;
     let site_tree = ctx.site_tree;
@@ -72,6 +75,10 @@ fn breadcrumbs(
     }
 
     while let Some(p) = filtered_parents.next() {
+        // Skip ignored nodes
+        if ignore.contains(&site_tree[p].name) {
+            continue;
+        }
         let el = match &site_tree[p].kind {
             crate::sitetree::SiteNodeKind::Page(_) => document.create_element_with_attributes(
                 "a",
@@ -102,6 +109,7 @@ fn side_menu(
     ctx: &RenderContext,
     root_site_id: crate::sitetree::SiteId,
     include_root: bool,
+    ignore: &[String],
     name_map: &HashMap<String, String>,
 ) -> DomNode {
     let site_id = ctx.site_id;
@@ -141,15 +149,18 @@ fn side_menu(
 
         // Add children
         if !map[*root_id].is_empty() {
-            let menu_list =
-                build_menu_tree(document, site_tree, &map, root_id, site_id, 0, name_map);
+            let menu_list = build_menu_tree(
+                document, site_tree, &map, root_id, site_id, 0, ignore, name_map,
+            );
             root_li.append_child(menu_list);
         }
 
         root_ul.append_child(root_li);
         nav.append_child(root_ul);
     } else {
-        let menu_list = build_menu_tree(document, site_tree, &map, root_id, site_id, 0, name_map);
+        let menu_list = build_menu_tree(
+            document, site_tree, &map, root_id, site_id, 0, ignore, name_map,
+        );
         nav.append_child(menu_list);
     }
 
@@ -163,6 +174,7 @@ fn build_menu_tree(
     node_id: crate::sitetree::SiteId,
     current_id: crate::sitetree::SiteId,
     depth: usize,
+    ignore: &[String],
     name_map: &HashMap<String, String>,
 ) -> DomNode {
     let ul = document.create_element("ul");
@@ -170,6 +182,12 @@ fn build_menu_tree(
     // Get page children from the flattened map
     for child_id in map[*node_id].iter() {
         let child = &site_tree[*child_id];
+
+        // Skip ignored nodes
+        if ignore.contains(&child.name) {
+            continue;
+        }
+
         let li = document.create_element("li");
 
         // Check if this is the current page
@@ -201,6 +219,7 @@ fn build_menu_tree(
                 *child_id,
                 current_id,
                 depth + 1,
+                ignore,
                 name_map,
             );
             li.append_child(nested_menu);
@@ -223,6 +242,7 @@ pub fn nav(opts_wrapper: &PropegatedOptionsWithRoot, document: &mut Document, ct
                 .unwrap_or_else(|| ctx.site_tree.root())
         };
 
+        let ignore = &opt.ignore;
         let name_map = &opt.name_map;
         let include_root = opt.include_root;
         let el = match opt.kind {
@@ -232,9 +252,9 @@ pub fn nav(opts_wrapper: &PropegatedOptionsWithRoot, document: &mut Document, ct
                 if ctx.site_id == root_id {
                     continue;
                 }
-                breadcrumbs(document, ctx, root_id, include_root)
+                breadcrumbs(document, ctx, root_id, include_root, ignore)
             }
-            NavKind::SideMenu => side_menu(document, ctx, root_id, include_root, name_map),
+            NavKind::SideMenu => side_menu(document, ctx, root_id, include_root, ignore, name_map),
         };
 
         document.body.prepend(el);

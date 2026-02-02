@@ -1,52 +1,7 @@
-<!--
-title = "LSSG"
-head=[
-  '<script defer src="https://analytics.lyrx.dev/script.js" data-website-id="a3641f2d-876d-4971-97d3-2cb6c57a762b"></script>'
-]
-root=true
-
-
-[[nav]]
-kind = "sidemenu"
-include_root = true
-ignore=["404"]
-[nav.name_map]
-README = "Home"
-install = "Install"
-usage = "Usage"
-configuration = "Configuration"
-custom_elements = "Custom Elements"
-lmarkdown = "Lyr's Markdown"
-architecture = "Architecture"
-roadmap = "Roadmap"
-tutorials = "Tutorials"
-how_to_host_static_files = "How to host static files"
-
-[meta]
-description="Lyr's Static Site Generator documentation"
-author="Lyr, lyr-7d1h@pm.me"
-keywords="blog,ssg,static-site-generation,technology,projects,software"
-subject="technology"
-image="https://lyrx.dev/icon.png"
--->
-
-[](./404.md)
-[](./lib/fontawesome.css)
-[](./lib/fa-solid.css)
-[](./lib/fa-brands.css)
-
-[](./install.md)
-[](./usage.md)
-[](./configuration.md) 
-[](./custom_elements.md) 
-[](./lmarkdown.md)
-[](./architecture.md)
-[](./roadmap.md)
-[](./tutorials.md)
-
 # Lyr's Static Site Generator
 
 <p style="text-align: left">
+[<i class="fa-brands fa-dochub"></i>Docs](https://lssg.lyrx.dev)
 [<i class="fa-brands fa-github"></i>Repository](https://github.com/Lyr-7D1h/lssg)
 [<i class="fa-brands fa-rust"></i>Crates.io](https://crates.io/crates/lssg)
 </p>

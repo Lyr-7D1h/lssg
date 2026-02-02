@@ -45,6 +45,7 @@ Core rendering for markdown and HTML structure. Required for all pages.
 | `nav.kind` | String | `"breadcrumbs"` | Navigation type: `"breadcrumbs"`, `"sidemenu"`, or `"none"` |
 | `nav.include_root` | Boolean | `false` | Include root page in side menu (only applies to `sidemenu`) |
 | `nav.name_map` | Object | `{}` | Custom display names for pages (key: page name, value: display name) |
+| `nav.ignore` | String[] | `[]` | Ignore certain pages from nav |
 
 **Navigation Types:**
 - `breadcrumbs`: Shows path from root to current page (e.g., `/parent/child/current`)
