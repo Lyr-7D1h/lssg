@@ -17,6 +17,8 @@ clap = { version = "4.5.54", features = ["derive"] }
 lssg-lib = { path = "./lib/lssg-lib/", version = "1.0.1" }
 log = "0.4.29"
 regex = "1.12.2"
+notify = "8.2.0"
+notify-debouncer-full = "0.4.0"
 
 [workspace]
 members = [
