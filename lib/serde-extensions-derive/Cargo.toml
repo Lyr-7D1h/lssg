@@ -1,6 +1,6 @@
 [package]
 name = "serde-extensions-derive"
-version = "1.0.0"
+version = "1.0.3"
 edition = "2021"
 authors = ["Lyr-7D1h <lyr-7d1h@pm.me>"]
 license = "MIT"
