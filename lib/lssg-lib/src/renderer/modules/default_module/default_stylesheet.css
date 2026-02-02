@@ -549,7 +549,6 @@ body:has(.default__side-menu) #default__content {
   width: 100%;
   min-height: 300px;
 }
-
 @media only screen and (max-width: 768px) {
   .default__carousel model-viewer {
     height: min(400px, 50vh);
