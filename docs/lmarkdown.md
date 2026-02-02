@@ -1,6 +1,6 @@
 # LMarkdown (Lyr's Markdown)
 
-LMarkdown tries to follow [Commonmark](https://commonmark.org/) markdown specifications although deviating wherever it makes sense to make page rendering easier.
+LMarkdown tries to follow [Commonmark](https://commonmark.org/) markdown specifications although deviating wherever it makes sense to make page rendering easier. Support for [Github Flavor Markdown](https://github.github.com/gfm/) is **wip**
 
 ## Structure
 
@@ -17,7 +17,7 @@ For how to define values in `MODULE_CONFIG` see [Modules](./configuration.md)
 
 ## Differences with CommonMark
 
-- Support for [github style tables](https://github.github.com/gfm/#tables-extension-)
+- Partial support for [github style tables](https://github.github.com/gfm/#tables-extension-)
 - No newlines needed for inserting html
 - [TOML](https://toml.io/en/) configuration comment on top of a markdown document
 
