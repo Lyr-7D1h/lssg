@@ -19,6 +19,7 @@ log = "0.4.29"
 regex = "1.12.2"
 notify = "8.2.0"
 notify-debouncer-full = "0.4.0"
+tiny_http = "0.12"
 
 [workspace]
 members = [

@@ -14,21 +14,43 @@ lssg ./examples/lyrx/home.md ./build
 
 **Live reload and preview**
 
-To automatically watch for changes use
+To automatically watch for changes and preview your site, use the preview mode:
+
+```bash
+lssg ./examples/lyrx/home.md ./build --preview
+```
+
+This will:
+- Generate your static site
+- Start a local preview server at http://localhost:8000
+- Watch for file changes and regenerate automatically
+- Serve your site with proper MIME types and 404 page support
+
+You can also specify a custom port:
+
+```bash
+lssg ./examples/lyrx/home.md ./build --preview --port 3000
+```
+
+**Watch-only mode**
+
+If you prefer to use your own server, you can watch for changes without the preview server:
 
 ```bash
 lssg ./examples/lyrx/home.md ./build --watch
 ```
 
-This will watch the parent folder `./examples/lyrx/` for file changes.
+This will watch the parent folder `./examples/lyrx/` for file changes and regenerate the site automatically.
 
-You can use a simple html live reload server to preview changes made as you write like [live-server](https://github.com/tapio/live-server) 
+**Custom watch path**
+
+You can specify a custom directory to watch:
 
 ```bash
-live-server ./build`
+lssg ./examples/lyrx/home.md ./build --preview --watch-path ./content
 ```
 
-Now you can view the changes you make at http://localhost:8080
+This is useful when your content is spread across different directories or you want to watch a specific subset of files.
 
 ## Using remote markdown files
 
@@ -55,11 +77,14 @@ Arguments:
   [OUTPUT]  path to put the static files into, any needed parent folders are automatically created
 
 Options:
-  -v, --version                Print version information
-  -s, --single-page            Print output of a single page
-  -a, --ast                    Print ast tokens of a single page
-  -l, --log <LOG>              "TRACE", "DEBUG", "INFO", "WARN", "ERROR"
-  -n, --no-media-optimization  Enable media optimization (images and videos)
-  -w, --watch                  Watch for file changes and regenerate automatically
-  -h, --help                   Print help (see more with '--help')
+  -v, --version                  Print version information
+  -s, --single-page              Print output of a single page
+  -a, --ast                      Print ast tokens of a single page
+  -l, --log <LOG>                "TRACE", "DEBUG", "INFO", "WARN", "ERROR"
+  -n, --no-media-optimization    Enable media optimization (images and videos)
+  -w, --watch                    Watch for file changes and regenerate automatically
+      --watch-path <WATCH_PATH>  Custom path to watch for file changes (defaults to input file's parent directory)
+  -p, --preview                  Start a preview server to view the generated site (Note: implicitely also runs --watch)
+      --port <PORT>              Port for the preview server (default: 8000) [default: 8000]
+  -h, --help                     Print help (see more with '--help')
 ```

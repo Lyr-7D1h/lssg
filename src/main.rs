@@ -1,7 +1,5 @@
 use log::LevelFilter;
-use std::path::PathBuf;
-use std::sync::mpsc::channel;
-use std::time::Duration;
+use std::{path::PathBuf, thread};
 
 use clap::Parser;
 use lssg_lib::{
@@ -12,8 +10,13 @@ use lssg_lib::{
     },
     sitetree::{Input, SiteTree},
 };
-use notify_debouncer_full::{DebouncedEvent, new_debouncer, notify::RecursiveMode};
 use simple_logger::SimpleLogger;
+
+mod preview;
+use preview::start_preview_server;
+
+mod watch;
+use watch::watch_and_regenerate;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -58,6 +61,18 @@ struct Args {
     /// Watch for file changes and regenerate automatically
     #[clap(long, short = 'w')]
     watch: bool,
+
+    /// Custom path to watch for file changes (defaults to input file's parent directory)
+    #[clap(long)]
+    watch_path: Option<PathBuf>,
+
+    /// Start a preview server to view the generated site (Note: implicitly also runs --watch)
+    #[clap(long, short = 'p')]
+    preview: bool,
+
+    /// Port for the preview server (default: 8000)
+    #[clap(long, default_value = "8000")]
+    port: u16,
 }
 
 fn main() {
@@ -93,8 +108,33 @@ fn main() {
     // At this point we know output is Some(_) because of required_unless_present_any
     let output = args.output.unwrap();
 
+    if args.preview {
+        let port = args.port;
+        {
+            let output = output.clone();
+            thread::spawn(move || {
+                start_preview_server(output, port);
+            });
+        }
+
+        watch_and_regenerate(
+            input,
+            output.clone(),
+            args.watch_path,
+            args.no_media_optimization,
+            Some(port),
+        );
+        return;
+    }
+
     if args.watch {
-        watch_and_regenerate(input, output, args.no_media_optimization);
+        watch_and_regenerate(
+            input,
+            output,
+            args.watch_path,
+            args.no_media_optimization,
+            None,
+        );
         return;
     }
 
@@ -102,7 +142,7 @@ fn main() {
     lssg.render().expect("Failed to render");
 }
 
-fn create_renderer(no_media_optimization: bool) -> Renderer {
+pub fn create_renderer(no_media_optimization: bool) -> Renderer {
     let mut renderer = Renderer::default();
     renderer.add_module(ModelModule::default());
     renderer.add_module(ExternalModule::default());
@@ -112,74 +152,4 @@ fn create_renderer(no_media_optimization: bool) -> Renderer {
     }
     renderer.add_module(DefaultModule::default());
     renderer
-}
-
-fn watch_and_regenerate(input: Input, output: PathBuf, no_media_optimization: bool) {
-    // Determine the watch path based on input type
-    let watch_path = match &input {
-        Input::External { .. } => {
-            log::error!("Watch mode is not supported for URL inputs");
-            return;
-        }
-        Input::Local { path } => {
-            // Watch the parent directory of the input file
-            path.parent().unwrap_or(path).to_path_buf()
-        }
-    };
-
-    log::info!("Watching {:?} for changes...", watch_path);
-
-    // Initial render
-    let renderer = create_renderer(no_media_optimization);
-    let mut lssg = Lssg::new(input.clone(), output.clone(), renderer);
-    match lssg.render() {
-        Ok(_) => log::info!("Initial render completed successfully"),
-        Err(e) => log::error!("Initial render failed: {}", e),
-    }
-
-    // Set up file watcher
-    let (tx, rx) = channel();
-    let mut debouncer = new_debouncer(
-        Duration::from_millis(500),
-        None,
-        move |result: Result<Vec<DebouncedEvent>, _>| {
-            if let Ok(events) = result {
-                // Filter out Access events (file reads) - only respond to actual modifications
-                let has_modifications = events.iter().any(|event| {
-                    use notify_debouncer_full::notify::EventKind;
-                    !matches!(event.event.kind, EventKind::Access(_))
-                });
-
-                if has_modifications {
-                    for event in &events {
-                        if !matches!(
-                            event.event.kind,
-                            notify_debouncer_full::notify::EventKind::Access(_)
-                        ) {
-                            log::debug!("File change detected: {:?}", event);
-                        }
-                    }
-                    tx.send(()).unwrap();
-                }
-            }
-        },
-    )
-    .expect("Failed to create file watcher");
-
-    debouncer
-        .watch(&watch_path, RecursiveMode::Recursive)
-        .expect("Failed to watch directory");
-
-    log::info!("Watching for changes. Press Ctrl+C to stop.");
-
-    // Wait for file changes
-    for _ in rx {
-        log::info!("Changes detected, regenerating...");
-        let renderer = create_renderer(no_media_optimization);
-        let mut lssg = Lssg::new(input.clone(), output.clone(), renderer);
-        match lssg.render() {
-            Ok(_) => log::info!("Regeneration completed successfully"),
-            Err(e) => log::error!("Regeneration failed: {}", e),
-        }
-    }
 }
