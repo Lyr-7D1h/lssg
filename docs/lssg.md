@@ -1,7 +1,7 @@
 <!--
 title = "LSSG"
 head=[
-  '<script defer src="https://analytics.lyrx.dev/script.js" data-website-id="a3641f2d-876d-4971-97d3-2cb6c57a762b"></script>'
+  '<script defer src="https://analytics.lyrx.dev/script.js" data-website-id="67a7b102-54ff-42a8-9ab3-15ffdf2fb688"></script>'
 ]
 root=true
 
