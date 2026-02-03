@@ -240,6 +240,14 @@ nav.default__links a {
 .default__side-menu li {
   margin: 5px 0;
 }
+.default__side-menu__root {
+  text-align: center;
+  font-size: 1.5em;
+  line-height: 1.5em;
+}
+.default__side-menu__root:hover {
+  color: #13457e;
+}
 .default__side-menu__link {
   display: block;
   padding: 5px 10px;
@@ -248,15 +256,15 @@ nav.default__links a {
   border-radius: 6px;
   transition: background-color 150ms;
 }
-.default__side-menu__link:hover {
+.default__side-menu__link:hover:not(.default__side-menu__root) {
   background-color: #d0d7de;
 }
-.default__side-menu__link--active {
+.default__side-menu__link--active:not(.default__side-menu__root) {
   background-color: #0969da;
   color: white;
   font-weight: bold;
 }
-.default__side-menu__link--active:hover {
+.default__side-menu__link--active:hover:not(.default__side-menu__root) {
   background-color: #0860ca;
 }
 .default__side-menu__folder {

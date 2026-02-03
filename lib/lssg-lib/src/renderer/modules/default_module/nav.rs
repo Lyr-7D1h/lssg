@@ -124,14 +124,13 @@ fn side_menu(
     // Use the provided root_site_id instead of site_tree.root()
     let root_id = root_site_id;
 
-    // If include_root is true, wrap the entire menu with a root link
     if include_root {
         let root_node = &site_tree[root_id];
         let root_ul = document.create_element("ul");
         let root_li = document.create_element("li");
 
         let is_current = root_id == site_id;
-        let mut classes = vec!["default__side-menu__link"];
+        let mut classes = vec!["default__side-menu__link", "default__side-menu__root"];
         if is_current {
             classes.push("default__side-menu__link--active");
         }
