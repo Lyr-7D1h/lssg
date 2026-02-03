@@ -19,9 +19,31 @@ h2 {
 }
 p {
   letter-spacing: -0.003em;
-  margin-bottom: 2.14em;
+  margin-bottom: 0.8em;
   margin-top: 10px;
   line-height: 28px;
+}
+
+/* Larger spacing only between paragraphs */
+p + p {
+  margin-top: 2.14em;
+}
+
+/* Natural spacing for lists */
+ul,
+ol {
+  margin-top: 0.8em;
+  margin-bottom: 2.14em;
+  padding-left: 1.5em;
+}
+
+li {
+  margin-bottom: 0.5em;
+  line-height: 28px;
+}
+
+li:last-child {
+  margin-bottom: 0;
 }
 
 @media only screen and (max-width: 768px) {
@@ -33,6 +55,11 @@ p {
   p {
     line-height: 22px;
   }
+
+  li {
+    line-height: 22px;
+  }
+
   h1 {
     line-height: 38px;
   }
