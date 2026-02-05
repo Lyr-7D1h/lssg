@@ -10,7 +10,7 @@
 //! let mut lssg = Lssg::new(input, output);
 //! // Add modules
 //! lssg.add_module(ExternalModule::new());
-//! lssg.add_module(BlogModule::new());
+//! lssg.add_module(PostModule::new());
 //! lssg.add_module(DefaultModule::new());
 //! // Render code to the folder
 //! lssg.render().unwrap()

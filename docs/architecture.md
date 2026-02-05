@@ -9,15 +9,23 @@ Sitetree: Recursively find links to resources in parsed pages and stylesheets (s
     |
 Sitetree: Add these resources as nodes into Sitetree
     |
+RenderModules: Run init(), modifying site_tree
+    |
+RenderModules: Run after_init(), viewing the final site_tree
+    |
 Go through all nodes in tree
 if resource 
-    Copy resource
-if page => use modular HtmlRenderer to turn lmarkdown tokens into html, and write to file
+    Copy resource to output
+if page 
     HtmlRenderer: Create Domtree 
         |
-    HtmlRenderer: Delecate modification of Domtree to modules based on LMarkdown Tokens
+    RenderModules: Run render_page(), rendering a whole page and modifying the domtree
         |
-    BlogModule: Render Token if applicable
+    RenderModules: Run render_token(), rendering a single lmarkdown token to html 
         |
-    DefaultModule: Fallback rendering of Token, it should render every kind of Token
+    RenderModules: Run after_render(), modifying the page based on what was rendered
+        |
+    HtmlRenderer: Clean domtree
+        |
+    Write to output
 ```

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_extensions::Overwrite;
 use virtual_dom::{Document, DomNode, to_attributes};
 
-use crate::renderer::RenderContext;
+use crate::{renderer::RenderContext, sitetree::SiteId};
 
 use super::PropegatedOptionsWithRoot;
 
@@ -61,7 +61,7 @@ fn breadcrumbs(
 
     nav.append_child(document.create_text_node("/"));
 
-    let parents = site_tree.parents(site_id);
+    let parents: Vec<SiteId> = site_tree.parents(site_id).collect();
 
     // Filter parents to only include those up to (and including) the root_site_id
     let mut filtered_parents = parents

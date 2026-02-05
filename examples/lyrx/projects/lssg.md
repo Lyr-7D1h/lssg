@@ -16,7 +16,7 @@ Some features included:
 - **Custom HTML Elements**: Built-in components like `<links>`, `<centered>`, `<carousel>`, and `<gallery>` for rich layouts
 - **Automatic Resource Management**: Discovers and copies CSS, JavaScript, images, fonts, and other assets
 - **Flexible Navigation**: Support for breadcrumbs and side menus with customizable display names
-- **Blog Module**: RSS feed generation, post management, and date-based sorting
+- **Post Module**: RSS feed generation, post management, and date-based sorting
 - **TOML Configuration**: Fine-grained control via inline comments in markdown files
 - **Remote Content Support**: Generate sites from remote markdown files (GitHub, etc.)
 - **Custom Markdown Parser**: Enhanced markdown with support for tables, section links, and HTML integration

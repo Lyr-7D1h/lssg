@@ -1,7 +1,7 @@
 use std::{collections::HashMap, path::Path};
 
 use serde_extensions::Overwrite;
-use virtual_dom::{parse_html, Document};
+use virtual_dom::{Document, parse_html};
 
 use crate::{
     lssg_error::LssgError,
@@ -48,8 +48,9 @@ impl RendererModule for ExternalModule {
             .filter(|id| site_tree[*id].kind.is_page())
             .collect();
         for id in pages {
-            if let SiteNodeKind::Page(page) = &site_tree[id].kind {
-                let options: ExternalModuleOptions = self.options(page);
+            if let SiteNodeKind::Page(page) = &site_tree[id].kind
+                && let Some(options) = self.options::<ExternalModuleOptions>(page)
+            {
                 if let Some(href) = options.href {
                     let res = reqwest::blocking::get(href)?;
                     let bytes = res.bytes()?;
@@ -66,9 +67,9 @@ impl RendererModule for ExternalModule {
 
                             let ancestors: Vec<&Path> = name.ancestors().skip(1).collect();
                             let mut parent_id = id;
-                            for ancestor in ancestors.iter().take(ancestors.len().saturating_sub(2)) {
-                                let folder_name =
-                                    ancestor.file_name().unwrap().to_str().unwrap();
+                            for ancestor in ancestors.iter().take(ancestors.len().saturating_sub(2))
+                            {
+                                let folder_name = ancestor.file_name().unwrap().to_str().unwrap();
                                 // only add if not already present
                                 parent_id = match site_tree.get_by_name(folder_name, parent_id) {
                                     Some(id) => *id,

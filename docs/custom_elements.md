@@ -141,7 +141,7 @@ Generate a hierarchical site navigation tree.
 
 With ignore list:
 ```markdown
-<sitetree ignore="404,blog">
+<sitetree ignore="404">
 ```
 
 **Result:**

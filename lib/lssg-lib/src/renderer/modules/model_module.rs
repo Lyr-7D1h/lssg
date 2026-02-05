@@ -88,7 +88,7 @@ impl RendererModule for ModelModule {
         Ok(())
     }
 
-    fn render_body<'n>(
+    fn render_token<'n>(
         &mut self,
         document: &mut virtual_dom::Document,
         ctx: &crate::renderer::RenderContext<'n>,

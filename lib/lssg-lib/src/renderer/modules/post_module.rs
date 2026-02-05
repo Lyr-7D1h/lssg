@@ -1,18 +1,12 @@
 use std::collections::HashMap;
 
 use proc_virtual_dom::dom;
-use rss::RssOptions;
-use serde::Deserialize;
-use serde_extensions::Overwrite;
 
 use crate::{
     lmarkdown::Token,
     renderer::{
         RenderContext,
-        modules::blog_module::{
-            collect_roots::{PostPage, RootPage},
-            constants::BLOG_STYLESHEET,
-        },
+        modules::post_module::{constants::POST_STYLESHEET, post_page::PostPage, rss::RssOptions},
     },
     sitetree::{Relation, SiteId, SiteNode, Stylesheet},
 };
@@ -20,105 +14,80 @@ use virtual_dom::{Document, DomNode};
 
 use super::{RendererModule, TokenRenderer};
 
-mod blog_post_dates;
-mod collect_roots;
 mod constants;
+mod post_dates;
+mod post_page;
 mod rss;
 
-#[derive(Overwrite, Clone, Debug, Deserialize, Default)]
-pub struct BlogRootOptions {
-    #[serde(default)]
-    rss: RssOptions,
-    /// Use dates from file system to create updated on and modified on tags
-    /// by default false
-    #[serde(default)]
-    use_fs_dates: bool,
-}
-
-#[derive(Overwrite, Clone, Debug, Deserialize)]
-pub struct BlogPostOptions {
-    /// Use blog rendering for this page, if false it will still index this page
-    render: bool,
-    /// When has an article been changed (any iso date string or %Y-%m-%d)
-    modified_on: Option<String>,
-    created_on: Option<String>,
-    tags: Option<Vec<String>>,
-    summary: Option<String>,
-}
-impl Default for BlogPostOptions {
-    fn default() -> Self {
-        Self {
-            render: true,
-            modified_on: None,
-            created_on: None,
-            tags: None,
-            summary: None,
-        }
-    }
-}
-
 #[derive(Default)]
-pub struct BlogModule {
-    roots: HashMap<SiteId, RootPage>,
+pub struct PostModule {
+    posts: HashMap<SiteId, PostPage>,
     /// Local variable to keep track if date has been inserted
     has_inserted_date: bool,
 }
 
-impl BlogModule {
-    /// Get blog page for render
+impl PostModule {
+    /// Get post page for render
     fn post_page(&self, site_id: SiteId) -> Option<&PostPage> {
-        let page = self
-            .roots
-            .values()
-            .find_map(|root| root.posts.get(&site_id))?;
-        if !page.post_options.render {
+        let page = self.posts.get(&site_id)?;
+        if !page.options.render {
             return None;
         }
         Some(page)
     }
 }
 
-impl RendererModule for BlogModule {
+impl RendererModule for PostModule {
     fn id(&self) -> &'static str {
-        "blog"
+        "post"
     }
 
     fn init(
         &mut self,
         site_tree: &mut crate::sitetree::SiteTree,
     ) -> Result<(), crate::lssg_error::LssgError> {
-        let roots = self.collect_roots(site_tree);
-
-        let default_stylesheet = site_tree.add(SiteNode::stylesheet(
-            "blog.css",
-            site_tree.root(),
-            Stylesheet::from_readable(BLOG_STYLESHEET)?,
-        ));
-
-        for (root_id, root) in roots.iter() {
-            for page_id in root.posts.keys() {
+        let posts = self.collect_post_pages(site_tree);
+        if posts.len() > 0 {
+            let default_stylesheet = site_tree.add(SiteNode::stylesheet(
+                "post.css",
+                site_tree.root(),
+                Stylesheet::from_readable(POST_STYLESHEET)?,
+            ));
+            for page_id in posts.keys() {
                 site_tree.add_link(*page_id, default_stylesheet, Relation::External);
-            }
-
-            // Generate RSS feed if enabled
-            if root.options.rss.enabled {
-                let rss_feed = rss::RssFeed::from_root(*root_id, root, site_tree);
-                let rss_content = rss_feed.to_string();
-
-                let rss_resource = crate::sitetree::Resource::new_static(rss_content);
-                let rss_filename = root
-                    .options
-                    .rss
-                    .path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("feed.xml");
-
-                site_tree.add(SiteNode::resource(rss_filename, *root_id, rss_resource));
             }
         }
 
-        self.roots = roots;
+        // TODO: move to a separate module
+        // rss
+        for (id, options) in site_tree
+            .pages()
+            .filter_map(|(id, page)| {
+                Some((id, self.options_with_module_id::<RssOptions>(page, "rss")?))
+            })
+            .collect::<Vec<_>>()
+        {
+            let posts: Vec<_> = site_tree
+                .children(id)
+                .filter_map(|id| posts.get(&id).map(|p| (id, p)))
+                .collect();
+            let Some(rss_feed) = rss::RssFeed::from_root(id, posts, site_tree, options.clone())
+            else {
+                continue;
+            };
+            let rss_content = rss_feed.to_string();
+
+            let rss_resource = crate::sitetree::Resource::new_static(rss_content);
+            let rss_filename = options
+                .path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("feed.xml");
+
+            site_tree.add(SiteNode::resource(rss_filename, id, rss_resource));
+        }
+
+        self.posts = posts;
 
         Ok(())
     }
@@ -130,17 +99,17 @@ impl RendererModule for BlogModule {
     ) -> Option<String> {
         let site_id = context.site_id;
 
-        // if not a blog page
-        let blog_page = self.post_page(site_id)?;
+        // if not a post page
+        let post_page = self.post_page(site_id)?;
 
         // add article meta data
-        if let Some(date) = &blog_page.dates.modified_on {
+        if let Some(date) = &post_page.dates.modified_on {
             let date = date.to_rfc3339();
             document
                 .head
                 .append_child(dom!(<meta property="article:modified_time" content="{date}"/>));
         }
-        if let Some(date) = &blog_page.dates.created_on {
+        if let Some(date) = &post_page.dates.created_on {
             let date = date.to_rfc3339();
             document.head.append_child(dom!(
                 <meta property="article:published_time" content="{date}"/>
@@ -153,7 +122,7 @@ impl RendererModule for BlogModule {
         None
     }
 
-    fn render_body<'n>(
+    fn render_token<'n>(
         &mut self,
         document: &mut Document,
         context: &RenderContext<'n>,
@@ -163,8 +132,8 @@ impl RendererModule for BlogModule {
     ) -> Option<DomNode> {
         let site_id = context.site_id;
 
-        // if not a blog page
-        let blog_page = self.post_page(site_id).cloned()?;
+        // if not a post page
+        let dates = self.post_page(site_id)?.dates.clone();
 
         match token {
             Token::Heading { depth, .. } if *depth == 1 && !self.has_inserted_date => {
@@ -177,8 +146,8 @@ impl RendererModule for BlogModule {
                     parent.clone(),
                     std::slice::from_ref(token),
                 );
-                if let Some(date) = blog_page.dates.to_pretty_string() {
-                    parent.append_child(dom!(<p class="blog__date">{date}</p>));
+                if let Some(date) = dates.to_pretty_string() {
+                    parent.append_child(dom!(<p class="post__date">{date}</p>));
                 }
                 return Some(parent);
             }

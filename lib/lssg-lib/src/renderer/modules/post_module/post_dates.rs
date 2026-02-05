@@ -1,31 +1,28 @@
 use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use log::warn;
 
-use crate::{lssg_error::LssgError, sitetree::Input};
-
-use super::BlogPostOptions;
+use crate::{
+    lssg_error::LssgError, renderer::modules::post_module::post_page::PostPageOptions,
+    sitetree::Input,
+};
 
 #[derive(Debug, Clone, Default)]
-pub struct BlogPostDates {
+pub struct PostDates {
     pub modified_on: Option<DateTime<Utc>>,
     pub created_on: Option<DateTime<Utc>>,
 }
-impl BlogPostDates {
+impl PostDates {
     pub fn from_post_options(
-        post_options: &BlogPostOptions,
-        input: &Option<Input>,
+        post_options: &PostPageOptions,
+        input: Option<&Input>,
     ) -> Result<Self, LssgError> {
-        let created_on = match post_options
-            .created_on
-            .as_ref()
-            .and_then(|s| {
-                parse_date_string(s)
-                    .inspect_err(|e| {
-                        warn!("Failed to parse created on '{s}': {e}");
-                    })
-                    .ok()
-            })
-        {
+        let created_on = match post_options.created_on.as_ref().and_then(|s| {
+            parse_date_string(s)
+                .inspect_err(|e| {
+                    warn!("Failed to parse created on '{s}': {e}");
+                })
+                .ok()
+        }) {
             Some(date) => Some(date),
             None => match input {
                 Some(Input::Local { path }) => Some(path.metadata()?.modified()?.into()),
@@ -33,17 +30,13 @@ impl BlogPostDates {
             },
         };
 
-        let modified_on = match post_options
-            .modified_on
-            .as_ref()
-            .and_then(|s| {
-                parse_date_string(s)
-                    .inspect_err(|e| {
-                        warn!("Failed to parse modified on '{s}': {e}");
-                    })
-                    .ok()
-            })
-        {
+        let modified_on = match post_options.modified_on.as_ref().and_then(|s| {
+            parse_date_string(s)
+                .inspect_err(|e| {
+                    warn!("Failed to parse modified on '{s}': {e}");
+                })
+                .ok()
+        }) {
             Some(date) => Some(date),
             None => match input {
                 Some(Input::Local { path }) => Some(path.metadata()?.modified()?.into()),
@@ -68,7 +61,7 @@ impl BlogPostDates {
     }
 }
 
-fn parse_date_string(input: &String) -> Result<DateTime<Utc>, LssgError> {
+fn parse_date_string(input: &str) -> Result<DateTime<Utc>, LssgError> {
     // Try RFC 3339 first (includes timezone): "2025-05-08T14:30:00+02:00"
     if let Ok(dt_fixed) = DateTime::parse_from_rfc3339(input) {
         return Ok(dt_fixed.with_timezone(&Utc));

@@ -17,18 +17,16 @@
 - Code highlighting support
 - Transforms html into lmarkdown
     - enables archiving and a consistent view of content for non markdown pages. Think of old blogs or other content that you can integrate in your current setup
-- Support for relative base website.com/blog/index.html
-    - See `<base href="http://yourdomain.com/">`
 - Make async
     - reqwest calls async
 - Download and install links to external resources (fonts, CSS, enc.)
 - Don't load all files into memory, might cause issues for large resource files or big sites
 - Add file minification for CSS and JS
-- Improve blog module
+- Improve post module
     - tags
     - Index page
         - Show and sort by date
-        - Small blog post summary
+        - Small post summary
 - Statistics module
     - Fetch github statistics
 - Multi platform support

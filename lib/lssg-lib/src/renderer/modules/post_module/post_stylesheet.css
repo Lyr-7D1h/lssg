@@ -1,5 +1,5 @@
-/* Blog-specific styling */
-.blog__date {
+/* Post-specific styling */
+.post__date {
   margin-top: 0px;
   margin-bottom: 20px;
   text-align: left;
@@ -47,7 +47,7 @@ li:last-child {
 }
 
 @media only screen and (max-width: 768px) {
-  .blog__date {
+  .post__date {
     margin-left: 24px;
     margin-right: 24px;
   }

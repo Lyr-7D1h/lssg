@@ -170,6 +170,13 @@ impl SiteTree {
         self.nodes.get(*id)
     }
 
+    pub fn page(&self, id: SiteId) -> Option<&Page> {
+        match &self.get(id)?.kind {
+            SiteNodeKind::Page(page) => Some(page),
+            _ => None,
+        }
+    }
+
     /// get next parent of page
     pub fn page_parent(&self, id: SiteId) -> Option<SiteId> {
         let mut parent = self.nodes[*id].parent;
@@ -184,15 +191,15 @@ impl SiteTree {
         None
     }
 
-    /// Get all parents from a node
-    pub fn parents(&self, id: SiteId) -> Vec<SiteId> {
-        let mut parent = self.nodes[*id].parent;
-        let mut parents = vec![];
-        while let Some(p) = parent {
-            parents.push(p);
-            parent = self.nodes[*p].parent;
-        }
-        parents
+    /// Get all parents from a node going up from `id` to root
+    pub fn parents(&self, id: SiteId) -> impl Iterator<Item = SiteId> + '_ {
+        let initial = self.nodes[*id].parent;
+        std::iter::successors(initial, |&p| self.nodes[*p].parent)
+    }
+
+    /// Get all children from a node using depth-first search
+    pub fn children(&self, id: SiteId) -> impl Iterator<Item = SiteId> + '_ {
+        Dfs::from_node(self, id).skip(1)
     }
 
     /// Get the absolute path of a node

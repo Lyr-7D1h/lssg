@@ -6,7 +6,7 @@ use lssg_lib::{
     Lssg,
     lmarkdown::parse_lmarkdown,
     renderer::{
-        BlogModule, DefaultModule, ExternalModule, MediaModule, Renderer, model_module::ModelModule,
+        DefaultModule, ExternalModule, MediaModule, PostModule, Renderer, model_module::ModelModule,
     },
     sitetree::{Input, SiteTree},
 };
@@ -33,7 +33,7 @@ struct Args {
     version: (),
 
     /// a reference to the first markdown input file
-    /// this can either be a path (eg. ./my_blog/index.md)
+    /// this can either be a path (eg. ./my_post/index.md)
     /// or an url (eg. http://github.com/project/readme.md)
     #[clap(value_parser = Input::from_string)]
     input: Input,
@@ -146,7 +146,7 @@ pub fn create_renderer(no_media_optimization: bool) -> Renderer {
     let mut renderer = Renderer::default();
     renderer.add_module(ModelModule::default());
     renderer.add_module(ExternalModule::default());
-    renderer.add_module(BlogModule::default());
+    renderer.add_module(PostModule::default());
     if !no_media_optimization {
         renderer.add_module(MediaModule::default());
     }

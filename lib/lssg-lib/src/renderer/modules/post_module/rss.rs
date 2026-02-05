@@ -6,11 +6,10 @@ use serde_extensions::Overwrite;
 
 use crate::sitetree::{SiteId, SiteTree};
 
-use super::collect_roots::{PostPage, RootPage};
+use super::post_page::PostPage;
 
 #[derive(Overwrite, Clone, Debug, Deserialize)]
 pub(super) struct RssOptions {
-    pub enabled: bool,
     pub title: String,
     pub description: Option<String>,
     /// Path to the rss feed
@@ -23,7 +22,6 @@ pub(super) struct RssOptions {
 impl Default for RssOptions {
     fn default() -> Self {
         Self {
-            enabled: false,
             title: "Feed".to_string(),
             description: Some("My feed".to_string()),
             path: PathBuf::from("feed.xml"),
@@ -64,27 +62,19 @@ impl RssFeed {
     }
 
     /// Build RSS feed from root page and its posts
-    pub fn from_root(root_id: SiteId, root: &RootPage, site_tree: &SiteTree) -> RssFeed {
-        let rss_opts = &root.options.rss;
-
+    pub fn from_root(
+        root_id: SiteId,
+        mut posts: Vec<(SiteId, &PostPage)>,
+        site_tree: &SiteTree,
+        opts: RssOptions,
+    ) -> Option<RssFeed> {
         // Determine the base link for the feed
-        let base_link = match rss_opts.host.clone() {
-            Some(host) => host,
-            None => {
-                log::error!("blog.rss.host is not defined on {root_id}");
-                "".into()
-            }
-        };
+        let base_link = opts.host?;
         let feed_link = format!("{}{}", base_link, site_tree.path(root_id));
 
-        let mut feed = RssFeed::new(
-            rss_opts.title.clone(),
-            feed_link,
-            rss_opts.description.clone(),
-        );
+        let mut feed = RssFeed::new(opts.title.clone(), feed_link, opts.description.clone());
 
         // Collect and sort posts by date (newest first)
-        let mut posts: Vec<(&SiteId, &PostPage)> = root.posts.iter().collect();
         posts.sort_by(|a, b| {
             let date_a = a.1.dates.created_on.as_ref();
             let date_b = b.1.dates.created_on.as_ref();
@@ -92,14 +82,14 @@ impl RssFeed {
         });
 
         // Set last build date to the most recent post's date if enabled
-        if rss_opts.last_build_date_enabled.unwrap_or(true) {
+        if opts.last_build_date_enabled.unwrap_or(true) {
             feed.last_build_date = posts.first().and_then(|(_, post)| post.dates.created_on);
         }
 
         // Add RSS items for each post
         for (post_id, post) in posts {
             // Skip posts that shouldn't be rendered
-            if !post.post_options.render {
+            if !post.options.render {
                 continue;
             }
 
@@ -108,7 +98,7 @@ impl RssFeed {
                 continue;
             };
 
-            let post_path = site_tree.path(*post_id);
+            let post_path = site_tree.path(post_id);
             let post_link = format!("{}{}", base_link, post_path);
 
             // Use title from contents, fall back to path
@@ -119,7 +109,7 @@ impl RssFeed {
                 .unwrap_or_else(|| post_path.clone());
 
             // Use description from post options summary
-            let description = post.post_options.summary.clone();
+            let description = post.options.summary.clone();
 
             feed.add_item(RssItem {
                 title,
@@ -130,7 +120,7 @@ impl RssFeed {
             });
         }
 
-        feed
+        Some(feed)
     }
 }
 

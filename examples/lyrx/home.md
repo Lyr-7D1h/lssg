@@ -17,8 +17,7 @@ items = [
   '<a href="/feed.xml">RSS Feed</a>'
 ]
 
-[blog.root.rss]
-enabled = true
+[rss]
 title = "LyrX"
 description = "Lyr's little space of the internet"
 language = "en"

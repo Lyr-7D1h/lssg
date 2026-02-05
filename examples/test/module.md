@@ -2,7 +2,7 @@
 [default]
 title="Test"
 
-[blog]
+[post]
 test="asdf"
 -->
 asdf

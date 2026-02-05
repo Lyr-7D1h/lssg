@@ -27,7 +27,7 @@ For how to define values in `MODULE_CONFIG` see [Modules](./configuration.md)
 <!--
 [default]
 title="This is the html title"
-[blog]
+[post]
 root = true
 -->
 <!--
