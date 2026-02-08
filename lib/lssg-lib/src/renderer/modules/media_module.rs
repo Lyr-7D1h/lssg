@@ -17,6 +17,9 @@ use super::RendererModule;
 
 #[derive(Debug, Clone, Overwrite)]
 pub struct MediaOptions {
+    /// Enable media optimization
+    pub enabled: bool,
+
     /// Enable image optimization
     pub optimize_images: bool,
     /// Image quality (1-100)
@@ -43,6 +46,7 @@ pub struct MediaOptions {
 impl Default for MediaOptions {
     fn default() -> Self {
         Self {
+            enabled: true,
             optimize_images: true,
             image_quality: 85,
             optimize_videos: true,
@@ -58,27 +62,7 @@ impl Default for MediaOptions {
 }
 
 #[derive(Default)]
-pub struct MediaModule {
-    options: MediaOptions,
-}
-
-impl MediaModule {
-    fn optimize_image(
-        &self,
-        resource: &mut crate::sitetree::Resource,
-        original_name: &str,
-    ) -> Result<Option<String>, LssgError> {
-        optimize_image(&self.options, resource, original_name)
-    }
-
-    fn optimize_video(
-        &self,
-        resource: &mut crate::sitetree::Resource,
-        original_name: &str,
-    ) -> Result<(), LssgError> {
-        optimize_video(&self.options, resource, original_name)
-    }
-}
+pub struct MediaModule {}
 
 impl RendererModule for MediaModule {
     fn id(&self) -> &'static str {
@@ -86,18 +70,6 @@ impl RendererModule for MediaModule {
     }
 
     fn init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
-        // Get global options from root page if available
-        if let SiteNodeKind::Page(page) = &site_tree[site_tree.root()].kind {
-            if let Some(opts) = self.options(page) {
-                self.options = opts;
-            }
-        }
-
-        if !self.options.optimize_images && !self.options.optimize_videos {
-            info!("Media optimization disabled");
-            return Ok(());
-        }
-
         info!("Starting media optimization...");
 
         // Find all resource nodes
@@ -109,13 +81,19 @@ impl RendererModule for MediaModule {
         let mut optimized_count = 0;
 
         for id in resource_ids {
-            let node_name = site_tree[id].name.clone();
+            let options: MediaOptions = self.propegated_options(id, site_tree);
 
+            if !options.enabled {
+                log::debug!("Media disabled on {id}");
+                continue;
+            }
+
+            let node_name = site_tree[id].name.clone();
             if let SiteNodeKind::Resource(resource) = &mut site_tree[id].kind {
                 let mut optimized = false;
 
-                if self.options.optimize_images && is_image_file(&node_name) {
-                    match self.optimize_image(resource, &node_name) {
+                if options.optimize_images && is_image_file(&node_name) {
+                    match optimize_image(&options, resource, &node_name) {
                         Ok(new_extension) => {
                             optimized = true;
                             // Update filename if converted to WebP
@@ -133,8 +111,8 @@ impl RendererModule for MediaModule {
                             log::warn!("Failed to optimize image {}: {}", node_name, e);
                         }
                     }
-                } else if self.options.optimize_videos && is_video_file(&node_name) {
-                    match self.optimize_video(resource, &node_name) {
+                } else if options.optimize_videos && is_video_file(&node_name) {
+                    match optimize_video(&options, resource, &node_name) {
                         Ok(()) => {
                             optimized = true;
                         }
