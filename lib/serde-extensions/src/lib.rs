@@ -38,8 +38,8 @@ pub use serde_value;
 /// };
 ///
 /// // Overwrite only the port, leaving host and debug unchanged
-/// let partial = r#"{"port": 3000}"#;
-/// config.overwrite(&mut serde_json::Deserializer::from_str(partial)).unwrap();
+/// let partial = r#"port=3000"#;
+/// config.overwrite(toml::from_str::<toml::Value>(partial).unwrap()).unwrap();
 ///
 /// assert_eq!(config.host, "localhost");
 /// assert_eq!(config.port, 3000);
@@ -67,6 +67,7 @@ pub use serde_value;
 /// use serde::{Deserialize, Deserializer};
 /// use serde_extensions::Overwrite;
 ///
+/// #[derive(Deserialize)]
 /// struct CustomType(i32);
 ///
 /// impl Overwrite for CustomType {
@@ -100,7 +101,8 @@ pub trait Overwrite {
     /// use serde_extensions::Overwrite;
     ///
     /// let mut value = 42;
-    /// value.overwrite(&mut serde_json::Deserializer::from_str("100")).unwrap();
+    /// let parsed_value = toml::Value::Integer(100);
+    /// value.overwrite(parsed_value).unwrap();
     /// assert_eq!(value, 100);
     /// ```
     fn overwrite<'de, D>(&mut self, d: D) -> Result<(), D::Error>
