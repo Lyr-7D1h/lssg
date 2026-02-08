@@ -678,14 +678,14 @@ impl RendererModule for DefaultModule {
                 tr.render(document, ctx, p.clone(), tokens);
                 parent.append_child(p)
             }
-            Token::Bold { text } => {
+            Token::Bold { tokens, .. } => {
                 let b = document.create_element("b");
-                b.append_child(document.create_text_node(text));
+                tr.render(document, ctx, b.clone(), tokens);
                 parent.append_child(b)
             }
-            Token::Emphasis { text } => {
+            Token::Emphasis { tokens, .. } => {
                 let e = document.create_element("em");
-                e.append_child(document.create_text_node(text));
+                tr.render(document, ctx, e.clone(), tokens);
                 parent.append_child(e)
             }
             Token::Code { text: code } => {

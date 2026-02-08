@@ -225,7 +225,10 @@ another comment
                 Token::Text {
                     text: "foo ".into(),
                 },
-                Token::Emphasis { text: "bar".into() },
+                Token::Emphasis {
+                    text: "bar".into(),
+                    tokens: vec![Token::Text { text: "bar".into() }],
+                },
             ],
             depth: 1,
         }];
@@ -247,7 +250,10 @@ Foo *bar*
                     Token::Text {
                         text: "Foo ".into(),
                     },
-                    Token::Emphasis { text: "bar".into() },
+                    Token::Emphasis {
+                        text: "bar".into(),
+                        tokens: vec![Token::Text { text: "bar".into() }],
+                    },
                 ],
                 depth: 1,
             },
@@ -257,7 +263,10 @@ Foo *bar*
                     Token::Text {
                         text: "Foo ".into(),
                     },
-                    Token::Emphasis { text: "bar".into() },
+                    Token::Emphasis {
+                        text: "bar".into(),
+                        tokens: vec![Token::Text { text: "bar".into() }],
+                    },
                 ],
                 depth: 2,
             },
@@ -636,6 +645,50 @@ Visit www.commonmark.org/a.b."#;
             href: "mailto:foo@bar.example.com".into(),
             text: "foo@bar.example.com".into(),
         }])];
+        let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_bold_link_in_table() {
+        let input = "| title | | | | |
+|-------|---|---|---|---|
+| `[rss]` **[RSS](https://en.wikipedia.org/wiki/RSS) generation from posts** | | | | |
+";
+        let expected = vec![Token::Table {
+            header: vec![vec![text("title")], vec![], vec![], vec![], vec![]],
+            align: vec![
+                TableAlign::None,
+                TableAlign::None,
+                TableAlign::None,
+                TableAlign::None,
+                TableAlign::None,
+            ],
+            rows: vec![vec![
+                vec![
+                    Token::Code {
+                        text: "[rss]".into(),
+                    },
+                    text(" "),
+                    Token::Bold {
+                        text: "[RSS](https://en.wikipedia.org/wiki/RSS) generation from posts"
+                            .into(),
+                        tokens: vec![
+                            Token::Link {
+                                tokens: vec![text("RSS")],
+                                href: "https://en.wikipedia.org/wiki/RSS".into(),
+                                title: None,
+                            },
+                            text(" generation from posts"),
+                        ],
+                    },
+                ],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+            ]],
+        }];
         let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
         assert_eq!(tokens, expected);
     }

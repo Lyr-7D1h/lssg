@@ -217,14 +217,18 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
                 reader.consume(2)?;
                 let text = reader.consume_string(text.len() - 2)?;
                 reader.consume(2)?;
-                tokens.push(Token::Bold { text });
+                let text_sanitized = sanitize_text(text.clone());
+                let inner_tokens = read_inline_tokens(&mut CharReader::new(text_sanitized.as_bytes()))?;
+                tokens.push(Token::Bold { text, tokens: inner_tokens });
                 continue;
             }
             if let Some(text) = reader.peek_until_inclusive_from(1, |c| c == '*')? {
                 reader.consume(1)?;
                 let text = reader.consume_string(text.len() - 1)?;
                 reader.consume(1)?;
-                tokens.push(Token::Emphasis { text });
+                let text_sanitized = sanitize_text(text.clone());
+                let inner_tokens = read_inline_tokens(&mut CharReader::new(text_sanitized.as_bytes()))?;
+                tokens.push(Token::Emphasis { text, tokens: inner_tokens });
                 continue;
             }
         }
@@ -408,4 +412,45 @@ fn autolink(c: char, reader: &mut CharReader<impl Read>) -> Result<Option<Token>
     }
 
     Ok(None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_link_with_bold_text() {
+        let input = "[**bold link text**](https://example.com)";
+        let mut reader = CharReader::new(input.as_bytes());
+        let tokens = read_inline_tokens(&mut reader).unwrap();
+
+        assert_eq!(tokens.len(), 1);
+
+        match &tokens[0] {
+            Token::Link {
+                tokens,
+                href,
+                title,
+            } => {
+                assert_eq!(href, "https://example.com");
+                assert_eq!(title, &None);
+                assert_eq!(tokens.len(), 1);
+
+                match &tokens[0] {
+                    Token::Bold { text, tokens } => {
+                        assert_eq!(text, "bold link text");
+                        assert_eq!(tokens.len(), 1);
+                        match &tokens[0] {
+                            Token::Text { text } => {
+                                assert_eq!(text, "bold link text");
+                            }
+                            _ => panic!("Expected Text token inside Bold"),
+                        }
+                    }
+                    _ => panic!("Expected Bold token inside Link"),
+                }
+            }
+            _ => panic!("Expected Link token"),
+        }
+    }
 }

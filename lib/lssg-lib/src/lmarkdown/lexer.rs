@@ -164,9 +164,11 @@ pub enum Token {
     },
     Bold {
         text: String,
+        tokens: Vec<Token>,
     },
     Emphasis {
         text: String,
+        tokens: Vec<Token>,
     },
     /// https://spec.commonmark.org/0.30/#images
     Image {
