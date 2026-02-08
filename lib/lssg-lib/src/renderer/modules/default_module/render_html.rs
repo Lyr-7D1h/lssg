@@ -221,7 +221,7 @@ pub fn sitetree(ctx: &RenderContext, parent: &DomNode, attributes: &HashMap<Stri
     if !ignore_list.is_empty() {
         for node_children in &mut map {
             node_children.retain(|child_id| {
-                let name = ctx.site_tree[*child_id].name.as_str();
+                let name = ctx.site_tree[*child_id].name().as_str();
                 !ignore_list.contains(&name)
             });
         }
@@ -241,8 +241,8 @@ fn sitetree_recurs(
     let mut children = map[*id].clone();
     children.sort_by(|a, b| {
         let (a, b) = (*a, *b);
-        let a_name = &ctx.site_tree[a].name;
-        let b_name = &ctx.site_tree[b].name;
+        let a_name = &ctx.site_tree[a].name();
+        let b_name = &ctx.site_tree[b].name();
         let a_has_children = !map[*a].is_empty();
         let b_has_children = !map[*b].is_empty();
 
@@ -261,7 +261,7 @@ fn sitetree_recurs(
     }
 
     let node = &ctx.site_tree[id];
-    let name = &node.name;
+    let name = &node.name();
     let has_children = !children.is_empty();
     let name = format!("{name}{}", if has_children { "/" } else { "" });
     let path = ctx.site_tree.path(id);

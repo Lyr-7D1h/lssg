@@ -88,7 +88,7 @@ impl RendererModule for MediaModule {
                 continue;
             }
 
-            let node_name = site_tree[id].name.clone();
+            let node_name = site_tree[id].name().clone();
             if let SiteNodeKind::Resource(resource) = &mut site_tree[id].kind {
                 let mut optimized = false;
 
@@ -103,7 +103,7 @@ impl RendererModule for MediaModule {
                                 } else {
                                     format!("{}.{}", node_name, ext)
                                 };
-                                site_tree[id].name = new_name.clone();
+                                site_tree[id].set_name(&new_name);
                                 info!("Updated filename from {} to {}", node_name, new_name);
                             }
                         }

@@ -175,7 +175,7 @@ fn head(document: &mut Document, context: &RenderContext, options: &PropegatedOp
     for link in site_tree.links_from(site_id).into_iter().rev() {
         match link.relation {
             Relation::External | Relation::Discovered { .. } => match &site_tree[link.to].kind {
-                SiteNodeKind::Resource { .. } if site_tree[link.to].name == "favicon.ico" => {
+                SiteNodeKind::Resource { .. } if site_tree[link.to].name() == "favicon.ico" => {
                     head.append_child(document.create_element_with_attributes(
                         "link",
                         to_attributes([
@@ -203,7 +203,7 @@ fn head(document: &mut Document, context: &RenderContext, options: &PropegatedOp
                         head.append_child(el);
                     }
                 }
-                SiteNodeKind::Resource { .. } if site_tree[link.to].name.ends_with("js") => {
+                SiteNodeKind::Resource { .. } if site_tree[link.to].name().ends_with("js") => {
                     let path = &site_tree.rel_path(site_id, link.to);
                     head.append_child(dom!(<script src="{path}" defer></script>));
                 }
@@ -369,7 +369,7 @@ impl RendererModule for DefaultModule {
                         match node.kind {
                             SiteNodeKind::Stylesheet { .. } => Some(link.to),
                             SiteNodeKind::Resource { .. }
-                                if node.name == "favicon.ico" || node.name.ends_with(".js") =>
+                                if node.name() == "favicon.ico" || node.name().ends_with(".js") =>
                             {
                                 Some(link.to)
                             }

@@ -76,7 +76,7 @@ fn breadcrumbs(
 
     while let Some(p) = filtered_parents.next() {
         // Skip ignored nodes
-        if ignore.contains(&site_tree[p].name) {
+        if ignore.contains(&site_tree[p].name()) {
             continue;
         }
         let el = match &site_tree[p].kind {
@@ -87,13 +87,13 @@ fn breadcrumbs(
             crate::sitetree::SiteNodeKind::Folder => document.create_element("span"),
             _ => continue,
         };
-        el.append_child(document.create_text_node(site_tree[p].name.clone()));
+        el.append_child(document.create_text_node(site_tree[p].name().clone()));
         nav.append_child(el);
         if filtered_parents.peek().is_some() {
             nav.append_child(document.create_text_node("/"));
         }
     }
-    nav.append_child(document.create_text_node(format!("/{}", site_tree[site_id].name)));
+    nav.append_child(document.create_text_node(format!("/{}", site_tree[site_id].name())));
     nav
 }
 
@@ -142,7 +142,7 @@ fn side_menu(
                 ("class", classes.join(" ")),
             ]),
         );
-        let formatted_name = format_node_name(&root_node.name, name_map);
+        let formatted_name = format_node_name(&root_node.name(), name_map);
         root_link.append_child(document.create_text_node(formatted_name));
         root_li.append_child(root_link);
 
@@ -183,7 +183,7 @@ fn build_menu_tree(
         let child = &site_tree[*child_id];
 
         // Skip ignored nodes
-        if ignore.contains(&child.name) {
+        if ignore.contains(&child.name()) {
             continue;
         }
 
@@ -205,7 +205,7 @@ fn build_menu_tree(
                 ("class", classes.join(" ")),
             ]),
         );
-        let formatted_name = format_node_name(&child.name, name_map);
+        let formatted_name = format_node_name(&child.name(), name_map);
         a.append_child(document.create_text_node(formatted_name));
         li.append_child(a);
 

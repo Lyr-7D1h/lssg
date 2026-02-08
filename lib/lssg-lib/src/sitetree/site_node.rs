@@ -227,7 +227,7 @@ impl std::fmt::Display for SiteNodeKind {
 #[derive(Debug)]
 pub struct SiteNode {
     /// Unique name within children of node
-    pub name: String,
+    name: String,
     pub parent: Option<SiteId>,
     pub children: Vec<SiteId>,
     pub kind: SiteNodeKind,
@@ -242,9 +242,50 @@ impl Node<SiteId> for SiteNode {
     }
 }
 impl SiteNode {
+    /// Sanitize name to only include filesystem-safe characters
+    /// Allows: alphanumeric, dash, underscore, dot, space
+    /// Removes: path separators, control characters, and other invalid characters
+    fn sanitize_name(name: &str) -> String {
+        // First, extract just the filename component to prevent path traversal
+        let name = Path::new(name)
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or(name);
+
+        // Replace invalid characters with underscores
+        let sanitized: String = name
+            .chars()
+            .map(|c| {
+                if c.is_alphanumeric() || c == '-' || c == '_' || c == '.' || c == ' ' {
+                    c
+                } else {
+                    '_'
+                }
+            })
+            .collect();
+
+        // Remove leading/trailing dots and spaces
+        let sanitized = sanitized.trim_matches(|c| c == '.' || c == ' ');
+
+        // If empty after sanitization, use a default name
+        if sanitized.is_empty() {
+            "unnamed".to_string()
+        } else {
+            sanitized.to_string()
+        }
+    }
+
+    pub fn name(&self) -> &String {
+        &self.name
+    }
+
+    pub fn set_name(&mut self, name: &str) {
+        self.name = Self::sanitize_name(name)
+    }
+
     pub fn stylesheet(name: impl Into<String>, parent: SiteId, stylesheet: Stylesheet) -> SiteNode {
         SiteNode {
-            name: name.into(),
+            name: Self::sanitize_name(&name.into()),
             parent: Some(parent),
             children: vec![],
             kind: SiteNodeKind::Stylesheet(stylesheet),
@@ -252,7 +293,7 @@ impl SiteNode {
     }
     pub fn javascript(name: impl Into<String>, parent: SiteId, javascript: Javascript) -> SiteNode {
         SiteNode {
-            name: name.into(),
+            name: Self::sanitize_name(&name.into()),
             parent: Some(parent),
             children: vec![],
             kind: SiteNodeKind::Javascript(javascript),
@@ -260,7 +301,7 @@ impl SiteNode {
     }
     pub fn resource(name: impl Into<String>, parent: SiteId, resource: Resource) -> SiteNode {
         SiteNode {
-            name: name.into(),
+            name: Self::sanitize_name(&name.into()),
             parent: Some(parent),
             children: vec![],
             kind: SiteNodeKind::Resource(resource),
@@ -268,7 +309,7 @@ impl SiteNode {
     }
     pub fn folder(name: impl Into<String>, parent: SiteId) -> SiteNode {
         SiteNode {
-            name: name.into(),
+            name: Self::sanitize_name(&name.into()),
             parent: Some(parent),
             children: vec![],
             kind: SiteNodeKind::Folder,
@@ -276,8 +317,18 @@ impl SiteNode {
     }
     pub fn page(name: impl Into<String>, parent: SiteId, page: Page) -> SiteNode {
         SiteNode {
-            name: name.into(),
+            name: Self::sanitize_name(&name.into()),
             parent: Some(parent),
+            children: vec![],
+            kind: SiteNodeKind::Page(page),
+        }
+    }
+
+    /// NOTE: Should only be used by SiteTree
+    pub fn root(name: impl Into<String>, page: Page) -> SiteNode {
+        SiteNode {
+            name: Self::sanitize_name(&name.into()),
+            parent: None,
             children: vec![],
             kind: SiteNodeKind::Page(page),
         }

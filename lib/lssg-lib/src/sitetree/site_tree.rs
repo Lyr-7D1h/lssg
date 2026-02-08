@@ -22,10 +22,10 @@ use super::{
 };
 
 fn absolute_path(nodes: &[SiteNode], to: SiteId) -> String {
-    let mut names = vec![nodes[*to].name.clone()];
+    let mut names = vec![nodes[*to].name().clone()];
     let mut parent = nodes[*to].parent;
     while let Some(p) = parent {
-        names.push(nodes[*p].name.clone());
+        names.push(nodes[*p].name().clone());
         parent = nodes[*p].parent;
     }
     names.pop(); // pop root
@@ -36,7 +36,7 @@ fn absolute_path(nodes: &[SiteNode], to: SiteId) -> String {
 /// Get the relative path between two nodes
 fn rel_path(nodes: &[SiteNode], from: SiteId, to: SiteId) -> String {
     let mut visited = HashMap::new();
-    let mut to_path = vec![nodes[*to].name.clone()];
+    let mut to_path = vec![nodes[*to].name().clone()];
 
     // discover all parents from destination
     let mut depth = 0;
@@ -47,7 +47,7 @@ fn rel_path(nodes: &[SiteNode], from: SiteId, to: SiteId) -> String {
         node = nodes[*i].parent;
         // if not root (root doesn't have a parent) add to file directories
         if nodes[*i].parent.is_some() {
-            to_path.push(nodes[*i].name.clone())
+            to_path.push(nodes[*i].name().clone())
         }
     }
 
@@ -159,7 +159,7 @@ impl SiteTree {
         self.nodes[*id]
             .children
             .iter()
-            .find(|n| self.nodes[***n].name == name)
+            .find(|n| self.nodes[***n].name() == name)
     }
 
     pub fn root(&self) -> SiteId {
@@ -281,9 +281,9 @@ impl SiteTree {
     pub fn add(&mut self, node: SiteNode) -> SiteId {
         // check for name collisions
         if let Some(parent) = node.parent
-            && let Some(id) = self.get_by_name(&node.name, parent)
+            && let Some(id) = self.get_by_name(&node.name(), parent)
         {
-            warn!("{} already exists at {id}", node.name);
+            warn!("{} already exists at {id}", node.name());
             return *id;
         }
 
@@ -291,7 +291,7 @@ impl SiteTree {
         if let Some(parent) = node.parent {
             self.nodes[*parent].children.push(id);
         }
-        debug!("Adding {:?} to tree", node.name);
+        debug!("Adding {:?} to tree", node.name());
         self.nodes.push(node);
 
         id
@@ -321,12 +321,11 @@ impl SiteTree {
             self.add_javascript_from_input(input, parent_id)?
         } else {
             parent_id = self.create_folders(&input, parent_id);
-            let id = self.add(SiteNode {
-                name: input.filename()?,
-                parent: Some(parent_id),
-                children: vec![],
-                kind: SiteNodeKind::Resource(Resource::new_fetched(input.clone())),
-            });
+            let id = self.add(SiteNode::resource(
+                input.filename()?,
+                parent_id,
+                Resource::new_fetched(input.clone()),
+            ));
             id
         };
 
@@ -432,12 +431,10 @@ impl SiteTree {
         let parent = parent.map(|p| self.create_folders(&input, p));
         let name = input.filestem().unwrap_or("root".to_string());
         let page = Page::try_from(input)?;
-        let id = self.add(SiteNode {
-            name,
-            parent,
-            children: vec![],
-            kind: SiteNodeKind::Page(page),
-        });
+        let id = match parent {
+            Some(parent) => self.add(SiteNode::page(name, parent, page)),
+            None => self.add(SiteNode::root(name, page)),
+        };
 
         Ok(id)
     }
@@ -456,30 +453,24 @@ impl SiteTree {
             .map(|p| p.to_string())
             .collect();
 
-        let stylesheet_id = self.add(SiteNode {
-            name: input.filename()?,
-            parent: Some(parent),
-            children: vec![],
-            kind: SiteNodeKind::Javascript(javascript),
-        });
+        let javascript_id = self.add(SiteNode::javascript(input.filename()?, parent, javascript));
 
         for link in links {
             let input = input.join(&link)?;
             let parent = self.create_folders(&input, parent);
-            let resource_id = self.add(SiteNode {
-                name: input.filename()?,
-                parent: Some(parent),
-                children: vec![],
-                kind: SiteNodeKind::Resource(Resource::new_fetched(input.clone())),
-            });
+            let resource_id = self.add(SiteNode::resource(
+                input.filename()?,
+                parent,
+                Resource::new_fetched(input.clone()),
+            ));
             self.rel_graph.add(
-                stylesheet_id,
+                javascript_id,
                 resource_id,
                 Relation::Discovered { raw_path: link },
             );
         }
 
-        Ok(stylesheet_id)
+        Ok(javascript_id)
     }
 
     /// Add a stylesheet and all resources needed by the stylesheet
@@ -499,22 +490,16 @@ impl SiteTree {
             })
             .collect();
 
-        let stylesheet_id = self.add(SiteNode {
-            name: input.filename()?,
-            parent: Some(parent),
-            children: vec![],
-            kind: SiteNodeKind::Stylesheet(stylesheet),
-        });
+        let stylesheet_id = self.add(SiteNode::stylesheet(input.filename()?, parent, stylesheet));
 
         for link in stylesheet_links {
             let input = input.join(&link)?;
             let parent = self.create_folders(&input, parent);
-            let resource_id = self.add(SiteNode {
-                name: input.filename()?,
-                parent: Some(parent),
-                children: vec![],
-                kind: SiteNodeKind::Resource(Resource::new_fetched(input.clone())),
-            });
+            let resource_id = self.add(SiteNode::resource(
+                input.filename()?,
+                parent,
+                Resource::new_fetched(input.clone()),
+            ));
             self.rel_graph.add(
                 stylesheet_id,
                 resource_id,
@@ -535,7 +520,7 @@ impl SiteTree {
                 break;
             }
             if matches!(self[parent].kind, SiteNodeKind::Folder) {
-                folders.push(self[parent].name.as_str());
+                folders.push(self[parent].name().as_str());
             }
             if let Some(input) = self.get_input(parent) {
                 base = input.clone();
@@ -558,7 +543,7 @@ impl SiteTree {
             parents.reverse();
             for (i, &name) in parts.iter().enumerate() {
                 if let Some(parent) = parents.get(i)
-                    && self[*parent].name == name
+                    && self[*parent].name() == name
                 {
                     continue;
                 }
@@ -566,12 +551,7 @@ impl SiteTree {
                     parent = *id;
                 } else {
                     debug!("creating folder {name:?} under {parent:?}");
-                    parent = self.add(SiteNode {
-                        name: name.to_string(),
-                        parent: Some(parent),
-                        children: vec![],
-                        kind: SiteNodeKind::Folder,
-                    });
+                    parent = self.add(SiteNode::folder(name, parent));
                 }
             }
         }
@@ -635,7 +615,7 @@ impl fmt::Display for SiteTree {
             }
             prev_col = col;
 
-            let node_name = format!("{}({})({})", node.name, n, node.kind);
+            let node_name = format!("{}({})({})", node.name(), n, node.kind);
             table[col].push(Some(node_name));
 
             let amount_rows_in_col = table[col].len();
