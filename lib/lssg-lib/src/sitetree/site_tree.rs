@@ -30,7 +30,13 @@ fn absolute_path(nodes: &[SiteNode], to: SiteId) -> String {
     }
     names.pop(); // pop root
     names.reverse();
-    format!("/{}", names.join("/"))
+    // every page should end with / to allow for relative links inside of the page
+    let trailing_slash = if matches!(nodes[*to].kind, SiteNodeKind::Page(_)) && !names.is_empty() {
+        "/"
+    } else {
+        ""
+    };
+    format!("/{}{trailing_slash}", names.join("/"),)
 }
 
 /// Get the relative path between two nodes
@@ -73,11 +79,19 @@ fn rel_path(nodes: &[SiteNode], from: SiteId, to: SiteId) -> String {
         "".into()
     };
 
+    // every page should end with / to allow for relative links inside of the page
+    let trailing_slash = if matches!(nodes[*to].kind, SiteNodeKind::Page(_)) && !to_path.is_empty()
+    {
+        "/"
+    } else {
+        ""
+    };
+
     // get remaining path
     if depth > 0 {
-        format!("{}{}", "../".repeat(depth), to_path)
+        format!("{}{}{trailing_slash}", "../".repeat(depth), to_path)
     } else {
-        format!("./{}", to_path)
+        format!("./{}{trailing_slash}", to_path)
     }
 }
 
