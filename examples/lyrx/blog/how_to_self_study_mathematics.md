@@ -1,5 +1,5 @@
 <!--
-[blog.post]
+[post]
 modified_on="2024-1-3"
 created_on="2024-1-3"
 -->

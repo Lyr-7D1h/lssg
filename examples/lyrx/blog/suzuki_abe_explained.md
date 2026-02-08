@@ -1,5 +1,5 @@
  <!--
- blog.post.created_on="2025-10-06"
+ post.created_on="2025-10-06"
 -->
 # Suzuki-Abe Contour Following Algorithm Explained
 ## Introduction

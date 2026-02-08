@@ -1,5 +1,5 @@
 <!--
-[post.post]
+[post]
 created_on = "2026-02-02"
 tag = "model"
 -->

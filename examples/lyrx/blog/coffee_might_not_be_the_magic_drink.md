@@ -1,4 +1,4 @@
-<!--blog.post.created_on="2020-10-23"-->
+<!--post.created_on="2020-10-23"-->
 # Coffee might not be the magic drink I thought it was..
 
 This is my first blog post ever, so bear with me. If anyone is ever going to read this feel free to leave feedback!

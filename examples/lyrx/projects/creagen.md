@@ -1,4 +1,8 @@
-<!--post.modified_on="2025-6-14"-->
+<!--
+[post]
+created_on="2025-6-14"
+render = false
+-->
 # Creagen: Creative Coding Editor
 
 Creagen stands for Creative Generations. It is a creative coding web editor. Its goal is to provide easy accessibility to make creative coding projects. Its design goals are to be **visually minimalistic**, **powerful**, **fast** and **easy to use**. 

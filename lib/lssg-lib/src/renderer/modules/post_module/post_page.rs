@@ -40,6 +40,7 @@ impl Default for PostOptions {
     }
 }
 
+#[derive(Debug)]
 pub struct PostPageOptions {
     pub use_fs_dates: bool,
     pub render: bool,
@@ -49,7 +50,7 @@ pub struct PostPageOptions {
     pub summary: Option<String>,
 }
 
-#[derive(Clone)]
+#[derive(Debug)]
 /// Describes the content of a post post
 pub(super) struct Contents {
     pub title: Option<String>,
@@ -71,6 +72,7 @@ impl Contents {
     }
 }
 
+#[derive(Debug)]
 pub(super) struct PostPage {
     pub options: PostPageOptions,
     /// Relevant dates given by metadata

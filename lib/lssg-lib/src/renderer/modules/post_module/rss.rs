@@ -88,13 +88,8 @@ impl RssFeed {
 
         // Add RSS items for each post
         for (post_id, post) in posts {
-            // Skip posts that shouldn't be rendered
-            if !post.options.render {
-                continue;
-            }
-
             // Use created_on date, skip posts without a date
-            let Some(pub_date) = &post.dates.created_on else {
+            let Some(pub_date) = &post.dates.created_on.or(post.dates.modified_on) else {
                 continue;
             };
 

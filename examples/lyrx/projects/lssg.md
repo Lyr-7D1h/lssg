@@ -1,3 +1,8 @@
+<!--
+[post]
+created_on = "2026-01-05"
+render = false
+-->
 # Lyr's Static Site Generator
 
 <p style="text-align: left">
