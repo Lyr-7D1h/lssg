@@ -9,7 +9,6 @@ A simulation of a small ecosystem where creatures (pixels) interact with each ot
 The idea is that over time you will have a living colorful ecosystem that will change and adapt over time all based on the initial creatures you create. Resembling the way our society works and interacts with each other. 
 
 **You can create your own canvas here:**
-<!-- TODO: add query params to local links  -->
 - [With QR](../living_space.md)
 - [Without QR](https://lyrx.dev/living_space/?QR=false)
 - [With debug information](http://lyrx.dev/living_space/?DEBUG_INFO=true)
