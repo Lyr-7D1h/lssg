@@ -5,7 +5,7 @@ use virtual_dom::{Document, parse_html};
 
 use crate::{
     lssg_error::LssgError,
-    renderer::RenderContext,
+    renderer::{InitContext, RenderContext},
     sitetree::{Page, Resource, SiteId, SiteNode, SiteNodeKind, Stylesheet},
     tree::Dfs,
 };
@@ -42,7 +42,7 @@ impl RendererModule for ExternalModule {
 
     fn init(
         &mut self,
-        site_tree: &mut crate::sitetree::SiteTree,
+        InitContext { site_tree, .. }: InitContext,
     ) -> Result<(), crate::lssg_error::LssgError> {
         let pages: Vec<SiteId> = Dfs::new(site_tree)
             .filter(|id| site_tree[*id].kind.is_page())
@@ -72,7 +72,7 @@ impl RendererModule for ExternalModule {
                                 let folder_name = ancestor.file_name().unwrap().to_str().unwrap();
                                 // only add if not already present
                                 parent_id = match site_tree.get_by_name(folder_name, parent_id) {
-                                    Some(id) => *id,
+                                    Some(id) => id,
                                     None => site_tree.add(SiteNode::folder(folder_name, parent_id)),
                                 }
                             }

@@ -202,25 +202,54 @@ pub enum Token {
 }
 
 impl Token {
-    pub fn get_tokens(&self) -> Option<Vec<&Token>> {
+    pub fn get_tokens_mut(&mut self) -> Option<Vec<&mut Vec<Token>>> {
         match self {
             Token::Heading { tokens, .. }
             | Token::Paragraph { tokens, .. }
             | Token::Link { tokens, .. }
             | Token::Image { tokens, .. }
-            | Token::Html { tokens, .. } => Some(tokens.iter().collect()),
+            | Token::Html { tokens, .. }
+            | Token::Bold { tokens, .. }
+            | Token::Emphasis { tokens, .. } => Some(vec![tokens]),
             Token::BulletList { items, .. } | Token::OrderedList { items, .. } => {
-                let tokens = items.iter().flatten().collect();
-                Some(tokens)
+                Some(items.iter_mut().collect())
             }
             Token::Table { header, rows, .. } => {
                 let mut tokens = vec![];
                 for cell in header {
-                    tokens.extend(cell.iter());
+                    tokens.push(cell);
                 }
                 for row in rows {
                     for cell in row {
-                        tokens.extend(cell.iter());
+                        tokens.push(cell);
+                    }
+                }
+                Some(tokens)
+            }
+            _ => None,
+        }
+    }
+
+    pub fn get_tokens(&self) -> Option<Vec<&Vec<Token>>> {
+        match self {
+            Token::Heading { tokens, .. }
+            | Token::Paragraph { tokens, .. }
+            | Token::Link { tokens, .. }
+            | Token::Image { tokens, .. }
+            | Token::Html { tokens, .. }
+            | Token::Bold { tokens, .. }
+            | Token::Emphasis { tokens, .. } => Some(vec![tokens]),
+            Token::BulletList { items, .. } | Token::OrderedList { items, .. } => {
+                Some(items.iter().collect())
+            }
+            Token::Table { header, rows, .. } => {
+                let mut tokens = vec![];
+                for cell in header {
+                    tokens.push(cell);
+                }
+                for row in rows {
+                    for cell in row {
+                        tokens.push(cell);
                     }
                 }
                 Some(tokens)
@@ -232,7 +261,7 @@ impl Token {
     pub fn to_text(&self) -> Option<String> {
         if let Some(tokens) = self.get_tokens() {
             let mut result = String::new();
-            for t in tokens {
+            for t in tokens.into_iter().flatten() {
                 if let Some(text) = t.to_text() {
                     result.push_str(&text)
                 }

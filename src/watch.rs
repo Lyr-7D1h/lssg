@@ -29,7 +29,12 @@ pub fn watch_and_regenerate(
 
     // Initial render
     let renderer = create_renderer(no_media_optimization);
-    let mut lssg = Lssg::new(input.clone(), output.clone(), renderer);
+    let mut lssg = Lssg::new(
+        input.clone(),
+        output.clone(),
+        renderer,
+        reqwest::blocking::Client::new(),
+    );
     match lssg.render() {
         Ok(_) => log::info!("Initial render completed successfully"),
         Err(e) => log::error!("Initial render failed: {}", e),
@@ -80,7 +85,12 @@ pub fn watch_and_regenerate(
     for _ in rx {
         log::info!("Changes detected, regenerating...");
         let renderer = create_renderer(no_media_optimization);
-        let mut lssg = Lssg::new(input.clone(), output.clone(), renderer);
+        let mut lssg = Lssg::new(
+            input.clone(),
+            output.clone(),
+            renderer,
+            reqwest::blocking::Client::new(),
+        );
         match lssg.render() {
             Ok(_) => log::info!("Regeneration completed successfully"),
             Err(e) => log::error!("Regeneration failed: {}", e),

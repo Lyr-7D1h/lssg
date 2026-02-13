@@ -22,9 +22,9 @@ use virtual_dom::{
     self, Document, DomNode, DomNodeKind, Html, parse_html, parse_html_from_string, to_attributes,
 };
 
-use crate::renderer::{RenderContext, RendererModule, TokenRenderer};
+use crate::renderer::{InitContext, RenderContext, RendererModule, TokenRenderer};
 
-use super::util::{process_href, tokens_to_text};
+use super::util::tokens_to_text;
 
 mod constants;
 mod nav;
@@ -325,7 +325,7 @@ impl RendererModule for DefaultModule {
     }
 
     /// Add all resources from ResourceOptions to SiteTree
-    fn init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
+    fn init(&mut self, InitContext { site_tree, .. }: InitContext) -> Result<(), LssgError> {
         let pages: Vec<SiteId> = Dfs::new(site_tree)
             .filter(|id| site_tree[*id].kind.is_page())
             .collect();
@@ -535,126 +535,110 @@ impl RendererModule for DefaultModule {
                 parent.append_child(document.create_element("hr"));
             }
             Token::Image { tokens, src, title } => {
-                let mut resource_id = None;
                 // if local page return relative src
-                let src = if Input::is_relative(src) {
-                    let to_id = ctx
-                        .site_tree
-                        .links_from(ctx.site_id)
-                        .into_iter()
-                        .find_map(|l| {
-                            if let Relation::Discovered { raw_path: path } = &l.relation
-                                && path == src
-                            {
-                                return Some(l.to);
-                            }
-                            None
-                        });
-
-                    if let Some(to_id) = to_id {
-                        resource_id = Some(to_id);
-                        ctx.site_tree.path(to_id)
-                    } else {
-                        warn!("Could not find node where {src:?} points to");
-                        src.to_owned()
-                    }
-                } else {
-                    src.to_owned()
-                };
-
-                // inject svg into html
-                if src.ends_with(".svg") {
-                    let readable = if let Some(id) = resource_id {
-                        match &ctx.site_tree[id].kind {
-                            SiteNodeKind::Resource(r) => r.readable(),
-                            _ => {
-                                warn!("svg is not found as a resource");
-                                return Some(parent);
-                            }
-                        }
-                    } else {
-                        match Input::from_string(&src) {
-                            Ok(i) => i.readable(),
-                            Err(e) => {
-                                error!("failed to get svg: {e}");
-                                return Some(parent);
-                            }
-                        }
-                    };
-
-                    match readable {
-                        Ok(r) => {
-                            // get first valid html tag
-                            let mut html = parse_html(r)
-                                .unwrap()
-                                .into_iter()
-                                .find(|e| match e {
-                                    Html::Comment { .. } | Html::Text { .. } => false,
-                                    Html::Element { .. } => true,
-                                })
-                                .expect("invalid svg, no html elements founds");
-
-                            match &mut html {
-                                Html::Element { attributes, .. } => {
-                                    // set viewbox to allow scaling of svg using width and height
-                                    if attributes.get("viewbox").is_none() {
-                                        let re = Regex::new(r"[0-9]*").unwrap();
-                                        let width = if let Some(width) = attributes.get("width") {
-                                            re.captures(width)
-                                                .map(|c| c[0].to_string())
-                                                .unwrap_or(width.clone())
-                                        } else {
-                                            warn!("no width found for svg, using default of 300");
-                                            "300".to_string()
-                                        };
-                                        let height = if let Some(height) = attributes.get("height")
-                                        {
-                                            re.captures(height)
-                                                .map(|c| c[0].to_string())
-                                                .unwrap_or(width.clone())
-                                        } else {
-                                            warn!("no height found for svg, using default of 150");
-                                            "150".to_string()
-                                        };
-                                        attributes.insert(
-                                            "viewbox".into(),
-                                            format!("0 0 {width} {height}"),
-                                        );
-                                    }
-                                    attributes.remove(&"style".to_string());
-                                    attributes.remove(&"width".to_string());
-                                    attributes.remove(&"height".to_string());
-
-                                    parent.append_child(html);
+                for (src, resource_id) in
+                    translate_href_to_sitetree_path(src, ctx.site_tree, ctx.site_id)
+                {
+                    // inject svg into html
+                    if src.ends_with(".svg") {
+                        let readable = if let Some(id) = resource_id {
+                            match &ctx.site_tree[id].kind {
+                                SiteNodeKind::Resource(r) => r.readable(),
+                                _ => {
+                                    warn!("svg is not found as a resource");
                                     return Some(parent);
                                 }
-                                _ => error!("svg must be an element"),
+                            }
+                        } else {
+                            match Input::from_string_single(&src, &ctx.http_client) {
+                                Ok(i) => i.readable(),
+                                Err(e) => {
+                                    error!("failed to get svg: {e}");
+                                    return Some(parent);
+                                }
+                            }
+                        };
+
+                        match readable {
+                            Ok(r) => {
+                                // get first valid html tag
+                                let mut html = parse_html(r)
+                                    .unwrap()
+                                    .into_iter()
+                                    .find(|e| match e {
+                                        Html::Comment { .. } | Html::Text { .. } => false,
+                                        Html::Element { .. } => true,
+                                    })
+                                    .expect("invalid svg, no html elements founds");
+
+                                match &mut html {
+                                    Html::Element { attributes, .. } => {
+                                        // set viewbox to allow scaling of svg using width and height
+                                        if attributes.get("viewbox").is_none() {
+                                            let re = Regex::new(r"[0-9]*").unwrap();
+                                            let width = if let Some(width) = attributes.get("width")
+                                            {
+                                                re.captures(width)
+                                                    .map(|c| c[0].to_string())
+                                                    .unwrap_or(width.clone())
+                                            } else {
+                                                warn!(
+                                                    "no width found for svg, using default of 300"
+                                                );
+                                                "300".to_string()
+                                            };
+                                            let height = if let Some(height) =
+                                                attributes.get("height")
+                                            {
+                                                re.captures(height)
+                                                    .map(|c| c[0].to_string())
+                                                    .unwrap_or(width.clone())
+                                            } else {
+                                                warn!(
+                                                    "no height found for svg, using default of 150"
+                                                );
+                                                "150".to_string()
+                                            };
+                                            attributes.insert(
+                                                "viewbox".into(),
+                                                format!("0 0 {width} {height}"),
+                                            );
+                                        }
+                                        attributes.remove(&"style".to_string());
+                                        attributes.remove(&"width".to_string());
+                                        attributes.remove(&"height".to_string());
+
+                                        parent.append_child(html);
+                                        return Some(parent);
+                                    }
+                                    _ => error!("svg must be an element"),
+                                }
+                            }
+
+                            Err(e) => {
+                                error!("failed to read {src}: {e}");
+                                return Some(parent);
                             }
                         }
-
-                        Err(e) => {
-                            error!("failed to read {src}: {e}");
-                            return Some(parent);
-                        }
                     }
-                }
 
-                if let Some(format) = SUPPORTED_VIDEO_FORMATS
-                    .iter()
-                    .find(|format| src.ends_with(&format!(".{format}")))
-                {
-                    let format = format.to_string();
-                    parent.append_child(
+                    if let Some(format) = SUPPORTED_VIDEO_FORMATS
+                        .iter()
+                        .find(|format| src.ends_with(&format!(".{format}")))
+                    {
+                        let format = format.to_string();
+                        parent.append_child(
                         dom!(<video controls><source src="{src}" type="video/{format}"></video>),
                     );
-                    return Some(parent);
-                }
+                        return Some(parent);
+                    }
 
-                let alt = tokens_to_text(tokens);
-                if let Some(title) = title {
-                    parent.append_child(dom!(<img src="{src}" alt="{alt}" title={title} />))
-                } else {
-                    parent.append_child(dom!(<img src="{src}" alt="{alt}" />))
+                    let alt = tokens_to_text(tokens);
+                    if let Some(title) = title {
+                        parent.append_child(dom!(<img src="{src}" alt="{alt}" title={title} />))
+                    } else {
+                        parent.append_child(dom!(<img src="{src}" alt="{alt}" />))
+                    }
                 }
             }
             Token::BlockQuote { tokens, .. } => {
@@ -723,32 +707,15 @@ impl RendererModule for DefaultModule {
                     return Some(parent);
                 }
 
-                let href = &process_href(href, ctx);
-                // if link to resource add path
-                let href = if let Some(to_id) = ctx
-                    .site_tree
-                    .links_from(ctx.site_id)
-                    .into_iter()
-                    .find_map(|l| {
-                        if let Relation::Discovered { raw_path: path } = &l.relation
-                            && path == href
-                        {
-                            return Some(l.to);
-                        }
-                        None
-                    }) {
-                    ctx.site_tree.path(to_id)
-                } else {
-                    href.to_owned()
-                };
-
-                let mut attributes = to_attributes([("href", href)]);
-                if let Some(title) = title {
-                    attributes.insert("title".to_owned(), title.to_owned());
+                for (href, _) in translate_href_to_sitetree_path(href, ctx.site_tree, ctx.site_id) {
+                    let mut attributes = to_attributes([("href", href)]);
+                    if let Some(title) = title {
+                        attributes.insert("title".to_owned(), title.to_owned());
+                    }
+                    let a = document.create_element_with_attributes("a", attributes);
+                    tr.render(document, ctx, a.clone(), tokens);
+                    parent.append_child(a);
                 }
-                let a = document.create_element_with_attributes("a", attributes);
-                tr.render(document, ctx, a.clone(), tokens);
-                parent.append_child(a);
             }
             Token::Text { text } => {
                 parent.append_child(document.create_text_node(text));
@@ -821,4 +788,21 @@ impl RendererModule for DefaultModule {
         // always renders
         Some(parent)
     }
+}
+
+/// Translate href to page path
+fn translate_href_to_sitetree_path(
+    href: &String,
+    site_tree: &SiteTree,
+    site_id: SiteId,
+) -> Vec<(String, Option<SiteId>)> {
+    let hrefs: Vec<_> = site_tree
+        .resources_from_discovered_links(site_id, href)
+        .into_iter()
+        .map(|id| (site_tree.path(id), Some(id)))
+        .collect();
+    if hrefs.is_empty() {
+        return vec![(href.clone(), None)];
+    }
+    hrefs
 }

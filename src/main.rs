@@ -2,6 +2,7 @@ use log::LevelFilter;
 use std::{path::PathBuf, thread};
 
 use clap::Parser;
+use env_logger::{Builder, WriteStyle};
 use lssg_lib::{
     Lssg,
     lmarkdown::parse_lmarkdown,
@@ -10,7 +11,7 @@ use lssg_lib::{
     },
     sitetree::{Input, SiteTree},
 };
-use simple_logger::SimpleLogger;
+use std::io::Write;
 
 mod preview;
 use preview::start_preview_server;
@@ -35,8 +36,7 @@ struct Args {
     /// a reference to the first markdown input file
     /// this can either be a path (eg. ./my_post/index.md)
     /// or an url (eg. http://github.com/project/readme.md)
-    #[clap(value_parser = Input::from_string)]
-    input: Input,
+    input: String,
 
     /// path to put the static files into, any needed parent folders are automatically created
     #[clap(required_unless_present_any = ["single_page", "ast"])]
@@ -53,6 +53,10 @@ struct Args {
     /// "TRACE", "DEBUG", "INFO", "WARN", "ERROR"
     #[clap(long, short)]
     log: Option<LevelFilter>,
+
+    /// Include file and line number in logs
+    #[clap(long, default_value_t = false)]
+    log_location: bool,
 
     /// Enable media optimization (images and videos)
     #[clap(long, short, default_value = "false")]
@@ -77,12 +81,39 @@ struct Args {
 
 fn main() {
     let args: Args = Args::parse();
-    SimpleLogger::default()
-        .with_level(args.log.unwrap_or(LevelFilter::Info))
-        .init()
-        .unwrap();
+    let log_location = args.log_location;
+    let mut logger = Builder::new();
+    logger
+        .write_style(WriteStyle::Auto)
+        .format(move |buf, record| {
+            let level = match record.level() {
+                log::Level::Error => "\x1b[1;31mERROR\x1b[0m",
+                log::Level::Warn => "\x1b[1;33mWARN\x1b[0m",
+                log::Level::Info => "\x1b[32mINFO\x1b[0m",
+                log::Level::Debug => "\x1b[34mDEBUG\x1b[0m",
+                log::Level::Trace => "\x1b[35mTRACE\x1b[0m",
+            };
 
-    let input = args.input;
+            let log_location = if log_location {
+                let file = record.file().unwrap_or("?");
+                let line = record.line().unwrap_or(0);
+                format!(" \x1b[36m{}:{}\x1b[0m", file, line)
+            } else {
+                "".to_string()
+            };
+            writeln!(
+                buf,
+                "{} [{level}]{log_location} {}",
+                buf.timestamp_seconds(),
+                record.args()
+            )
+        })
+        .filter_level(args.log.unwrap_or(LevelFilter::Info));
+    logger.init();
+
+    let http_client = reqwest::blocking::Client::new();
+    let input =
+        Input::from_string_single(&args.input, &http_client).expect("Failed to parse input");
     if args.ast {
         let read = input.readable().expect("failed to fetch input");
         let out = parse_lmarkdown(read).expect("failed to parse input");
@@ -93,13 +124,13 @@ fn main() {
     let mut renderer = create_renderer(args.no_media_optimization);
 
     if args.single_page {
-        let mut site_tree =
-            SiteTree::from_input(input.clone()).expect("Failed to generate site tree");
+        let mut site_tree = SiteTree::from_input(input.clone(), http_client.clone())
+            .expect("Failed to generate site tree");
 
-        renderer.init(&mut site_tree);
+        renderer.init(&mut site_tree, &http_client);
         renderer.after_init(&site_tree);
         let html = renderer
-            .render(&site_tree, site_tree.root())
+            .render(&site_tree, site_tree.root(), &http_client)
             .expect("failed to render");
         println!("{html}");
         return;
@@ -138,7 +169,7 @@ fn main() {
         return;
     }
 
-    let mut lssg = Lssg::new(input, output, renderer);
+    let mut lssg = Lssg::new(input, output, renderer, http_client);
     lssg.render().expect("Failed to render");
 }
 

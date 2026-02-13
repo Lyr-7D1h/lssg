@@ -9,11 +9,12 @@ use serde_extensions::Overwrite;
 
 use crate::{
     lssg_error::LssgError,
-    sitetree::{SiteId, SiteNodeKind, SiteTree},
+    sitetree::{SiteId, SiteNodeKind},
     tree::Dfs,
 };
 
 use super::RendererModule;
+use crate::renderer::InitContext;
 
 #[derive(Debug, Clone, Overwrite)]
 pub struct MediaOptions {
@@ -69,7 +70,7 @@ impl RendererModule for MediaModule {
         "media"
     }
 
-    fn init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
+    fn init(&mut self, InitContext { site_tree, .. }: InitContext) -> Result<(), LssgError> {
         info!("Starting media optimization...");
 
         // Find all resource nodes

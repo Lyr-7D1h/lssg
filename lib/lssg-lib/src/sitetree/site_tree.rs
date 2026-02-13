@@ -98,6 +98,7 @@ fn rel_path(nodes: &[SiteNode], from: SiteId, to: SiteId) -> String {
 /// Code representation of all nodes within the site (hierarchy and how nodes are related)
 #[derive(Debug)]
 pub struct SiteTree {
+    http_client: reqwest::blocking::Client,
     nodes: Vec<SiteNode>,
     root: SiteId,
     // used for detecting if inputs are outside of the root input file
@@ -116,8 +117,12 @@ impl SiteTree {
     }
 
     /// `input` is a markdown input file from where to start discovering resources and pages
-    pub fn from_input(input: Input) -> Result<SiteTree, LssgError> {
+    pub fn from_input(
+        input: Input,
+        http_client: reqwest::blocking::Client,
+    ) -> Result<SiteTree, LssgError> {
         let mut tree = SiteTree {
+            http_client,
             nodes: vec![],
             root: SiteId(0),
             root_input: input.clone(),
@@ -169,11 +174,12 @@ impl SiteTree {
     }
 
     // get a node by name by checking the children of `id`
-    pub fn get_by_name(&self, name: &str, id: SiteId) -> Option<&SiteId> {
+    pub fn get_by_name(&self, name: &str, id: SiteId) -> Option<SiteId> {
         self.nodes[*id]
             .children
             .iter()
             .find(|n| self.nodes[***n].name() == name)
+            .cloned()
     }
 
     pub fn root(&self) -> SiteId {
@@ -286,6 +292,19 @@ impl SiteTree {
         self.rel_graph.add(from, to, relation);
     }
 
+    /// Get resource site ids from a discovered path
+    ///
+    /// can return multiple ids because of glob support
+    pub fn resources_from_discovered_links(&self, from: SiteId, raw_path: &str) -> Vec<SiteId> {
+        self.links_from(from)
+            .into_iter()
+            .filter(
+                |l| matches!(&l.relation, Relation::Discovered { raw_path: dp } if dp == raw_path),
+            )
+            .map(|l| l.to)
+            .collect()
+    }
+
     /// Get all the relations from a single node to other nodes
     pub fn links_from(&self, from: SiteId) -> Vec<&Link> {
         self.rel_graph.links_from(from)
@@ -296,16 +315,32 @@ impl SiteTree {
         // check for name collisions
         if let Some(parent) = node.parent
             && let Some(id) = self.get_by_name(&node.name(), parent)
+        // if new is a page and match is not a page don't ignore
         {
-            warn!("{} already exists at {id}", node.name());
-            return *id;
+            if node.kind.is_page() && !self[id].kind.is_page() {
+                debug!(
+                    "Replacing {} with {} for {}",
+                    self[id].kind,
+                    node.kind,
+                    node.name()
+                );
+                self[id].kind = node.kind;
+            } else {
+                warn!("{} already exists at {id}", node.name());
+            }
+            return id;
         }
 
         let id = SiteId::from(self.nodes.len());
         if let Some(parent) = node.parent {
             self.nodes[*parent].children.push(id);
         }
-        debug!("Adding {:?} to tree", node.name());
+        debug!(
+            "Adding {:?} as {:?} to tree under '{:?}'",
+            node.name(),
+            node.kind.to_string(),
+            node.parent
+        );
         self.nodes.push(node);
 
         id
@@ -356,7 +391,7 @@ impl SiteTree {
             return Ok(id);
         }
 
-        // BFS queue (parent_id, parent_input, href)
+        // BFS queue (parent_id, input)
         // parent_id is None when root
         // href is None when first page added
         type LinkItem = (Option<SiteId>, Input, Option<String>);
@@ -364,79 +399,56 @@ impl SiteTree {
         let mut queue = VecDeque::<LinkItem>::new();
         queue.push_front((parent, input.clone(), None));
 
-        fn visit(
+        fn add_input(
             tree: &mut SiteTree,
-            queue: &mut VecDeque<LinkItem>,
+            queue: &mut VecDeque<(Option<SiteId>, Input, Option<String>)>,
+            parent_id: Option<SiteId>,
+            input: Input,
         ) -> Result<Option<SiteId>, LssgError> {
-            let Some((parent_id, parent_input, href)) = queue.pop_front() else {
+            if SiteNodeKind::input_is_page(&input) {
+                if let Some(existing_id) = tree.get_id_from_input(&input) {
+                    return Ok(Some(existing_id));
+                }
+
+                let new_id = tree.add_page(input.clone(), parent_id)?;
+                if let SiteNodeKind::Page(page) = &mut tree[new_id].kind {
+                    for (href, inputs) in page.raw_path_inputs() {
+                        for input in inputs {
+                            queue.push_back((Some(new_id), input.clone(), Some(href.clone())));
+                        }
+                    }
+                }
+                return Ok(Some(new_id));
+            }
+
+            let Some(parent_id) = parent_id else {
+                log::error!("Cant add resources without a parent: {input:?}");
                 return Ok(None);
             };
-            let input = match href.as_ref() {
-                Some(href) => match parent_input.join(href) {
-                    Ok(input) => input,
-                    Err(e) => {
-                        warn!("Invalid path {href}: {e}");
-                        return Ok(None);
-                    }
-                },
-                None => parent_input,
-            };
-
-            let child_id = if SiteNodeKind::input_is_page(&input) {
-                if let Some(existing_id) = tree.get_id_from_input(&input) {
-                    existing_id
-                } else {
-                    let new_id = tree.add_page(input.clone(), parent_id)?;
-                    // Queue the new page's links and images
-                    if let SiteNodeKind::Page(page) = &tree.nodes[*new_id].kind {
-                        queue.extend(
-                            page.links()
-                                .into_iter()
-                                .filter_map(|(_, href, ..)| {
-                                    if !Input::is_relative(href) {
-                                        return None;
-                                    }
-                                    if !input.join(href).ok().is_some_and(|i| i.exists()) {
-                                        log::info!("Ignoring {href}, does not exist or not valid");
-                                        return None;
-                                    }
-                                    Some((Some(new_id), input.clone(), Some(href.clone())))
-                                })
-                                .chain(page.images().into_iter().map(|(_, src, _)| {
-                                    (Some(new_id), input.clone(), Some(src.clone()))
-                                })),
-                        );
-                    }
-                    new_id
-                }
-            } else {
-                let Some(parent_id) = parent_id else {
-                    log::error!("Cant add resources without a parent: {input:?}");
+            match tree.add_from_input(input.clone(), parent_id) {
+                Ok(id) => Ok(Some(id)),
+                Err(e) => {
+                    log::error!("Failed to add {input}: {e}");
                     return Ok(None);
-                };
-                match tree.add_from_input(input.clone(), parent_id) {
-                    Ok(id) => id,
-                    Err(e) => {
-                        log::error!("Failed to add {input}: {e}");
-                        return Ok(None);
-                    }
                 }
+            }
+        }
+
+        let mut root_id = None;
+        while let Some((parent_id, input, raw_path)) = queue.pop_front() {
+            let Some(child_id) = add_input(self, &mut queue, parent_id, input.clone())? else {
+                continue;
             };
 
-            if let Some(parent) = parent_id
-                && let Some(href) = href
-            {
-                tree.rel_graph
+            if let (Some(parent), Some(href)) = (parent_id, raw_path) {
+                self.rel_graph
                     .add(parent, child_id, Relation::Discovered { raw_path: href });
             }
 
-            visit(tree, queue)?;
-
-            Ok(Some(child_id))
+            root_id = Some(child_id);
         }
 
-        let id =
-            visit(self, &mut queue)?.ok_or(LssgError::io(format!("Failed to add {input:?}")))?;
+        let id = root_id.ok_or(LssgError::io(format!("Failed to add {input:?}")))?;
         Ok(id)
     }
 
@@ -444,7 +456,7 @@ impl SiteTree {
     fn add_page(&mut self, input: Input, parent: Option<SiteId>) -> Result<SiteId, LssgError> {
         let parent = parent.map(|p| self.create_folders(&input, p));
         let name = input.filestem().unwrap_or("root".to_string());
-        let page = Page::try_from(input)?;
+        let page = Page::from_input(input, &self.http_client)?;
         let id = match parent {
             Some(parent) => self.add(SiteNode::page(name, parent, page)),
             None => self.add(SiteNode::root(name, page)),
@@ -470,7 +482,7 @@ impl SiteTree {
         let javascript_id = self.add(SiteNode::javascript(input.filename()?, parent, javascript));
 
         for link in links {
-            let input = input.join(&link)?;
+            let input = input.join_single(&link, &self.http_client)?;
             let parent = self.create_folders(&input, parent);
             let resource_id = self.add(SiteNode::resource(
                 input.filename()?,
@@ -507,7 +519,13 @@ impl SiteTree {
         let stylesheet_id = self.add(SiteNode::stylesheet(input.filename()?, parent, stylesheet));
 
         for link in stylesheet_links {
-            let input = input.join(&link)?;
+            let input = match input.join_single(&link, &self.http_client) {
+                Ok(i) => i,
+                Err(e) => {
+                    warn!("Failed to join {link} to {input}: {e}");
+                    continue;
+                }
+            };
             let parent = self.create_folders(&input, parent);
             let resource_id = self.add(SiteNode::resource(
                 input.filename()?,
@@ -542,7 +560,6 @@ impl SiteTree {
             current = parent;
         }
         folders.reverse();
-        base.join(&folders.join("/")).unwrap();
 
         if let Some(rel_path) = base.make_relative(input) {
             // don't allow backtrack from root
@@ -562,7 +579,7 @@ impl SiteTree {
                     continue;
                 }
                 if let Some(id) = self.get_by_name(name, parent) {
-                    parent = *id;
+                    parent = id;
                 } else {
                     debug!("creating folder {name:?} under {parent:?}");
                     parent = self.add(SiteNode::folder(name, parent));

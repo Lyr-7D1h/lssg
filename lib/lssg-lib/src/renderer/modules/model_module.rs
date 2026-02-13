@@ -1,13 +1,13 @@
 use crate::{
     lmarkdown::Token,
-    renderer::RendererModule,
+    renderer::{InitContext, RendererModule},
     sitetree::{Javascript, Relation, Resource, SiteNode, SiteTree},
     tree::Node,
 };
 
 const MODEL_VIEWER_JS: &[u8] = include_bytes!("./model_module/model-viewer-v4.min.js");
 
-const RESOURCE_KEYS: [&str; 4] = ["src", "poster", "skybox-image", "environment-image"];
+const RESOURCE_ATTRIBUTES: [&str; 4] = ["src", "poster", "skybox-image", "environment-image"];
 
 /// Implements https://modelviewer.dev/
 #[derive(Default)]
@@ -18,12 +18,18 @@ impl RendererModule for ModelModule {
         "model"
     }
 
-    fn init(&mut self, site_tree: &mut SiteTree) -> Result<(), crate::lssg_error::LssgError> {
+    fn init(
+        &mut self,
+        InitContext {
+            http_client: client,
+            site_tree,
+        }: InitContext,
+    ) -> Result<(), crate::lssg_error::LssgError> {
         let active_pages: Vec<_> = site_tree
             .pages()
             .flat_map(|(id, page)| {
                 let mut models = Vec::new();
-                for t in page.iter_all_tokens() {
+                for t in page.tokens_iter() {
                     match t {
                         Token::Html {
                             tokens,
@@ -53,7 +59,7 @@ impl RendererModule for ModelModule {
                 };
 
                 let add_resource = |href: &String, site_tree: &mut SiteTree| {
-                    if let Ok(input) = page_input.join(href).inspect_err(|e| {
+                    if let Ok(input) = page_input.join_single(href, &client).inspect_err(|e| {
                         log::error!("Failed to join path '{href}' with page input: {e}")
                     }) && let Ok(name) = input
                         .filename()
@@ -75,7 +81,7 @@ impl RendererModule for ModelModule {
                 };
 
                 // https://modelviewer.dev/docs/index.html
-                for key in RESOURCE_KEYS {
+                for key in RESOURCE_ATTRIBUTES {
                     if let Some(src) = attributes.get(key) {
                         add_resource(src, site_tree);
                     }
@@ -102,18 +108,18 @@ impl RendererModule for ModelModule {
                 tag,
                 attributes,
             } if tag == "model-viewer" => {
-                let links = ctx.site_tree.links_from(ctx.site_id);
-
                 let mut attributes = attributes.clone();
-                for key in RESOURCE_KEYS {
+                for key in RESOURCE_ATTRIBUTES {
                     if let Some(href) = attributes.get(key)
-                    && let Some(link) = links.iter().find(
-                        |l| matches!(&l.relation, Relation::Discovered { raw_path } if raw_path == href),
-                    )
-                {
-                    let path = ctx.site_tree.path(link.to);
-                    attributes.insert(key.to_string(), path);
-                }
+                        && let Some(to) = ctx
+                            .site_tree
+                            .resources_from_discovered_links(ctx.site_id, href)
+                            .into_iter()
+                            .next()
+                    {
+                        let path = ctx.site_tree.path(to);
+                        attributes.insert(key.to_string(), path);
+                    }
                 }
 
                 Some(tr.render_down(

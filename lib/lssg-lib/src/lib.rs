@@ -5,8 +5,9 @@
 //!
 //! # Examples on how to use this crate
 //! ```rs
-//! let input = Input::from_string("./test.md")
-//! let output = Input::from_string("./build")
+//! let client = reqwest::client::blocking::Client::new();
+//! let input = Input::from_string_single("./test.md", client)
+//! let output = Input::from_string_single("./build", client)
 //! let mut lssg = Lssg::new(input, output);
 //! // Add modules
 //! lssg.add_module(ExternalModule::new());
@@ -45,11 +46,18 @@ pub struct Lssg {
     input: Input,
     output_directory: PathBuf,
     renderer: Renderer,
+    http_client: reqwest::blocking::Client,
 }
 
 impl Lssg {
-    pub fn new(input: Input, output_directory: PathBuf, renderer: Renderer) -> Lssg {
+    pub fn new(
+        input: Input,
+        output_directory: PathBuf,
+        renderer: Renderer,
+        http_client: reqwest::blocking::Client,
+    ) -> Lssg {
         Lssg {
+            http_client,
             input,
             output_directory,
             renderer,
@@ -58,9 +66,9 @@ impl Lssg {
 
     pub fn render(&mut self) -> Result<(), LssgError> {
         info!("Generating SiteTree");
-        let mut site_tree = SiteTree::from_input(self.input.clone())?;
+        let mut site_tree = SiteTree::from_input(self.input.clone(), self.http_client.clone())?;
 
-        self.renderer.init(&mut site_tree);
+        self.renderer.init(&mut site_tree, &self.http_client);
         info!("SiteTree:\n{site_tree}");
 
         // site_tree.minify();
@@ -135,7 +143,9 @@ impl Lssg {
                     create_dir(path)?;
                 }
                 SiteNodeKind::Page { .. } => {
-                    let html = self.renderer.render(&site_tree, site_id)?;
+                    let html = self
+                        .renderer
+                        .render(&site_tree, site_id, &self.http_client)?;
                     create_dir_all(&path)?;
                     let html_output_path = path.join("index.html").canonicalize_nonexistent_path();
 

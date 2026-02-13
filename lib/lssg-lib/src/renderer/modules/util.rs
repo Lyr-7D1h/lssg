@@ -1,14 +1,9 @@
-use log::warn;
 use serde::de::IntoDeserializer;
 use serde::{Deserialize, Serialize};
 use serde_extensions::Overwrite;
 use serde_value::Value;
 
-use crate::{
-    lmarkdown::Token,
-    renderer::RenderContext,
-    sitetree::{Page, Relation},
-};
+use crate::lmarkdown::Token;
 
 pub fn tokens_to_text(tokens: &Vec<Token>) -> String {
     let mut result = String::new();
@@ -18,33 +13,6 @@ pub fn tokens_to_text(tokens: &Vec<Token>) -> String {
         }
     }
     result
-}
-
-/// Translate href to page path
-pub fn process_href(href: &String, context: &RenderContext) -> String {
-    if Page::is_href_to_page(href) {
-        let to_id = context
-            .site_tree
-            .links_from(context.site_id)
-            .into_iter()
-            .find_map(|l| {
-                if let Relation::Discovered { raw_path: path } = &l.relation
-                    && path == href
-                {
-                    return Some(l.to);
-                }
-                None
-            });
-
-        if let Some(to_id) = to_id {
-            context.site_tree.path(to_id)
-        } else {
-            warn!("Could not find node where {href:?} points to");
-            href.to_owned()
-        }
-    } else {
-        href.to_owned()
-    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

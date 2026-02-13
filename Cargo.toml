@@ -12,7 +12,7 @@ readme = "README.md"
 exclude = ["docs", "examples", "build"]
 
 [dependencies]
-simple_logger = "5.1.0"
+env_logger = "0.11.6"
 clap = { version = "4.5.54", features = ["derive"] }
 lssg-lib = { path = "./lib/lssg-lib/", version = "1.0.1" }
 log = "0.4.29"
@@ -20,6 +20,7 @@ regex = "1.12.2"
 notify = "8.2.0"
 notify-debouncer-full = "0.4.0"
 tiny_http = "0.12"
+reqwest = "0.13.2"
 
 [workspace]
 members = [

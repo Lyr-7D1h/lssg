@@ -1,3 +1,7 @@
+use std::collections::{HashMap, hash_map::Iter};
+
+use log::warn;
+
 use crate::{
     lmarkdown::{Token, parse_lmarkdown},
     lssg_error::LssgError,
@@ -10,58 +14,73 @@ use super::Input;
 pub struct Page {
     tokens: Vec<Token>,
     input: Option<Input>,
+    /// Map a link href or image src to an input
+    raw_path_map: HashMap<String, Vec<Input>>,
 }
 impl Page {
     pub fn empty() -> Page {
         Page {
             tokens: vec![],
             input: None,
+            raw_path_map: HashMap::new(),
         }
+    }
+
+    pub fn from_input(
+        input: Input,
+        http_client: &reqwest::blocking::Client,
+    ) -> Result<Page, LssgError> {
+        let tokens = parse_lmarkdown(input.readable()?).map_err(|e| {
+            LssgError::from(e).with_context(format!("Failed to parse markdown {input:?}"))
+        })?;
+        let mut resource_map = HashMap::new();
+        let iter = TokenIterator {
+            queue: tokens.iter().collect(),
+        };
+        for t in iter {
+            match t {
+                Token::Autolink { href, .. } | Token::Link { href, .. }
+                    if Input::is_local(href) =>
+                {
+                    let Ok(inputs) = input
+                        .join(href, http_client)
+                        .inspect_err(|e| warn!("Failed to get {input}: {e}"))
+                    else {
+                        continue;
+                    };
+                    if inputs.is_empty() {
+                        continue;
+                    }
+                    resource_map.insert(href.to_string(), inputs);
+                }
+                Token::Image { src, .. } => {
+                    let Ok(inputs) = input
+                        .join(src, http_client)
+                        .inspect_err(|e| warn!("Failed to get {input}: {e}"))
+                    else {
+                        continue;
+                    };
+                    if inputs.is_empty() {
+                        continue;
+                    }
+                    resource_map.insert(src.to_string(), inputs);
+                }
+                _ => {}
+            }
+        }
+        Ok(Page {
+            tokens,
+            input: Some(input),
+            raw_path_map: resource_map,
+        })
     }
 
     pub fn input(&self) -> Option<&Input> {
         self.input.as_ref()
     }
 
-    /// Discover any links inside of the page will return vec with (text, href)
-    pub fn links(&self) -> Vec<(&Vec<Token>, &String, &Option<String>)> {
-        let mut hrefs = vec![];
-        let mut queue: Vec<Vec<&Token>> = vec![self.tokens.iter().collect()];
-        while let Some(tokens) = queue.pop() {
-            for t in tokens {
-                if let Token::Link {
-                    tokens: text,
-                    href,
-                    title,
-                } = t
-                {
-                    hrefs.push((text, href, title));
-                    continue;
-                }
-                if let Some(tokens) = t.get_tokens() {
-                    queue.push(tokens);
-                }
-            }
-        }
-        hrefs
-    }
-
-    /// Discover any images inside of the page
-    pub fn images(&self) -> Vec<(&Vec<Token>, &String, &Option<String>)> {
-        let mut srcs = vec![];
-        let mut queue: Vec<Vec<&Token>> = vec![self.tokens.iter().collect()];
-        while let Some(tokens) = queue.pop() {
-            for t in tokens {
-                if let Token::Image { tokens, src, title } = t {
-                    srcs.push((tokens, src, title));
-                    continue;
-                }
-                if let Some(tokens) = t.get_tokens() {
-                    queue.push(tokens);
-                }
-            }
-        }
-        srcs
+    pub fn raw_path_inputs(&self) -> Iter<'_, String, Vec<Input>> {
+        self.raw_path_map.iter()
     }
 
     pub fn attributes(&self) -> Option<toml::Table> {
@@ -72,60 +91,31 @@ impl Page {
         }
     }
 
-    pub fn attributes_mut(&mut self) -> Option<&mut toml::Table> {
-        if let Some(Token::Attributes { table }) = self.tokens_mut().first_mut() {
-            Some(table)
-        } else {
-            None
-        }
-    }
-
-    // only support relative links to markdown files for now
-    // because this will allow absolute links to markdown files links to for
-    // example https://github.com/Lyr-7D1h/airap/blob/master/README.md
-    // will render a readme even though this might not be appropiate
-    pub fn is_href_to_page(href: &str) -> bool {
-        href.ends_with(".md") && Input::is_relative(href)
-    }
-
     /// Return the list of top tokens in the page
-    /// NOTE: a token can contain more tokens
+    /// NOTE: a token can contain more tokens use `iter()` to iterate over all tokens
     pub fn tokens(&self) -> &Vec<Token> {
         &self.tokens
     }
 
+    #[cfg(test)]
     pub fn tokens_mut(&mut self) -> &mut Vec<Token> {
         &mut self.tokens
     }
 
     /// Iterate over all tokens recursively, including child tokens in links, images, etc.
     /// Returns an iterator that yields references to all tokens in depth-first order.
-    pub fn iter_all_tokens(&self) -> impl Iterator<Item = &Token> {
-        AllTokensIter {
+    pub fn tokens_iter(&self) -> impl Iterator<Item = &Token> {
+        TokenIterator {
             queue: self.tokens.iter().collect(),
         }
     }
 }
 
-impl TryFrom<Input> for Page {
-    type Error = LssgError;
-
-    fn try_from(input: Input) -> Result<Self, Self::Error> {
-        let tokens = parse_lmarkdown(input.readable()?).map_err(|e| {
-            LssgError::from(e).with_context(format!("Failed to parse markdown {input:?}"))
-        })?;
-        Ok(Page {
-            tokens,
-            input: Some(input),
-        })
-    }
-}
-
-struct AllTokensIter<'a> {
+struct TokenIterator<'a> {
     queue: Vec<&'a Token>,
 }
 
-impl<'a> Iterator for AllTokensIter<'a> {
+impl<'a> Iterator for TokenIterator<'a> {
     type Item = &'a Token;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -134,7 +124,7 @@ impl<'a> Iterator for AllTokensIter<'a> {
         // If this token has child tokens, add them to the queue
         if let Some(child_tokens) = token.get_tokens() {
             // Reverse the order so they're processed in the correct order
-            self.queue.extend(child_tokens.into_iter().rev());
+            self.queue.extend(child_tokens.into_iter().flatten().rev());
         }
 
         Some(token)
@@ -156,10 +146,11 @@ Another paragraph with **bold** and _emphasis_."#;
         let page = Page {
             tokens,
             input: None,
+            raw_path_map: HashMap::new(),
         };
 
         // Collect all tokens
-        let all_tokens: Vec<&Token> = page.iter_all_tokens().collect();
+        let all_tokens: Vec<&Token> = page.tokens_iter().collect();
 
         // We should have more tokens than just the top-level ones
         assert!(all_tokens.len() > page.tokens().len());
@@ -184,9 +175,10 @@ Another paragraph with **bold** and _emphasis_."#;
         let page = Page {
             tokens,
             input: None,
+            raw_path_map: HashMap::new(),
         };
 
-        let all_tokens: Vec<&Token> = page.iter_all_tokens().collect();
+        let all_tokens: Vec<&Token> = page.tokens_iter().collect();
 
         // Should find the list token
         let has_list = all_tokens

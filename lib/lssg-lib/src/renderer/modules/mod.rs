@@ -6,6 +6,7 @@ use serde_extensions::Overwrite;
 use crate::{
     LssgError,
     lmarkdown::Token,
+    renderer::InitContext,
     sitetree::{Page, SiteId, SiteTree},
 };
 use virtual_dom::{Document, DomNode};
@@ -39,7 +40,7 @@ pub trait RendererModule {
     /// This gets run once just after the site_tree has been created
     ///
     /// Its mostly useful for modifying the site tree (adding new pages, modifying resources, etc.)
-    fn init(&mut self, site_tree: &mut SiteTree) -> Result<(), LssgError> {
+    fn init(&mut self, ctx: InitContext) -> Result<(), LssgError> {
         Ok(())
     }
 
@@ -210,7 +211,11 @@ mod tests {
         let test_file = temp_dir.join("lssg_test_page.md");
         fs::write(&test_file, "# Test").unwrap();
 
-        let input = Input::from_string(&test_file.to_str().unwrap()).unwrap();
+        let input = Input::from_string_single(
+            &test_file.to_str().unwrap(),
+            &reqwest::blocking::Client::new(),
+        )
+        .unwrap();
 
         // Create initial tree with empty root page
         let root_page = if !pages.is_empty() && pages[0].0.is_none() {
@@ -219,7 +224,7 @@ mod tests {
             Page::empty()
         };
 
-        let mut tree = SiteTree::from_input(input).unwrap();
+        let mut tree = SiteTree::from_input(input, reqwest::blocking::Client::new()).unwrap();
 
         // Replace root page with the one we want using IndexMut
         if let SiteNodeKind::Page(page) = &mut tree[SiteId(0)].kind {

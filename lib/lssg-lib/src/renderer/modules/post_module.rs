@@ -5,7 +5,7 @@ use proc_virtual_dom::dom;
 use crate::{
     lmarkdown::Token,
     renderer::{
-        RenderContext,
+        InitContext, RenderContext,
         modules::post_module::{constants::POST_STYLESHEET, post_page::PostPage, rss::RssOptions},
     },
     sitetree::{Relation, SiteId, SiteNode, Stylesheet},
@@ -44,7 +44,7 @@ impl RendererModule for PostModule {
 
     fn init(
         &mut self,
-        site_tree: &mut crate::sitetree::SiteTree,
+        InitContext { site_tree, .. }: InitContext,
     ) -> Result<(), crate::lssg_error::LssgError> {
         let posts = self.collect_post_pages(site_tree);
         if posts.len() > 0 {

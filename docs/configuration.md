@@ -10,7 +10,7 @@ Resources can be:
 - Linked in HTML: `<script src="./script.js"></script>`
 - Used as custom elements: `<carousel>![](image.jpg)</carousel>`
 
-All discovered resources are automatically included in the build output without manual configuration.
+All discovered resources are automatically included in the build output without manual configuration. [Glob](https://en.wikipedia.org/wiki/Glob_(programming)) patterns are supported too, so you can reference sets of files with patterns like `images/*`, `assets/**/*.js`, or `fonts/*.{woff,woff2}`.
 
 ## Configuration Options
 

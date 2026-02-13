@@ -44,6 +44,10 @@ impl LssgError {
         Self::new(message, LssgErrorKind::Render)
     }
 
+    pub fn request<S: Into<String>>(message: S) -> LssgError {
+        Self::new(message, LssgErrorKind::Request)
+    }
+
     pub fn io<S: Into<String>>(message: S) -> LssgError {
         Self::new(message, LssgErrorKind::Io)
     }

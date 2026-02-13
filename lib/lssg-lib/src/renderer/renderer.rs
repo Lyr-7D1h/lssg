@@ -7,7 +7,7 @@ use crate::{
 use virtual_dom::Document;
 
 use super::modules::RendererModule;
-use super::{RenderContext, TokenRenderer};
+use super::{InitContext, RenderContext, TokenRenderer};
 
 /// HtmlRenderer is responsible for the process of converting the site tree into the final HTML output.
 /// It does this by managing a queue of tokens to be rendered and delegating the rendering process to different modules.
@@ -22,17 +22,22 @@ impl Renderer {
     }
 
     /// Will run init on all modules, will remove modules if it fails
-    pub fn init(&mut self, site_tree: &mut SiteTree) {
+    pub fn init(&mut self, site_tree: &mut SiteTree, http_client: &reqwest::blocking::Client) {
         debug!("running init");
         let failed: Vec<usize> = self
             .modules
             .iter_mut()
             .enumerate()
-            .filter_map(|(i, module)| match module.init(site_tree) {
-                Ok(_) => None,
-                Err(e) => {
-                    error!("Failed to initialize for module '{}': {e}", module.id());
-                    Some(i)
+            .filter_map(|(i, module)| {
+                match module.init(InitContext {
+                    http_client,
+                    site_tree,
+                }) {
+                    Ok(_) => None,
+                    Err(e) => {
+                        error!("Failed to initialize for module '{}': {e}", module.id());
+                        Some(i)
+                    }
                 }
             })
             .collect();
@@ -65,7 +70,12 @@ impl Renderer {
     }
 
     /// Transform site id into a html page
-    pub fn render(&mut self, site_tree: &SiteTree, site_id: SiteId) -> Result<String, LssgError> {
+    pub fn render(
+        &mut self,
+        site_tree: &SiteTree,
+        site_id: SiteId,
+        http_client: &reqwest::blocking::Client,
+    ) -> Result<String, LssgError> {
         // get the site node
         let site_node = site_tree
             .get(site_id)
@@ -78,6 +88,7 @@ impl Renderer {
         let mut dom = Document::new();
 
         let context = RenderContext {
+            http_client,
             input: site_tree.get_input(site_id),
             site_tree,
             site_id,

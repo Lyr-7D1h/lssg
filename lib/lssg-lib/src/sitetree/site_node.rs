@@ -1,7 +1,7 @@
 use std::{
     fs::{self, File},
     io::{Cursor, Read},
-    path::{Component, Path, PathBuf},
+    path::{Path, PathBuf},
 };
 
 use crate::{
@@ -10,57 +10,82 @@ use crate::{
     sitetree::{SiteId, javascript::Javascript},
     tree::Node,
 };
+use glob::glob;
 use pathdiff::diff_paths;
 use reqwest::Url;
 
 use super::stylesheet::Stylesheet;
 use super::{Resource, page::Page};
 
-/// Resolve `.` and `..` components
-fn normalize_path(path: &Path) -> PathBuf {
-    let mut components = Vec::new();
-
-    for component in path.components() {
-        match component {
-            Component::ParentDir => {
-                // Only pop if we have something to pop and it's not a prefix/root
-                if let Some(last) = components.last()
-                    && !matches!(last, Component::Prefix(_) | Component::RootDir)
-                {
-                    components.pop();
-                }
-            }
-            Component::CurDir => {
-                // Skip current directory references
-            }
-            _ => {
-                components.push(component);
-            }
-        }
-    }
-
-    components.iter().collect()
-}
-
 /// Wrapper around absolute path to either an internal or external (http://) file
+///
+/// It should always be a valid path to a resource
 #[derive(Debug, Clone, Hash, Eq, PartialEq)] // TODO check if Hash is valid
 pub enum Input {
     Local { path: PathBuf },
     External { url: Url },
 }
 impl Input {
+    pub fn from_url(url: Url, client: &reqwest::blocking::Client) -> Result<Input, LssgError> {
+        let res = client.head(url.clone()).send()?;
+        if !res.status().is_success() {
+            return Err(LssgError::request(format!(
+                "Failed to do HEAD call to {url}"
+            )));
+        }
+        Ok(Input::External { url })
+    }
+
     /// Create an Input from string
-    pub fn from_string(string: &str) -> Result<Input, LssgError> {
+    ///
+    /// Returns multiple in case of a glob pattern
+    pub fn from_string(
+        string: &str,
+        client: &reqwest::blocking::Client,
+    ) -> Result<Vec<Input>, LssgError> {
         // if starts with http must be absolute
         if string.starts_with("http") {
-            let url = Url::parse(string).unwrap(); // TODO always ping url to check if exists
-            Ok(Input::External { url })
-        } else {
-            let mut path = PathBuf::from(string);
-            path = fs::canonicalize(path)?;
-
-            Ok(Input::Local { path })
+            let url = Url::parse(string).map_err(|e| LssgError::parse(e.to_string()))?;
+            return Ok(vec![Input::from_url(url, client)?]);
         }
+
+        if Self::is_glob(string) {
+            let mut inputs = Vec::new();
+            for entry in glob(string).map_err(|e| LssgError::parse(e.to_string()))? {
+                let Ok(path) =
+                    entry.inspect_err(|e| log::warn!("Failed to access file from {string}: {e}"))
+                else {
+                    continue;
+                };
+                let path = fs::canonicalize(path)?;
+                inputs.push(Input::Local { path });
+            }
+            return Ok(inputs);
+        }
+
+        let mut path = PathBuf::from(string);
+        path = fs::canonicalize(path)?;
+
+        Ok(vec![Input::Local { path }])
+    }
+
+    /// Create a single Input from string
+    ///
+    /// Ignoring any glob patterns
+    pub fn from_string_single(
+        string: &str,
+        client: &reqwest::blocking::Client,
+    ) -> Result<Input, LssgError> {
+        // if starts with http must be absolute
+        if string.starts_with("http") {
+            let url = Url::parse(string).map_err(|e| LssgError::parse(e.to_string()))?;
+            return Ok(Input::from_url(url, client)?);
+        }
+
+        let mut path = PathBuf::from(string);
+        path = fs::canonicalize(path)?;
+
+        Ok(Input::Local { path })
     }
 
     pub fn make_relative(&self, to: &Input) -> Option<String> {
@@ -83,22 +108,63 @@ impl Input {
         }
     }
 
-    /// check if string looks like a relative path
+    pub fn is_local(input: &str) -> bool {
+        !input.starts_with("http")
+    }
+
+    pub fn is_glob(input: &str) -> bool {
+        let has_wildcards = input.contains('*') || input.contains('?');
+        let has_char_class = input.contains('[') && input.contains(']');
+        Self::is_local(input) && (has_wildcards || has_char_class)
+    }
+
+    /// check if string looks like a local relative path
     pub fn is_relative(input: &str) -> bool {
-        !input.starts_with("/") && !input.starts_with("http")
+        !input.starts_with("/") && Self::is_local(input)
+    }
+
+    // only support relative links to markdown files for now
+    // because this will allow absolute links to markdown files links to for
+    // example https://github.com/Lyr-7D1h/airap/blob/master/README.md
+    // will render a readme even though this might not be appropiate
+    pub fn is_href_to_page(href: &str) -> bool {
+        href.ends_with(".md") && Self::is_relative(href)
+    }
+
+    pub fn join_single(
+        &self,
+        path_string: &str,
+        client: &reqwest::blocking::Client,
+    ) -> Result<Input, LssgError> {
+        let mut inputs = self.join(path_string, client)?;
+        match inputs.len() {
+            0 => Err(LssgError::io(format!(
+                "No matches found for input '{path_string}'"
+            ))),
+            1 => Ok(inputs.remove(0)),
+            _ => Err(LssgError::io(format!(
+                "Multiple matches found for input '{path_string}'"
+            ))),
+        }
     }
 
     /// Create a new Input with path relative to `self` or absolute path
-    pub fn join(&self, path_string: &str) -> Result<Input, LssgError> {
+    ///
+    /// With glob support
+    pub fn join(
+        &self,
+        path_string: &str,
+        client: &reqwest::blocking::Client,
+    ) -> Result<Vec<Input>, LssgError> {
         // if empty just return a clone
         if path_string.is_empty() {
-            return Ok(self.clone());
+            return Ok(vec![self.clone()]);
         }
 
         // return new if absolute
         if path_string.starts_with("http") {
             let url = Url::parse(path_string).map_err(|e| LssgError::parse(e.to_string()))?;
-            Ok(Input::External { url })
+            Ok(vec![Input::from_url(url, client)?])
         } else {
             match self {
                 Input::Local { path } => {
@@ -108,28 +174,18 @@ impl Input {
                     } else {
                         path
                     };
-                    let mut path = path.join(path_string);
-
-                    // Make path absolute if it's relative
-                    if path.is_relative() {
-                        path = std::env::current_dir()
-                            .map_err(|e| {
-                                LssgError::from(e).with_context("Failed to get current directory")
-                            })?
-                            .join(path);
-                    }
-
-                    // Normalize the path (resolve . and .. components)
-                    path = normalize_path(&path);
-
-                    Ok(Input::Local { path })
+                    let path = path.join(path_string);
+                    let path = path
+                        .to_str()
+                        .ok_or(LssgError::io(format!("Invalid unicode {path_string}")))?;
+                    Input::from_string(path, client)
                 }
                 Input::External { url } => {
                     // relative url path
                     let url = url
                         .join(path_string)
                         .map_err(|e| LssgError::parse(e.to_string()))?;
-                    Ok(Input::External { url })
+                    Ok(vec![Input::from_url(url, client)?])
                 }
             }
         }

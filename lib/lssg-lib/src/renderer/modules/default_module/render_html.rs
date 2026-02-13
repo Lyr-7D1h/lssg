@@ -8,15 +8,15 @@ use virtual_dom::{Document, DomNode, to_attributes};
 use crate::{
     lmarkdown::Token,
     renderer::{
-        RenderContext, TokenRenderer,
-        util::{process_href, tokens_to_text},
+        RenderContext, TokenRenderer, modules::default_module::translate_href_to_sitetree_path,
+        util::tokens_to_text,
     },
-    sitetree::{Page, Relation, SiteId},
+    sitetree::SiteId,
 };
 
 fn links_grid(
     document: &mut Document,
-    context: &RenderContext,
+    ctx: &RenderContext,
     parent: &DomNode,
     tr: &mut TokenRenderer,
     _attributes: &HashMap<String, String>,
@@ -26,42 +26,48 @@ fn links_grid(
         .iter()
         .filter_map(|t| {
             if let Token::Link { tokens, href, .. } = t {
-                let href = process_href(href, context);
-                let a = dom!(<a href="{href}"><div class="default__links_grid_card"></div></a>);
-                let mut tokens = tokens.iter().peekable();
-                // if link content starts with image use it as cover
-                if let Some(first) = tokens.peek()
-                    && let Token::Image { .. } = first
-                {
-                    let first = tokens.next().unwrap();
-                    let cover = dom!(<div class="default__links_grid_card_cover"></div>);
-                    let s = tr.render(
-                        document,
-                        context,
-                        cover.clone(),
-                        std::slice::from_ref(first),
-                    );
-                    // if svg set viewbox to allow scaling
-                    match &mut *s.first_child().unwrap().kind_mut() {
-                        virtual_dom::DomNodeKind::Element { attributes, .. } => {
-                            attributes.insert("width".into(), "100%".into());
-                            attributes.insert("height".into(), "auto".into());
+                let links: Vec<_> = translate_href_to_sitetree_path(
+                    href,
+                    ctx.site_tree,
+                    ctx.site_id,
+                )
+                .into_iter()
+                .map(|(href, _)| {
+                    let a = dom!(<a href="{href}"><div class="default__links_grid_card"></div></a>);
+                    let mut tokens = tokens.iter().peekable();
+                    // if link content starts with image use it as cover
+                    if let Some(first) = tokens.peek()
+                        && let Token::Image { .. } = first
+                    {
+                        let first = tokens.next().unwrap();
+                        let cover = dom!(<div class="default__links_grid_card_cover"></div>);
+                        let s =
+                            tr.render(document, ctx, cover.clone(), std::slice::from_ref(first));
+                        // if svg set viewbox to allow scaling
+                        match &mut *s.first_child().unwrap().kind_mut() {
+                            virtual_dom::DomNodeKind::Element { attributes, .. } => {
+                                attributes.insert("width".into(), "100%".into());
+                                attributes.insert("height".into(), "auto".into());
+                            }
+                            _ => error!("should be an element"),
                         }
-                        _ => error!("should be an element"),
+                        a.first_child().unwrap().append_child(cover);
                     }
-                    a.first_child().unwrap().append_child(cover);
-                }
-                let tokens = Vec::from_iter(tokens.cloned());
-                let title = tokens_to_text(&tokens);
-                a.first_child()
-                    .unwrap()
-                    .append_child(dom!(<h3 class="default__links_grid_card_title">{title}</h3>));
+                    let tokens = Vec::from_iter(tokens.cloned());
+                    let title = tokens_to_text(&tokens);
+                    a.first_child().unwrap().append_child(
+                        dom!(<h3 class="default__links_grid_card_title">{title}</h3>),
+                    );
+                    a
+                })
+                .collect();
 
-                Some(a)
+                Some(links)
             } else {
                 None
             }
         })
+        .flatten()
         .collect();
     let grid: DomNode = dom!(<div class="default__links_grid">{links}</div>);
     parent.append_child(grid);
@@ -69,7 +75,7 @@ fn links_grid(
 
 fn links_boxes(
     document: &mut Document,
-    context: &RenderContext,
+    ctx: &RenderContext,
     parent: &DomNode,
     tr: &mut TokenRenderer,
     _attributes: &HashMap<String, String>,
@@ -84,43 +90,17 @@ fn links_boxes(
             title,
         } = t
         {
-            let mut href = href.clone();
+            for (href, _) in translate_href_to_sitetree_path(href, ctx.site_tree, ctx.site_id) {
+                let a: DomNode = if let Some(title) = title {
+                    dom!(<a href="{href}" title="{title}"><div class="default__links_box"></div></a>)
+                } else {
+                    dom!(<a href="{href}"><div class="default__links_box"></div></a>)
+                };
 
-            // if a local link to a page get site path to the page
-            if Page::is_href_to_page(&href) {
-                // find site id where href is pointing to
-                let to_id = context
-                    .site_tree
-                    .links_from(context.site_id)
-                    .into_iter()
-                    .find_map(|l| {
-                        if let Relation::Discovered { raw_path: path } = &l.relation
-                            && *path == href
-                            && context.site_tree[l.to].kind.is_page()
-                        {
-                            return Some(l.to);
-                        }
-                        None
-                    });
-
-                href = match to_id {
-                    Some(to_id) => context.site_tree.path(to_id),
-                    None => {
-                        warn!("Could not find node where {href:?} points to, ignoring..");
-                        continue;
-                    }
-                }
+                let div = a.first_child().unwrap();
+                tr.render(document, ctx, div, tokens);
+                links.append_child(a);
             }
-
-            let a: DomNode = if let Some(title) = title {
-                dom!(<a href="{href}" title="{title}"><div class="default__links_box"></div></a>)
-            } else {
-                dom!(<a href="{href}"><div class="default__links_box"></div></a>)
-            };
-
-            let div = a.first_child().unwrap();
-            tr.render(document, context, div, tokens);
-            links.append_child(a);
         }
     }
 }
@@ -155,14 +135,7 @@ fn carousel(
         return;
     }
 
-    let total = tokens.len();
-    let carousel = dom!(<div class="default__carausel"></div>);
-
-    // Main viewport
-    let viewport = dom!(<div class="default__carausel_viewport"></div>);
-    let container = dom!(<div class="default__carausel_container"></div>);
-
-    let items = tokens
+    let carousel_tokens: Vec<&Token> = tokens
         .iter()
         .filter(|t| {
             matches!(
@@ -170,15 +143,41 @@ fn carousel(
                 Token::Link { .. } | Token::Image { .. } | Token::Html { .. }
             )
         })
-        .enumerate();
+        .collect();
+
+    if carousel_tokens.is_empty() {
+        return;
+    }
+
+    let carousel = dom!(<div class="default__carausel"></div>);
+
+    // Main viewport
+    let viewport = dom!(<div class="default__carausel_viewport"></div>);
+    let container = dom!(<div class="default__carausel_container"></div>);
 
     // Create slides for main viewer
-    for (idx, t) in items.clone() {
-        let slide = dom!(<div class="default__carausel_slide" data-index="{idx}"></div>);
-        let inner = dom!(<div class="default__carausel_slide_inner"></div>);
-        tr.render(document, context, inner.clone(), std::slice::from_ref(t));
-        slide.append_child(inner);
-        container.append_child(slide);
+    let mut total = 0;
+    for t in &carousel_tokens {
+        let rendered = document.create_element("div");
+        tr.render(
+            document,
+            context,
+            rendered.clone(),
+            std::slice::from_ref(*t),
+        );
+        for item in rendered.children() {
+            let idx = total;
+            total += 1;
+            let slide = dom!(<div class="default__carausel_slide" data-index="{idx}"></div>);
+            let inner = dom!(<div class="default__carausel_slide_inner"></div>);
+            inner.append_child(item);
+            slide.append_child(inner);
+            container.append_child(slide);
+        }
+    }
+
+    if total == 0 {
+        return;
     }
 
     viewport.append_child(container);
@@ -189,17 +188,24 @@ fn carousel(
         let thumbs_viewport = dom!(<div class="default__carausel_thumbs_viewport"></div>);
         let thumbs_container = dom!(<div class="default__carausel_thumbs_container"></div>);
 
-        for (idx, t) in items {
-            let thumb = dom!(<button class="default__carausel_thumb" onclick="default__carauselGoTo(event, {idx})" data-index="{idx}"></button>);
-            let thumb_inner = dom!(<div class="default__carausel_thumb_inner"></div>);
+        let mut thumb_idx = 0;
+        for t in &carousel_tokens {
+            let rendered = document.create_element("div");
             tr.render(
                 document,
                 context,
-                thumb_inner.clone(),
-                std::slice::from_ref(t),
+                rendered.clone(),
+                std::slice::from_ref(*t),
             );
-            thumb.append_child(thumb_inner);
-            thumbs_container.append_child(thumb);
+            for item in rendered.children() {
+                let idx = thumb_idx;
+                thumb_idx += 1;
+                let thumb = dom!(<button class="default__carausel_thumb" onclick="default__carauselGoTo(event, {idx})" data-index="{idx}"></button>);
+                let thumb_inner = dom!(<div class="default__carausel_thumb_inner"></div>);
+                thumb_inner.append_child(item);
+                thumb.append_child(thumb_inner);
+                thumbs_container.append_child(thumb);
+            }
         }
 
         thumbs_viewport.append_child(thumbs_container);
