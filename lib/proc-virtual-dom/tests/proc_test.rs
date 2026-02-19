@@ -139,11 +139,11 @@ fn html_interpolation_works_for_self_closing() {
 #[test]
 fn html_with_js_works() {
     let input =
-        dom!(<div class="default__carausel_item" onclick="default__toggleModal(event)"></div>);
+        dom!(<div class="default__carousel_item" onclick="default__toggleModal(event)"></div>);
     let expected = Html::Element {
         tag: "div".into(),
         attributes: to_attributes([
-            ("class", "default__carausel_item"),
+            ("class", "default__carousel_item"),
             ("onclick", "default__toggleModal(event)"),
         ]),
         children: vec![],
