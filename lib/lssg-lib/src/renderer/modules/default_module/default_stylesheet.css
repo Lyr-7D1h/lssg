@@ -1,5 +1,7 @@
 * {
-  font-family: monospace;
+  font-family:
+    "Source Sans Pro", system-ui, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
 }
 
 body,
@@ -16,6 +18,7 @@ h3,
 h4,
 h5,
 h6 {
+  font-family: "Courier New", Courier, monospace;
   padding-top: 25px;
   padding-bottom: 15px;
 }
@@ -85,6 +88,21 @@ li ol {
   padding-left: 2em;
 }
 
+/* Natural spacing for lists */
+ul,
+ol {
+  margin-top: 0.8em;
+  margin-bottom: 2.14em;
+  padding-left: 1.5em;
+}
+li {
+  margin-bottom: 0.5em;
+  line-height: 28px;
+}
+li:last-child {
+  margin-bottom: 0;
+}
+
 video {
   max-width: 100%;
 }
@@ -94,13 +112,13 @@ video {
   text-overflow: ellipsis;
   margin: 0;
   /* Firefox */
-  min-height: -moz-calc(100% - 30px);
+  min-height: -moz-calc(100% - 60px);
   /* WebKit */
-  min-height: -webkit-calc(100% - 30px);
+  min-height: -webkit-calc(100% - 60px);
   /* Opera */
-  min-height: -o-calc(100% - 30px);
+  min-height: -o-calc(100% - 60px);
   /* Standard */
-  min-height: calc(100vh - 30px);
+  min-height: calc(100vh - 60px);
 }
 
 /* Constrain content elements to max-width and center them */
@@ -150,12 +168,16 @@ video {
   p {
     font-size: 18px;
   }
+  li {
+    line-height: 22px;
+  }
 }
 #default__footer {
   font-size: 16px;
   text-align: center;
   height: 30px;
   margin: 0;
+  padding-top: 30px;
   clear: both;
   width: 100%;
 }

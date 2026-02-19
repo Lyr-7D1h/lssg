@@ -29,23 +29,6 @@ p + p {
   margin-top: 2.14em;
 }
 
-/* Natural spacing for lists */
-ul,
-ol {
-  margin-top: 0.8em;
-  margin-bottom: 2.14em;
-  padding-left: 1.5em;
-}
-
-li {
-  margin-bottom: 0.5em;
-  line-height: 28px;
-}
-
-li:last-child {
-  margin-bottom: 0;
-}
-
 @media only screen and (max-width: 768px) {
   .post__date {
     margin-left: 24px;
@@ -53,10 +36,6 @@ li:last-child {
   }
 
   p {
-    line-height: 22px;
-  }
-
-  li {
     line-height: 22px;
   }
 
