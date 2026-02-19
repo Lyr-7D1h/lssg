@@ -6,7 +6,7 @@ tags=["Creagen", "Plotter Art"]
 
 # Gentree
 
-Algorithmicly generated trees
+I have written an algorithm for generating trees.
 
 <carousel title>
 

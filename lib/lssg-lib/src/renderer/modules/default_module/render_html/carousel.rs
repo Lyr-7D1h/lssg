@@ -116,6 +116,27 @@ pub fn carousel(
     viewport.append_child(container);
     carousel.append_child(viewport);
 
+    if total > 1 {
+        let navigation = dom!(<div class="default__carausel_navigation"></div>);
+        let prev = dom!(
+            <button
+                class="default__carausel_btn default__carausel_btn_prev"
+                onclick="default__carauselPrev(event)"
+                aria-label="Previous slide"
+            ></button>
+        );
+        let next = dom!(
+            <button
+                class="default__carausel_btn default__carausel_btn_next"
+                onclick="default__carauselNext(event)"
+                aria-label="Next slide"
+            ></button>
+        );
+        navigation.append_child(prev);
+        navigation.append_child(next);
+        carousel.append_child(navigation);
+    }
+
     // Thumbnails
     if total > 1 {
         let thumbs_viewport = dom!(<div class="default__carausel_thumbs_viewport"></div>);

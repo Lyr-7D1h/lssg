@@ -322,9 +322,6 @@ body:has(.default__side-menu) #default__content {
   font-weight: 800;
   margin: 0;
 }
-.default__links_grid_card_cover {
-  padding: 20px;
-}
 .default__links_grid_card_cover:hover img,
 .default__links_grid_card_cover:hover svg {
   transform: scale(1.05);
@@ -360,7 +357,7 @@ body:has(.default__side-menu) #default__content {
   border-radius: 12px;
   background: transparent;
   position: relative;
-  cursor: pointer;
+  cursor: default;
   touch-action: pan-y;
   user-select: none;
 }
@@ -421,39 +418,92 @@ body:has(.default__side-menu) #default__content {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem;
+  padding: 0;
   z-index: 10;
 }
 .default__carausel_btn {
   pointer-events: auto;
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
+  width: 20%;
+  height: 100%;
+  border-radius: 0;
   border: none;
-  background: rgba(255, 255, 255, 0.9);
+  background: transparent;
   color: #333;
-  font-size: 2rem;
-  line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  transition: all 0.3s ease;
+  box-shadow: none;
+  transition: opacity 0.2s ease;
   user-select: none;
   padding: 0;
+  opacity: 0;
+}
+.default__carausel_btn_prev::before {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-top: 2.5px solid #333;
+  border-left: 2.5px solid #333;
+  transform: rotate(-45deg);
+  top: calc(50% - 5px);
+  left: 31px;
+  z-index: 2;
+}
+.default__carausel_btn_next::before {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-top: 2.5px solid #333;
+  border-right: 2.5px solid #333;
+  transform: rotate(45deg);
+  top: calc(50% - 5px);
+  right: 31px;
+  z-index: 2;
+}
+.default__carausel_btn::after {
+  content: "";
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  top: calc(50% - 22px);
+}
+.default__carausel_btn_prev::after {
+  left: 14px;
+}
+.default__carausel_btn_next::after {
+  right: 14px;
+}
+.default__carausel_btn:not(:disabled):hover,
+.default__carausel_btn:not(:disabled):focus-visible {
+  opacity: 1;
 }
 .default__carausel_btn:hover {
+  background: transparent;
+}
+.default__carausel_btn:not(:disabled):hover::after,
+.default__carausel_btn:not(:disabled):focus-visible::after {
   background: rgba(255, 255, 255, 1);
-  transform: scale(1.1);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 .default__carausel_btn:active {
+  opacity: 1;
+}
+.default__carausel_btn:active::after {
   transform: scale(0.95);
 }
 .default__carausel_btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
+  opacity: 0;
+  pointer-events: none;
+}
+.default__carausel_btn:disabled::before,
+.default__carausel_btn:disabled::after {
+  display: none;
 }
 /* Thumbnails */
 .default__carausel_thumbs_viewport {
@@ -538,13 +588,29 @@ body:has(.default__side-menu) #default__content {
   }
 
   .default__carausel_btn {
-    width: 40px;
-    height: 40px;
-    font-size: 1.5rem;
+    width: 72px;
   }
 
-  .default__carausel_navigation {
-    padding: 0.5rem;
+  .default__carausel_btn::after {
+    width: 36px;
+    height: 36px;
+    top: calc(50% - 18px);
+  }
+
+  .default__carausel_btn_prev::after {
+    left: 10px;
+  }
+
+  .default__carausel_btn_next::after {
+    right: 10px;
+  }
+
+  .default__carausel_btn_prev::before {
+    left: 23px;
+  }
+
+  .default__carausel_btn_next::before {
+    right: 23px;
   }
 
   .default__carausel_thumb {
@@ -576,7 +642,6 @@ body:has(.default__side-menu) #default__content {
   }
 }
 
-/** https://www.w3schools.com/howto/howto_css_modal_images.asp */
 #default__modal {
   position: fixed;
   z-index: 1;
