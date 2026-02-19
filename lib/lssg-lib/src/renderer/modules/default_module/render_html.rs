@@ -123,12 +123,59 @@ fn links(
     }
 }
 
+fn first_non_empty_text(candidates: &[Option<String>]) -> Option<String> {
+    candidates
+        .iter()
+        .flatten()
+        .map(|s| s.trim())
+        .find(|s| !s.is_empty())
+        .map(|s| s.to_owned())
+}
+
+fn token_carousel_title(token: &Token) -> Option<String> {
+    match token {
+        Token::Image { tokens, title, .. } => first_non_empty_text(&[
+            title.clone(),
+            Some(tokens_to_text(tokens)),
+        ]),
+        Token::Link { tokens, title, .. } => {
+            let nested_image_title = tokens
+                .iter()
+                .find_map(|t| {
+                    if let Token::Image { title, tokens, .. } = t {
+                        first_non_empty_text(&[
+                            title.clone(),
+                            Some(tokens_to_text(tokens)),
+                        ])
+                    } else {
+                        None
+                    }
+                });
+
+            first_non_empty_text(&[
+                title.clone(),
+                nested_image_title,
+                Some(tokens_to_text(tokens)),
+            ])
+        }
+        Token::Html {
+            attributes, tokens, ..
+        } => first_non_empty_text(&[
+            attributes.get("title").cloned(),
+            attributes.get("alt").cloned(),
+            attributes.get("aria-label").cloned(),
+            Some(tokens_to_text(tokens)),
+        ]),
+        _ => None,
+    }
+}
+
 fn carousel(
     document: &mut Document,
     context: &RenderContext,
     parent: &DomNode,
     tr: &mut TokenRenderer,
-    _attributes: &HashMap<String, String>,
+    attributes: &HashMap<String, String>,
     tokens: &[Token],
 ) {
     if tokens.is_empty() {
@@ -148,6 +195,8 @@ fn carousel(
     if carousel_tokens.is_empty() {
         return;
     }
+
+    let show_slide_titles = attributes.contains_key("title");
 
     let carousel = dom!(<div class="default__carausel"></div>);
 
@@ -171,6 +220,13 @@ fn carousel(
             let slide = dom!(<div class="default__carausel_slide" data-index="{idx}"></div>);
             let inner = dom!(<div class="default__carausel_slide_inner"></div>);
             inner.append_child(item);
+            if show_slide_titles
+                && let Some(title) = token_carousel_title(t)
+            {
+                inner.append_child(dom!(
+                    <div class="default__carausel_slide_title">{title}</div>
+                ));
+            }
             slide.append_child(inner);
             container.append_child(slide);
         }

@@ -82,6 +82,10 @@ Create an image carousel with a main display and thumbnails. Supports images and
 ![Image 1](image1.jpg)
 ![Image 2](image2.jpg)
 </carousel>
+
+<carousel title>
+![Image with title](image1.jpg "Front view")
+</carousel>
 ```
 
 **Result:**
@@ -91,6 +95,9 @@ Create an image carousel with a main display and thumbnails. Supports images and
 ![Bear Image](./custom_elements/bear.jpg)
 ![Bear Image](./custom_elements/bear.jpg)
 </carousel>
+
+**Attributes:**
+- `title` - Shows a subtle bottom-left slide caption using, in order: `title`, `alt`, or rendered text from the slide token.
 
 ## `<model-viewer>`
 
