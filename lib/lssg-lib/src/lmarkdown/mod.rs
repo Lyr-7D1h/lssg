@@ -692,4 +692,27 @@ Visit www.commonmark.org/a.b."#;
         let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
         assert_eq!(tokens, expected);
     }
+
+    #[test]
+    fn test_link_in_image_text_works() {
+        let input = "![My [website](https://example.com)](example.com/image)";
+        let expected = vec![Token::Paragraph {
+            text: input.into(),
+            tokens: vec![Token::Image {
+                tokens: vec![
+                    text("My "),
+                    Token::Link {
+                        tokens: vec![text("website")],
+                        href: "https://example.com".into(),
+                        title: None,
+                    },
+                ],
+                src: "example.com/image".into(),
+                title: None,
+            }],
+        }];
+
+        let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+        assert_eq!(tokens, expected);
+    }
 }

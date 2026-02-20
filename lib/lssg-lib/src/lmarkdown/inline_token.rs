@@ -108,15 +108,29 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
         // https://spec.commonmark.org/0.30/#images
         if c == '!'
             && let Some('[') = reader.peek_char(1)?
-            && let Some(raw_text) = reader.peek_until_inclusive_from(2, |c| c == ']')?
         {
-            let href_start = 2 + raw_text.len();
-            if let Some('(') = reader.peek_char(href_start)?
-                && let Some(raw_href) =
-                    reader.peek_until_inclusive_from(href_start + 1, |c| c == ')')?
+            let mut indent = 1;
+            let mut i = 2;
+            while let Ok(Some(c)) = reader.peek_char(i) {
+                i += 1;
+                match c {
+                    '[' => indent += 1,
+                    ']' => {
+                        indent -= 1;
+                        if indent == 0 {
+                            break;
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
+            if indent == 0
+                && let Some('(') = reader.peek_char(i)?
+                && let Some(raw_href) = reader.peek_until_inclusive_from(i + 1, |c| c == ')')?
             {
                 reader.consume(2)?;
-                let text = reader.consume_string(raw_text.len() - 1)?;
+                let text = reader.consume_string(i - 3)?;
                 reader.consume(2)?;
                 let src = reader.consume_string(raw_href.len() - 1)?;
                 let src = sanitize_text(src);
@@ -218,8 +232,12 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
                 let text = reader.consume_string(text.len() - 2)?;
                 reader.consume(2)?;
                 let text_sanitized = sanitize_text(text.clone());
-                let inner_tokens = read_inline_tokens(&mut CharReader::new(text_sanitized.as_bytes()))?;
-                tokens.push(Token::Bold { text, tokens: inner_tokens });
+                let inner_tokens =
+                    read_inline_tokens(&mut CharReader::new(text_sanitized.as_bytes()))?;
+                tokens.push(Token::Bold {
+                    text,
+                    tokens: inner_tokens,
+                });
                 continue;
             }
             if let Some(text) = reader.peek_until_inclusive_from(1, |c| c == '*')? {
@@ -227,8 +245,12 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
                 let text = reader.consume_string(text.len() - 1)?;
                 reader.consume(1)?;
                 let text_sanitized = sanitize_text(text.clone());
-                let inner_tokens = read_inline_tokens(&mut CharReader::new(text_sanitized.as_bytes()))?;
-                tokens.push(Token::Emphasis { text, tokens: inner_tokens });
+                let inner_tokens =
+                    read_inline_tokens(&mut CharReader::new(text_sanitized.as_bytes()))?;
+                tokens.push(Token::Emphasis {
+                    text,
+                    tokens: inner_tokens,
+                });
                 continue;
             }
         }
