@@ -470,8 +470,7 @@ body:has(.default__side-menu) #default__content {
   left: 0;
 }
 
-.default__carousel_btn_next,
-.default__carousel_btn_zoom {
+.default__carousel_btn_next {
   right: 0;
 }
 .default__carousel_btn_prev::before {
@@ -498,15 +497,6 @@ body:has(.default__side-menu) #default__content {
   right: 31px;
   z-index: 2;
 }
-.default__carousel_btn_zoom::before {
-  content: "\1F50D";
-  position: absolute;
-  top: calc(50% - 11px);
-  right: 26px;
-  font-size: 18px;
-  line-height: 1;
-  z-index: 2;
-}
 .default__carousel_btn::after {
   content: "";
   position: absolute;
@@ -521,9 +511,6 @@ body:has(.default__side-menu) #default__content {
   left: 14px;
 }
 .default__carousel_btn_next::after {
-  right: 14px;
-}
-.default__carousel_btn_zoom::after {
   right: 14px;
 }
 .default__carousel_btn:not(:disabled):hover,
@@ -653,22 +640,12 @@ body:has(.default__side-menu) #default__content {
     right: 10px;
   }
 
-  .default__carousel_btn_zoom::after {
-    right: 10px;
-  }
-
   .default__carousel_btn_prev::before {
     left: 23px;
   }
 
   .default__carousel_btn_next::before {
     right: 23px;
-  }
-
-  .default__carousel_btn_zoom::before {
-    right: 19px;
-    top: calc(50% - 10px);
-    font-size: 16px;
   }
 
   .default__carousel_thumb {
@@ -769,7 +746,7 @@ body:has(.default__side-menu) #default__content {
   border: none;
   background: transparent;
   cursor: pointer;
-  opacity: 0;
+  opacity: 1;
   transition: opacity 0.12s ease;
 }
 

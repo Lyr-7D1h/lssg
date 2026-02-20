@@ -131,16 +131,8 @@ pub fn carousel(
                 aria-label="Next slide"
             ></button>
         );
-        let zoom = dom!(
-            <button
-                class="default__carousel_btn default__carousel_btn_zoom"
-                onclick="default__carouselZoom(event)"
-                aria-label="Zoom image"
-            ></button>
-        );
         navigation.append_child(prev);
         navigation.append_child(next);
-        navigation.append_child(zoom);
         viewport.append_child(navigation);
     }
 
