@@ -1,8 +1,12 @@
 <!--
 [post]
 created_on="2024-8-10"
+tags=["Simulation", "Rust", "Typescript"]
 -->
 # Living Space
+<p style="text-align: left">
+[<i class="fa-brands fa-github"></i>Repository](https://github.com/Lyr-7D1h/living_space)
+</p>
 
 A simulation of a small ecosystem where creatures (pixels) interact with each other and their environment. Each creature has a unique personality based on the Big Five personality traits that influences how they walk and interact with other creatures. For example a very caring creature gets very attracted to other creatures or a more introverted creature will avoid other creatures and stay more in place.
 
@@ -18,9 +22,9 @@ You can generate new pixels by pressing the qr or scanning it. You can also gene
 Having the qr allows for you to add it on a display and keep it running while visitors can add new pixels to the screen.
 
 <carousel>
-![](./living_space/art.jpg)
-![](./living_space/full.png)
-![](./living_space/beamer.jpg)
-![](./living_space/qr.png)
-![](./living_space/red.jpg)
+![Picture of screen](./living_space/art.jpg)
+![Showing a live and interactive version for an exhibition at [OT301](https://www.ot301.nl/)](./living_space/beamer.jpg)
+![Screenshot](./living_space/qr.png)
+![Picture of screen](./living_space/red.jpg)
+![Early version with saturated colors](./living_space/full.png)
 </carousel>

@@ -83,8 +83,8 @@ Create an image carousel with a main display and thumbnails. Supports images and
 ![Image 2](image2.jpg)
 </carousel>
 
-<carousel title>
-![Image with title](image1.jpg "Front view")
+<carousel no-title>
+![Image without title](image1.jpg "Front view")
 </carousel>
 ```
 
@@ -97,7 +97,9 @@ Create an image carousel with a main display and thumbnails. Supports images and
 </carousel>
 
 **Attributes:**
-- `title` - Shows a subtle bottom-left slide caption using, in order: `title`, `alt`, or rendered text from the slide token.
+- `no-title` - Hides slide captions.
+
+By default, carousel slides show a subtle bottom-left caption using, in order: `title`, `alt`, or rendered text from the slide token.
 
 ## `<model-viewer>`
 

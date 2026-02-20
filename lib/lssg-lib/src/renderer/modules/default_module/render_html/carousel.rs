@@ -75,7 +75,7 @@ pub fn carousel(
         return;
     }
 
-    let show_slide_titles = attributes.contains_key("title");
+    let show_slide_titles = !attributes.contains_key("no-title");
 
     let carousel = dom!(<div class="default__carousel"></div>);
 

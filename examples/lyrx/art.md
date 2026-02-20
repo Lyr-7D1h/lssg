@@ -8,7 +8,7 @@ Having a creative outlet keeps me sane and motivated. Anything I find worthwhile
 	GenTree
 ](./art/gentree.md)
 [
-    ![](./art/living_space/qr.png)
+    ![](./art/living_space/art.jpg)
     Living Space
 ](./art/living_space.md)
 [
