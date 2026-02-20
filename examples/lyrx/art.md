@@ -4,6 +4,10 @@ Having a creative outlet keeps me sane and motivated. Anything I find worthwhile
 
 <links grid>
 [
+    ![](./art/lubna/lubna_color.png)
+    Lubna
+](./art/lubna.md)
+[
 	![](./art/gentree/1.png)
 	GenTree
 ](./art/gentree.md)

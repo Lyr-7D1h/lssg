@@ -1,12 +1,18 @@
 <!--
 [post]
-created_on="2025-04-21"
+created_on="2026-02-07"
+tags = ["Image Processing", "Creagen"]
 -->
 
 # Lubna
 
-Experimenting with filling in an image in different intensity layers and image processing.
+I've used a combination of well known image processing techniques and a custom algorithm for infill and layering of an image to create these works from images Given and taken.
 
 <carousel>
-![](./gentree/1.png)
+![](./lubna/lubna_color.png)
+![](./lubna/ivo.png)
+![](./lubna/tim.png)
+![](./lubna/coglioni.png)
+![](./lubna/print_ivo.jpeg)
+![](./lubna/print.jpeg)
 </carousel>
