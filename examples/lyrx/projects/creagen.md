@@ -7,27 +7,7 @@ render = false
 
 Creagen stands for Creative Generations. It is a creative coding web editor. Its goal is to provide easy accessibility to make creative coding projects. Its design goals are to be **visually minimalistic**, **powerful**, **fast** and **easy to use**. 
 
-**Some of the current (partially) implemented Features:**
-
-- Fetch npm packages with a specific version on demand
-- Automatically fetch typings
-- Custom version management (specifically made to easily remember sketches and different iterations)
-- Easy and customizable shortcuts
-- Easily sharable links
-
-
-It is still under heavy development but I made a preview available at 
-
-[creagen.lyrx.dev](https://creagen.lyrx.dev)
-
-# Usage
-
-To add a library `Go to the arrow in the top left corner` > `Settings` > `General` > `Libraries` 
-
-## Default keybindings
-- `Ctrl+Shift+Enter`    to run code. 
-- `Ctrl+Shift+f`        for code fullscreen 
-- `Ctrl+F11`            to only show the canvas
+See the [up-to-date documentation](https://creagen.dev/docs) for more information.
 
 
 ## Example: Particle Vector Field 
