@@ -1,6 +1,6 @@
 # LMarkdown (Lyr's Markdown)
 
-LMarkdown tries to follow [Commonmark](https://commonmark.org/) markdown specifications although deviating wherever it makes sense to make page rendering easier. Support for [Github Flavor Markdown](https://github.github.com/gfm/) is **wip**
+LMarkdown tries to follow [Commonmark](https://commonmark.org/) markdown specifications although deviating wherever it makes sense to make page rendering easier. Support for [Github Flavor Markdown](https://github.github.com/gfm/) is **in progress**
 
 ## Structure
 
