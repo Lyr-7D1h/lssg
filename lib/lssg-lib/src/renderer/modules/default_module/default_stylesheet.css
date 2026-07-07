@@ -9,7 +9,6 @@ html {
   min-height: 100svh;
   margin: 0;
   padding: 0;
-  font-size: 20px;
 }
 
 h1,
@@ -30,7 +29,13 @@ h1 {
   font-size: 42px;
 }
 h2 {
-  font-size: 24px;
+  font-size: 32px;
+}
+h3 {
+  font-size: 28px;
+}
+p {
+  font-size: 20px;
 }
 li {
   font-size: 20px;
@@ -833,12 +838,16 @@ body:has(.default__side-menu) #default__content {
 
 .default__sitetree {
   line-height: 1.1em;
+  font-size: 20px;
 }
 .default__sitetree_folder {
   text-align: left;
   text-overflow: ellipsis;
   overflow: hidden;
-  padding-bottom: 8px;
+  padding-bottom: 1rem;
+}
+.default__sitetree_folder > a {
+  font-size: 18px;
 }
 .default__sitetree_folder_content {
   padding-left: 10px;
