@@ -32,6 +32,7 @@ impl Default for RssOptions {
     }
 }
 
+#[derive(Clone)]
 pub(super) struct RssItem {
     pub title: String,
     pub description: Option<String>,
@@ -64,7 +65,7 @@ impl RssFeed {
     /// Build RSS feed from root page and its posts
     pub fn from_root(
         root_id: SiteId,
-        mut posts: Vec<(SiteId, &PostPage)>,
+        posts: Vec<(SiteId, &PostPage)>,
         site_tree: &SiteTree,
         opts: RssOptions,
     ) -> Option<RssFeed> {
@@ -74,16 +75,12 @@ impl RssFeed {
 
         let mut feed = RssFeed::new(opts.title.clone(), feed_link, opts.description.clone());
 
-        // Collect and sort posts by date (newest first)
-        posts.sort_by(|a, b| {
-            let date_a = a.1.dates.created_on.as_ref();
-            let date_b = b.1.dates.created_on.as_ref();
-            date_b.cmp(&date_a) // Reverse order for newest first
-        });
-
         // Set last build date to the most recent post's date if enabled
         if opts.last_build_date_enabled.unwrap_or(true) {
-            feed.last_build_date = posts.first().and_then(|(_, post)| post.dates.created_on);
+            feed.last_build_date = posts
+                .iter()
+                .filter_map(|(_, post)| post.dates.created_on.or(post.dates.modified_on))
+                .max();
         }
 
         // Add RSS items for each post
@@ -141,7 +138,10 @@ impl std::fmt::Display for RssFeed {
             ));
         }
 
-        for item in &self.items {
+        let mut sorted_items = self.items.clone();
+        sorted_items.sort_by(|a, b| b.pub_date.cmp(&a.pub_date));
+
+        for item in &sorted_items {
             xml.push_str("\n    <item>");
             xml.push_str(&format!(
                 "\n      <title>{}</title>",
