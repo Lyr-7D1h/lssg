@@ -6,6 +6,14 @@ tag = "model"
 
 # Bike Speaker Holder
 
+> [!WARNING]
+> From real life experience the model is not sturdy enough for bumpy roads 😅
+>
+> Some ideas on how to resolve this:
+> - Multiple connection points with the bike 
+> - Completely single printed part. 
+> - Better printer settings and dehumidified fillament.
+
 A model for a detachable speaker for a bike
 
 [Onshape](https://cad.onshape.com/documents/d9723b4b16d60bbe28426de3/w/479ce4dba2daa4c2e075583c/e/c64bdced0cf61d7d49b591fa?renderMode=0&uiState=698101863e30705d65c6980b)
