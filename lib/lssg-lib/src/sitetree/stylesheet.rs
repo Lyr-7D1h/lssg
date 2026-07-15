@@ -69,11 +69,6 @@ impl Stylesheet {
         self.input.as_ref()
     }
 
-    /// Append stylesheet and discover local referenced resources
-    pub fn append(&mut self, _stylesheet: Stylesheet) -> Result<(), LssgError> {
-        todo!()
-    }
-
     /// Update a resource input path to a new one
     pub fn update_resource(&mut self, raw_path: &str, updated_path: &str) {
         self.content = self.content.replace(raw_path, updated_path);
@@ -98,6 +93,28 @@ impl TryFrom<Input> for Stylesheet {
             content,
             links,
         })
+    }
+}
+
+impl From<String> for Stylesheet {
+    fn from(content: String) -> Self {
+        let links = links(&content);
+        Stylesheet {
+            content,
+            links,
+            input: None,
+        }
+    }
+}
+
+impl From<&str> for Stylesheet {
+    fn from(content: &str) -> Self {
+        let links = links(&content);
+        Stylesheet {
+            content: content.to_string(),
+            links,
+            input: None,
+        }
     }
 }
 

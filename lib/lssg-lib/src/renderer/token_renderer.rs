@@ -1,7 +1,7 @@
 use log::warn;
 
-use super::{RenderContext, RendererModule};
-use crate::lmarkdown::Token;
+use super::RenderContext;
+use crate::{lmarkdown::Token, renderer::modules::RendererModule};
 use virtual_dom::{Document, DomNode};
 
 /// used for recursively rendering

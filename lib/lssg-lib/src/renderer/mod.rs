@@ -1,5 +1,4 @@
-mod modules;
-pub use modules::*;
+pub mod modules;
 
 mod token_renderer;
 pub use token_renderer::TokenRenderer;

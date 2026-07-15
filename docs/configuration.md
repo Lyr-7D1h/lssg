@@ -45,6 +45,9 @@ All discovered resources are automatically included in the build output without 
 | `rss.host` | String | - | Base URL (required for RSS) | Yes |
 | `rss.language` | String | - | RSS language code | Yes |
 | `rss.last_build_date_enabled` | Boolean | `true` | Add the [lastBuildDate](https://www.w3schools.com/xml/rss_tag_lastbuilddate.asp) key to RSS feed | Yes |
+| `[code]` **Code Module** | | | | |
+| `code.theme_path` | String | - | Path to a custom highlight.js theme CSS file, relative to the page | Yes |
+| `code.auto_detect_language` | Boolean | `true` | Auto-detect language for code blocks without one specified (root page only) | No |
 | `[media]` **Media Module - Images** | | | | |
 | `enabled` | Boolean | `true` | Enable media module | Yes |
 | `optimize_images` | Boolean | `true` | Enable image optimization | Yes |

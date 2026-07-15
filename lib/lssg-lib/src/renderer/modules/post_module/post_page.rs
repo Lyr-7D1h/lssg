@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde_extensions::Overwrite;
 
 use crate::{
-    renderer::{PostModule, RendererModule, modules::post_module::post_dates::PostDates},
+    renderer::modules::{PostModule, RendererModule, post_module::post_dates::PostDates},
     sitetree::{SiteId, SiteTree},
 };
 

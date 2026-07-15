@@ -5,6 +5,8 @@ head=[
 ]
 root=true
 
+[code]
+auto_detect_language = false
 
 [[nav]]
 kind = "sidemenu"

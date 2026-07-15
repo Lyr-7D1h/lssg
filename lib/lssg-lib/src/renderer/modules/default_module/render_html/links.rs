@@ -9,7 +9,7 @@ use crate::{
     lmarkdown::Token,
     renderer::{
         RenderContext, TokenRenderer, modules::default_module::translate_href_to_sitetree_path,
-        util::tokens_to_text,
+        modules::util::tokens_to_text,
     },
 };
 

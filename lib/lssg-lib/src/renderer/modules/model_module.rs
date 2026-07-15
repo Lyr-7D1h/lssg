@@ -1,6 +1,6 @@
 use crate::{
     lmarkdown::Token,
-    renderer::{InitContext, RendererModule},
+    renderer::{InitContext, modules::RendererModule},
     sitetree::{Javascript, Relation, Resource, SiteNode, SiteTree},
     tree::Node,
 };

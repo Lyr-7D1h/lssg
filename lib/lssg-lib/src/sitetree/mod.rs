@@ -7,7 +7,7 @@ mod site_node;
 mod site_tree;
 mod stylesheet;
 
-pub use javascript::{Javascript, ScriptMode};
+pub use javascript::{Javascript, ScriptMode, ScriptPlacement};
 pub use page::Page;
 pub use relational_graph::{Link, Relation};
 pub use resource::Resource;

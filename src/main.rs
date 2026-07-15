@@ -7,7 +7,8 @@ use lssg_lib::{
     Lssg,
     lmarkdown::parse_lmarkdown,
     renderer::{
-        DefaultModule, ExternalModule, MediaModule, PostModule, Renderer, model_module::ModelModule,
+        Renderer,
+        modules::{model_module::ModelModule, *},
     },
     sitetree::{Input, SiteTree},
 };
@@ -181,6 +182,7 @@ pub fn create_renderer(no_media_optimization: bool) -> Renderer {
     if !no_media_optimization {
         renderer.add_module(MediaModule::default());
     }
+    renderer.add_module(CodeModule::default());
     renderer.add_module(DefaultModule::default());
     renderer
 }

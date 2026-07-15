@@ -11,6 +11,8 @@ use crate::{
 };
 use virtual_dom::{Document, DomNode};
 
+mod code_module;
+pub use code_module::*;
 mod external_module;
 pub mod model_module;
 pub use external_module::*;
@@ -130,6 +132,9 @@ pub trait RendererModule {
         options
     }
 
+    /// Get default options overwritten with Token::Attributes
+    ///
+    /// `None` when page doesn't have attributes
     fn options<D: Overwrite + Default>(&self, page: &Page) -> Option<D>
     where
         Self: Sized,
@@ -138,7 +143,9 @@ pub trait RendererModule {
     }
 
     // TODO: remove when everything is in own module
-    /// get default options overwritten with Token::Attributes
+    /// Get default options overwritten with Token::Attributes
+    ///
+    /// `None` when page doesn't have attributes
     fn options_with_module_id<D: Overwrite + Default>(
         &self,
         page: &Page,

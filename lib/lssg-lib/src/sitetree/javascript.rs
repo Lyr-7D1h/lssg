@@ -51,12 +51,23 @@ pub enum ScriptMode {
     Defer,
     /// `<script src="..." async></script>` - Classic async
     Async,
-    /// `<script src="..."></script>` - Classic blocking
+    /// `<script src="..."></script>` - Classic blocking in body after content
     Blocking,
     /// `<script type="module" src="..."></script>` - ES6 module (auto-deferred)
     Module,
     /// `<script type="module" src="..."></script>` in body before content
     ModuleBlocking,
+}
+
+/// Where to place this script in the HTML document
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScriptPlacement {
+    /// In `<head>`
+    Head,
+    /// In `<body>`, before content (prepend)
+    BodyBeforeContent,
+    /// In `<body>`, after content (append)
+    BodyAfterContent,
 }
 
 impl ScriptMode {
@@ -71,9 +82,13 @@ impl ScriptMode {
         }
     }
 
-    /// Returns true if this script should be placed in body (before content)
-    pub fn in_body(&self) -> bool {
-        matches!(self, ScriptMode::ModuleBlocking)
+    /// Returns where this script should be placed in the HTML document
+    pub fn placement(&self) -> ScriptPlacement {
+        match self {
+            ScriptMode::Defer | ScriptMode::Async | ScriptMode::Module => ScriptPlacement::Head,
+            ScriptMode::ModuleBlocking => ScriptPlacement::BodyBeforeContent,
+            ScriptMode::Blocking => ScriptPlacement::BodyAfterContent,
+        }
     }
 }
 
@@ -131,6 +146,30 @@ impl Javascript {
     /// Returns the HTML attributes for the script tag
     pub fn attributes(&self) -> &[(&'static str, &'static str)] {
         self.mode.attributes()
+    }
+}
+
+impl From<String> for Javascript {
+    fn from(content: String) -> Self {
+        let links = parse_links(&content);
+        Javascript {
+            input: None,
+            content,
+            links,
+            mode: ScriptMode::default(),
+        }
+    }
+}
+
+impl From<&str> for Javascript {
+    fn from(content: &str) -> Self {
+        let links = parse_links(content);
+        Javascript {
+            input: None,
+            content: content.to_owned(),
+            links,
+            mode: ScriptMode::default(),
+        }
     }
 }
 

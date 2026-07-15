@@ -5,7 +5,7 @@ use virtual_dom::{Document, DomNode};
 
 use crate::{
     lmarkdown::Token,
-    renderer::{RenderContext, TokenRenderer, util::tokens_to_text},
+    renderer::{RenderContext, TokenRenderer, modules::util::tokens_to_text},
 };
 
 fn first_non_empty_text(candidates: &[Option<String>]) -> Option<String> {

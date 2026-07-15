@@ -8,15 +8,25 @@ use crate::{
 };
 
 use super::Input;
+use std::fmt;
 
 /// A SiteTree node representing a page made by a markdown file
-#[derive(Debug)]
 pub struct Page {
     tokens: Vec<Token>,
     input: Option<Input>,
     /// Map a link href or image src to an input
     raw_path_map: HashMap<String, Vec<Input>>,
 }
+
+impl fmt::Debug for Page {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Page")
+            .field("input", &self.input)
+            .field("raw_path_map", &self.raw_path_map)
+            .finish_non_exhaustive()
+    }
+}
+
 impl Page {
     pub fn empty() -> Page {
         Page {
@@ -81,6 +91,10 @@ impl Page {
 
     pub fn raw_path_inputs(&self) -> Iter<'_, String, Vec<Input>> {
         self.raw_path_map.iter()
+    }
+
+    pub fn has_root_attribute(&self) -> bool {
+        self.attributes().is_some_and(|a| a.get("root").is_some())
     }
 
     pub fn attributes(&self) -> Option<toml::Table> {

@@ -11,27 +11,26 @@ use regex::Regex;
 use serde::Deserialize;
 use serde_extensions::Overwrite;
 
+use crate::renderer::{InitContext, RenderContext, TokenRenderer, modules::RendererModule};
 use crate::{
     lmarkdown::Token,
     lssg_error::LssgError,
-    renderer::{modules::default_module::nav::NavOptions, util::OneOrManyOption},
-    sitetree::{Input, Relation, Resource, SiteId, SiteNode, SiteNodeKind, SiteTree, Stylesheet},
+    renderer::{modules::default_module::nav::NavOptions, modules::util::OneOrManyOption},
+    sitetree::{
+        Input, Relation, Resource, ScriptPlacement, SiteId, SiteNode, SiteNodeKind, SiteTree,
+        Stylesheet,
+    },
     tree::Dfs,
 };
 use virtual_dom::{
     self, Document, DomNode, DomNodeKind, Html, parse_html, parse_html_from_string, to_attributes,
 };
 
-use crate::renderer::{InitContext, RenderContext, RendererModule, TokenRenderer};
-
 use super::util::tokens_to_text;
 
 mod constants;
 mod nav;
 mod render_html;
-
-const PRISM_CSS: &[u8] = include_bytes!("./default_module/prism.css");
-const PRISM_JS: &str = include_str!("./default_module/prism.js");
 
 const SUPPORTED_VIDEO_FORMATS: [&str; 6] = ["mp4", "webm", "ogg", "ogv", "mov", "avi"];
 
@@ -170,7 +169,7 @@ fn head(document: &mut Document, context: &RenderContext, options: &PropegatedOp
         head.append_child(dom!(<meta name="twitter:title" content="{title}" />));
     }
 
-    // add stylesheets and favicon
+    // add stylesheets, scripts and favicon
     // NOTE: reverse the order of insertion because latest css is applied last
     for link in site_tree.links_from(site_id).into_iter().rev() {
         match link.relation {
@@ -197,10 +196,11 @@ fn head(document: &mut Document, context: &RenderContext, options: &PropegatedOp
                                 .chain(iter::once(("src".to_string(), path))),
                         ),
                     );
-                    if mode.in_body() {
-                        document.body.prepend(el);
-                    } else {
-                        head.append_child(el);
+                    match mode.placement() {
+                        ScriptPlacement::Head => head.append_child(el),
+                        // TODO: move different function
+                        ScriptPlacement::BodyBeforeContent => document.body.prepend(el),
+                        ScriptPlacement::BodyAfterContent => document.body.append_child(el),
                     }
                 }
                 SiteNodeKind::Resource { .. } if site_tree[link.to].name().ends_with("js") => {
@@ -340,16 +340,6 @@ impl RendererModule for DefaultModule {
                 "default.js",
                 site_tree.root(),
                 Resource::new_static(DEFAULT_JS.to_owned()),
-            )),
-            site_tree.add(SiteNode::stylesheet(
-                "prism.css",
-                site_tree.root(),
-                Stylesheet::from_readable(PRISM_CSS)?,
-            )),
-            site_tree.add(SiteNode::resource(
-                "prism.js",
-                site_tree.root(),
-                Resource::new_static(PRISM_JS.to_owned()),
             )),
         ];
         for id in default_links.iter() {
@@ -672,24 +662,10 @@ impl RendererModule for DefaultModule {
                 tr.render(document, ctx, e.clone(), tokens);
                 parent.append_child(e)
             }
-            Token::Code { text: code } => {
+            Token::CodeBlock { text: code, .. } | Token::Code { text: code } => {
                 let code_html = document.create_element("code");
                 code_html.append_child(document.create_text_node(code));
                 parent.append_child(code_html)
-            }
-            Token::CodeBlock { text: code, info } => {
-                let mut code_html = document.create_element("code");
-                if let Some(info) = info {
-                    code_html.set_attribute(
-                        "class",
-                        &format!("language-{info} copy-to-clipboard-button"),
-                    );
-                    code_html.set_attribute("data-copy-state", "copy");
-                }
-                code_html.append_child(document.create_text_node(code));
-                let pre = document.create_element("pre");
-                pre.append_child(code_html);
-                parent.append_child(pre)
             }
             Token::Autolink { href, text } => {
                 let mut a = document.create_element("a");
