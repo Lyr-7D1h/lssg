@@ -48,8 +48,7 @@ impl fmt::Display for ParseError {
         write!(
             f,
             "Error while parsing file {}. \n{}",
-            self.message,
-            self.context
+            self.message, self.context
         )
     }
 }

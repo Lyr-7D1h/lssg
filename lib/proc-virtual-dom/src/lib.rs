@@ -97,7 +97,7 @@ impl Parse for Template {
                                     .clone();
                                 variables.insert(a, ident);
                             }
-                        },
+                        }
                         Stmt::Local(_) | Stmt::Item(_) | Stmt::Macro(_) => {
                             return Err(input.error("unexpected statement"));
                         }
@@ -173,9 +173,9 @@ fn interpolate_string(text: &str, template: &Template) -> TokenStream {
         if c == '{' {
             match parse_braces(&mut chars) {
                 Ok(variable_name) => {
-                    let variable = template.variables.get(&variable_name).unwrap_or_else(|| panic!(
-                        "failed to parse or find variable '{variable_name}'"
-                    ));
+                    let variable = template.variables.get(&variable_name).unwrap_or_else(|| {
+                        panic!("failed to parse or find variable '{variable_name}'")
+                    });
                     text.push_str("{}");
                     variables.push(quote!(#variable));
                 }
@@ -221,9 +221,10 @@ fn to_tokens(
                     if c == '{' {
                         match parse_braces(&mut chars) {
                             Ok(variable_name) => {
-                                let variable = template.variables.get(&variable_name).unwrap_or_else(|| panic!(
-                                    "failed to parse or find variable '{variable_name}'"
-                                ));
+                                let variable =
+                                    template.variables.get(&variable_name).unwrap_or_else(|| {
+                                        panic!("failed to parse or find variable '{variable_name}'")
+                                    });
                                 if let Some(parent) = parent {
                                     if !text.is_empty() {
                                         items.push(

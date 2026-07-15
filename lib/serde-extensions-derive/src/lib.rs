@@ -36,17 +36,17 @@ fn impl_optional_macro(ast: &syn::DeriveInput) -> TokenStream {
                     trait MaybeOverwrite {
                         fn maybe_overwrite<E: serde::de::Error>(&mut self, value: ::serde_extensions::serde_value::Value) -> Result<(), E>;
                     }
-                    
+
                     // Implementation for types that implement Overwrite
                     impl<T: Overwrite> MaybeOverwrite for T {
                         fn maybe_overwrite<E: serde::de::Error>(&mut self, value: ::serde_extensions::serde_value::Value) -> Result<(), E> {
-                            let result: Result<(), ::serde_extensions::serde_value::DeserializerError> = 
+                            let result: Result<(), ::serde_extensions::serde_value::DeserializerError> =
                                 self.overwrite(::serde_extensions::serde_value::ValueDeserializer::new(value));
                             result.map_err(|e| E::custom(e.to_string()))?;
                             Ok(())
                         }
                     }
-                    
+
                     self.#field_name.maybe_overwrite::<D::Error>(value)?;
                 }
             }

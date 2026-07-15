@@ -47,58 +47,59 @@ fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, ParseE
     Ok(attributes)
 }
 
-type HtmlElementResult = Result<Option<(String, HashMap<String, String>, Option<String>)>, ParseError>;
+type HtmlElementResult =
+    Result<Option<(String, HashMap<String, String>, Option<String>)>, ParseError>;
 
 /// from virtual_dom::html
-pub fn html_element(
-    reader: &mut CharReader<impl Read>,
-) -> HtmlElementResult {
+pub fn html_element(reader: &mut CharReader<impl Read>) -> HtmlElementResult {
     if let Some('<') = reader.peek_char(0)?
-        && let Some(start_tag) = reader.peek_until_exclusive_from(1, |c| c == '>')? {
-            // get html tag
-            let mut tag = String::new();
-            for c in start_tag.chars() {
-                match c {
-                    ' ' => break,
-                    '\n' => break,
-                    _ => tag.push(c),
-                }
-            }
-
-            if start_tag.ends_with("/") && is_void_element(&tag) {
-                // <{start_tag}/>
-                reader.consume(start_tag.len() + 2)?;
-                let attributes = attributes(&start_tag[tag.len()..start_tag.len() - 1])?;
-                return Ok(Some((tag, attributes, None)));
-            }
-
-            let end_tag = format!("</{tag}>");
-            if let Some(html_block) =
-                reader.peek_until_match_exclusive_from(2 + start_tag.len(), &end_tag)?
-            {
-                // <{start_tag}>
-                reader.consume(start_tag.len() + 2)?;
-
-                let attributes = attributes(&start_tag[tag.len()..start_tag.len()])?;
-
-                let content = reader.consume_string(html_block.len())?;
-                reader.consume(end_tag.len())?;
-
-                return Ok(Some((tag, attributes, Some(content))));
+        && let Some(start_tag) = reader.peek_until_exclusive_from(1, |c| c == '>')?
+    {
+        // get html tag
+        let mut tag = String::new();
+        for c in start_tag.chars() {
+            match c {
+                ' ' => break,
+                '\n' => break,
+                _ => tag.push(c),
             }
         }
+
+        if start_tag.ends_with("/") && is_void_element(&tag) {
+            // <{start_tag}/>
+            reader.consume(start_tag.len() + 2)?;
+            let attributes = attributes(&start_tag[tag.len()..start_tag.len() - 1])?;
+            return Ok(Some((tag, attributes, None)));
+        }
+
+        let end_tag = format!("</{tag}>");
+        if let Some(html_block) =
+            reader.peek_until_match_exclusive_from(2 + start_tag.len(), &end_tag)?
+        {
+            // <{start_tag}>
+            reader.consume(start_tag.len() + 2)?;
+
+            let attributes = attributes(&start_tag[tag.len()..start_tag.len()])?;
+
+            let content = reader.consume_string(html_block.len())?;
+            reader.consume(end_tag.len())?;
+
+            return Ok(Some((tag, attributes, Some(content))));
+        }
+    }
     Ok(None)
 }
 
 /// from virtual_dom::html
 pub fn html_comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, ParseError> {
     if "<!--" == reader.peek_string(4)?
-        && let Some(text) = reader.peek_until_match_exclusive_from(4, "-->")? {
-            reader.consume(4)?; // skip start
-            let text = reader.consume_string(text.len())?;
-            reader.consume(3)?; // skip end
-            return Ok(Some(Html::Comment { text }));
-        }
+        && let Some(text) = reader.peek_until_match_exclusive_from(4, "-->")?
+    {
+        reader.consume(4)?; // skip start
+        let text = reader.consume_string(text.len())?;
+        reader.consume(3)?; // skip end
+        return Ok(Some(Html::Comment { text }));
+    }
 
     Ok(None)
 }
