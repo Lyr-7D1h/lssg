@@ -239,7 +239,7 @@ pub fn fenced_code(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, 
         }
 
         return Ok(Some(Token::CodeBlock {
-            info: Some(info),
+            info: if info.is_empty() { None } else { Some(info) },
             text,
         }));
     }
@@ -646,7 +646,7 @@ mod tests {
     fn test_block_token() {
         let input = r#"# Rust > c++
 Lots of people say Rust > c++. even though it might be
-< then c++. Who knows? 
+< then c++. Who knows?
 <nonclosing>
 This should be text"#;
         let expected = vec![
@@ -656,7 +656,7 @@ This should be text"#;
                 tokens: vec![],
             },
             p("Lots of people say Rust > c++. even though it might be
-< then c++. Who knows? 
+< then c++. Who knows?
 <nonclosing>
 This should be text"),
         ];

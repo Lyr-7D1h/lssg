@@ -362,6 +362,21 @@ aaa
     }
 
     #[test]
+    fn test_code_no_language() {
+        let input = r#"```
+code block without language
+```"#;
+        let expected = vec![Token::CodeBlock {
+            text: "code block without language\n".into(),
+            info: None,
+        }];
+
+        let reader: Box<dyn Read> = Box::new(Cursor::new(input));
+        let tokens = parse_lmarkdown(reader).unwrap();
+        assert_eq!(expected, tokens);
+    }
+
+    #[test]
     fn test_indented_code() {
         let input = r#"    a simple
     indented code block"#;
@@ -404,7 +419,7 @@ indented code block"
 
     #[test]
     fn test_hard_line_break() {
-        let input = r#"foo  
+        let input = r#"foo
 bar
 foo\
 baz"#;
