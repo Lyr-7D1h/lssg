@@ -48,6 +48,9 @@ All discovered resources are automatically included in the build output without 
 | `[code]` **Code Module** | | | | |
 | `code.theme_path` | String | - | Path to a custom highlight.js theme CSS file, relative to the page | Yes |
 | `code.auto_detect_language` | Boolean | `true` | Auto-detect language for code blocks without one specified (root page only) | No |
+| `code.copy_button` | Boolean | `true` | Show a copy-to-clipboard button on code blocks | No |
+| `code.copy_button_language` | String | `en` | Localize copy button text using the page's language setting. When disabled, button text defaults to English | Yes |
+| `code.copy_button_autohide` | Boolean | `false` | Hide the copy button by default and show it on hover/focus. When disabled, the button is always visible | Yes |
 | `[media]` **Media Module - Images** | | | | |
 | `enabled` | Boolean | `true` | Enable media module | Yes |
 | `optimize_images` | Boolean | `true` | Enable image optimization | Yes |

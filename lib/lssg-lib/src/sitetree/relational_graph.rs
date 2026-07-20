@@ -45,10 +45,10 @@ impl RelationalGraph {
 
     /// Get all the links from `node_id` to nodes
     pub fn links_from(&self, node_id: SiteId) -> Vec<&Link> {
-        self.links[*node_id]
-            .iter()
-            .filter(|l| l.from == node_id)
-            .collect()
+        let Some(links) = self.links.get(*node_id) else {
+            return vec![];
+        };
+        links.iter().filter(|l| l.from == node_id).collect()
     }
 
     /// remove all links to and from `node_id`

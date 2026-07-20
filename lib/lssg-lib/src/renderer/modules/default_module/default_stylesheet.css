@@ -11,6 +11,7 @@ html {
   padding: 0;
 }
 
+
 h1,
 h2,
 h3,
@@ -36,6 +37,7 @@ h3 {
 }
 p {
   font-size: 20px;
+  line-height: 28px;
 }
 li {
   font-size: 20px;
@@ -49,6 +51,17 @@ blockquote {
 }
 blockquote p {
   margin: 10px;
+}
+
+code {
+  /* Dont wrap spaces */
+  white-space: pre-wrap;
+  background-color: #f6f8fa;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  padding: 2px 4px;
+  font-size: 85%;
+  color: #24292f;
 }
 
 li {
@@ -71,7 +84,7 @@ li ol {
 ul,
 ol {
   margin-top: 0.8em;
-  margin-bottom: 2.14em;
+  margin-bottom: .8em;
   padding-left: 1.5em;
 }
 li {

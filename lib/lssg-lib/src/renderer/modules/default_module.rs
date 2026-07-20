@@ -170,8 +170,7 @@ fn head(document: &mut Document, context: &RenderContext, options: &PropegatedOp
     }
 
     // add stylesheets, scripts and favicon
-    // NOTE: reverse the order of insertion because latest css is applied last
-    for link in site_tree.links_from(site_id).into_iter().rev() {
+    for link in site_tree.links_from(site_id).into_iter() {
         match link.relation {
             Relation::External | Relation::Discovered { .. } => match &site_tree[link.to].kind {
                 SiteNodeKind::Resource { .. } if site_tree[link.to].name() == "favicon.ico" => {

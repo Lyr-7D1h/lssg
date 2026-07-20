@@ -277,8 +277,7 @@ impl SiteTree {
         map
     }
 
-    /// add an external relation between two site nodes
-    /// This will help create resources necessary for `from`
+    /// Add an external relation between two site nodes. This will help create resources necessary for `from`
     pub fn add_link(&mut self, from: SiteId, to: SiteId, relation: Relation) {
         // ignore duplicated
         if self

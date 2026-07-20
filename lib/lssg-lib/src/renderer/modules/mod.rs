@@ -75,6 +75,65 @@ pub trait RendererModule {
     /// Gets called after body has been rendered, can be used for final changes to the dom
     fn after_render<'n>(&mut self, document: &mut Document, ctx: &RenderContext<'n>) {}
 
+    /// Parse options of `page_site_id` page without using default values or allowing it to be overwritten
+    fn page_option<'de, D>(
+        &self,
+        page_site_id: SiteId,
+        site_tree: &SiteTree,
+    ) -> Result<Option<D>, toml::de::Error>
+    where
+        Self: Sized,
+        D: serde::de::DeserializeOwned,
+    {
+        let Some(page) = site_tree.page(page_site_id) else {
+            return Ok(None);
+        };
+        let Some(attributes) = page.attributes() else {
+            return Ok(None);
+        };
+        let opts: D = if self.id() == "default" {
+            D::deserialize(attributes)?
+        } else {
+            let Some(opts) = attributes.get(self.id()) else {
+                return Ok(None);
+            };
+            D::deserialize(opts.clone())?
+        };
+        Ok(Some(opts))
+    }
+
+    /// Find the first case of a page that matches a given option type `D` in the ancestors of `current_site_id`
+    fn find_option<'n, D>(
+        &'n self,
+        current_site_id: SiteId,
+        site_tree: &'n SiteTree,
+    ) -> Option<(D, &'n Page, SiteId)>
+    where
+        Self: Sized,
+        D: serde::de::DeserializeOwned,
+    {
+        let ancestors: Vec<_> = std::iter::once(current_site_id)
+            .chain(site_tree.parents(current_site_id))
+            .collect();
+
+        // go up the tree from current page and find the page with theme_path set
+        // If found add theme path to site tree
+        ancestors
+            .into_iter()
+            .filter_map(|id| site_tree.page(id).zip(Some(id)))
+            .take_while(|(page, _)| !page.has_root_attribute())
+            .find_map(|(page, page_site_id)| {
+                let Some(opts) = self
+                    .page_option::<D>(page_site_id, site_tree)
+                    .ok()
+                    .flatten()
+                else {
+                    return None;
+                };
+                Some((opts, page, page_site_id))
+            })
+    }
+
     /// Find root of `current_site_id` and apply all options from parents
     fn propegated_options<D: Overwrite + Default>(
         &self,

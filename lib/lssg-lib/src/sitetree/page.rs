@@ -50,11 +50,13 @@ impl Page {
         for t in iter {
             match t {
                 Token::Autolink { href, .. } | Token::Link { href, .. }
-                    if Input::is_local(href) =>
+                    if Input::is_local(href) &&
+                    // Ignore links to headers
+                    !href.starts_with("#") =>
                 {
                     let Ok(inputs) = input
                         .join(href, http_client)
-                        .inspect_err(|e| warn!("Failed to get {input}: {e}"))
+                        .inspect_err(|e| warn!("Failed to get joined {input} with {href}: {e}"))
                     else {
                         continue;
                     };
