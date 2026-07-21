@@ -169,8 +169,21 @@ fn head(document: &mut Document, context: &RenderContext, options: &PropegatedOp
         head.append_child(dom!(<meta name="twitter:title" content="{title}" />));
     }
 
-    // add stylesheets, scripts and favicon
-    for link in site_tree.links_from(site_id).into_iter() {
+    let mut links = site_tree.links_from(site_id);
+    // stylesheets should be reverse link order because later added stylesheets should come first in the html
+    // so that it can be overridden.
+    let stylesheet_positions: Vec<usize> = links
+        .iter()
+        .enumerate()
+        .filter(|(_, link)| matches!(site_tree[link.to].kind, SiteNodeKind::Stylesheet { .. }))
+        .map(|(i, _)| i)
+        .collect();
+    let mut stylesheet_links: Vec<_> = stylesheet_positions.iter().map(|&i| links[i]).collect();
+    stylesheet_links.reverse();
+    for (position, link) in stylesheet_positions.into_iter().zip(stylesheet_links) {
+        links[position] = link;
+    }
+    for link in links.into_iter() {
         match link.relation {
             Relation::External | Relation::Discovered { .. } => match &site_tree[link.to].kind {
                 SiteNodeKind::Resource { .. } if site_tree[link.to].name() == "favicon.ico" => {

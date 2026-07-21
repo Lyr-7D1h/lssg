@@ -1,7 +1,37 @@
-* {
-  font-family:
+:root {
+  --lssg-font-body:
     "Source Sans Pro", system-ui, "Segoe UI", Roboto, Helvetica, Arial,
     sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  --lssg-font-mono: "Courier New", Courier, monospace;
+
+  --lssg-color-text: #24292f;
+  --lssg-color-text-muted: #656d76;
+  --lssg-color-border: #d0d7de;
+  --lssg-color-bg-subtle: #f6f8fa;
+  --lssg-color-link: darkblue;
+
+  /* Type scale: every size is derived from the same base so headings, */
+  /* paragraphs and list items always line up with one another. */
+  --lssg-font-size-base: clamp(1rem, 0.95rem + 0.3vw, 1.125rem);
+  --lssg-line-height-base: 1.65;
+
+  --lssg-font-size-h1: clamp(1.75rem, 1.35rem + 2vw, 2.5rem);
+  --lssg-font-size-h2: clamp(1.5rem, 1.25rem + 1.2vw, 2rem);
+  --lssg-font-size-h3: clamp(1.25rem, 1.1rem + 0.7vw, 1.5rem);
+  --lssg-font-size-h4: clamp(1.125rem, 1.05rem + 0.4vw, 1.25rem);
+  --lssg-font-size-h5: 1.125rem;
+  --lssg-font-size-h6: 1rem;
+
+  /* Single spacing scale reused for margins between block elements. */
+  --lssg-space-block: 1.25rem;
+
+  /* Extra sizes for compact/de-emphasized UI text (nav trees, captions, etc). */
+  --lssg-font-size-sm: 0.875rem;
+  --lssg-line-height-tight: 1.3;
+}
+
+* {
+  font-family: var(--lssg-font-body);
 }
 
 body,
@@ -9,8 +39,10 @@ html {
   min-height: 100svh;
   margin: 0;
   padding: 0;
+  color: var(--lssg-color-text);
+  font-size: var(--lssg-font-size-base);
+  line-height: var(--lssg-line-height-base);
 }
-
 
 h1,
 h2,
@@ -18,54 +50,75 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: "Courier New", Courier, monospace;
-  padding-top: 25px;
-  padding-bottom: 15px;
+  font-family: var(--lssg-font-mono);
+  line-height: 1.3;
+  /* Margins are in `em` so they scale with each heading's own font-size, */
+  /* keeping the same proportional rhythm from h1 down to h6. Headings sit */
+  /* closer to the content that follows them than the content before them. */
+  margin-top: 1.6em;
+  margin-bottom: 0.6em;
 }
 h1 a {
   text-decoration: none;
-  color: darkblue;
+  color: var(--lssg-color-link);
 }
 h1 {
-  font-size: 42px;
+  font-size: var(--lssg-font-size-h1);
 }
 h2 {
-  font-size: 32px;
+  font-size: var(--lssg-font-size-h2);
 }
 h3 {
-  font-size: 28px;
+  font-size: var(--lssg-font-size-h3);
+}
+h4 {
+  font-size: var(--lssg-font-size-h4);
+}
+h5 {
+  font-size: var(--lssg-font-size-h5);
+}
+h6 {
+  font-size: var(--lssg-font-size-h6);
 }
 p {
-  font-size: 20px;
-  line-height: 28px;
-}
-li {
-  font-size: 20px;
+  font-size: var(--lssg-font-size-base);
+  line-height: var(--lssg-line-height-base);
+  margin: 0 0 var(--lssg-space-block);
 }
 i {
   margin-right: 5px;
 }
 blockquote {
-  color: #656d76;
-  border-left: 0.25em solid #d0d7de;
+  color: var(--lssg-color-text-muted);
+  border-left: 0.25em solid var(--lssg-color-border);
+  margin: 0 0 var(--lssg-space-block);
+  padding: 0.1em 0 0.1em 1.25rem;
+}
+blockquote > *:first-child {
+  margin-top: 0;
+}
+blockquote > *:last-child {
+  margin-bottom: 0;
 }
 blockquote p {
-  margin: 10px;
+  margin: 0 0 0.6em;
 }
 
 code {
   /* Dont wrap spaces */
   white-space: pre-wrap;
-  background-color: #f6f8fa;
-  border: 1px solid #d0d7de;
+  background-color: var(--lssg-color-bg-subtle);
+  border: 1px solid var(--lssg-color-border);
   border-radius: 6px;
   padding: 2px 4px;
   font-size: 85%;
-  color: #24292f;
+  color: var(--lssg-color-text);
 }
 
 li {
   text-align: left;
+  font-size: var(--lssg-font-size-base);
+  line-height: var(--lssg-line-height-base);
 }
 
 /* Reset margins for nested lists */
@@ -80,16 +133,15 @@ li ol {
   padding-left: 2em;
 }
 
-/* Natural spacing for lists */
+/* Natural spacing for lists, matching the paragraph rhythm */
 ul,
 ol {
-  margin-top: 0.8em;
-  margin-bottom: .8em;
+  margin-top: 0;
+  margin-bottom: var(--lssg-space-block);
   padding-left: 1.5em;
 }
 li {
   margin-bottom: 0.5em;
-  line-height: 28px;
 }
 li:last-child {
   margin-bottom: 0;
@@ -134,6 +186,15 @@ video {
   margin-right: auto;
 }
 
+/* Avoid an oversized gap before the very first element, and a trailing */
+/* gap before the footer, since heading/paragraph margins are asymmetric. */
+#default__content > *:first-child {
+  margin-top: 0;
+}
+#default__content > *:last-child {
+  margin-bottom: 0;
+}
+
 @media only screen and (max-width: 768px) {
   #default__content .default__sitetree,
   #default__content table,
@@ -152,16 +213,6 @@ video {
   #default__content blockquote {
     margin-left: 10px;
     margin-right: 10px;
-  }
-
-  h1 {
-    font-size: 32px;
-  }
-  p {
-    font-size: 18px;
-  }
-  li {
-    line-height: 22px;
   }
 }
 #default__footer {
@@ -824,8 +875,8 @@ body:has(.default__side-menu) #default__content {
 }
 
 .default__sitetree {
-  line-height: 1.1em;
-  font-size: 20px;
+  font-size: var(--lssg-font-size-base);
+  line-height: var(--lssg-line-height-tight);
 }
 .default__sitetree_folder {
   text-align: left;
@@ -834,7 +885,7 @@ body:has(.default__side-menu) #default__content {
   padding-bottom: 1rem;
 }
 .default__sitetree_folder > a {
-  font-size: 18px;
+  font-weight: 600;
 }
 .default__sitetree_folder_content {
   padding-left: 10px;
@@ -845,11 +896,10 @@ body:has(.default__side-menu) #default__content {
   overflow: hidden;
 }
 .default__sitetree_file > a {
-  font-size: 0.95em;
   padding-top: 1px;
 }
 .default__sitetree_file.default__sitetree_single_file > a {
-  font-size: 14px;
+  font-size: var(--lssg-font-size-sm);
   opacity: 0.8;
 }
 

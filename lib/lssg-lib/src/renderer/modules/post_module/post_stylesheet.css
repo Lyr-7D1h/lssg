@@ -1,6 +1,6 @@
 /* Post-specific styling */
 .post__date {
-  margin-top: 0px;
+  margin-top: 10px;
   margin-bottom: 20px;
   text-align: left;
   font-size: 0.8em;
@@ -17,6 +17,7 @@ h2 {
   padding-bottom: 0;
   margin-bottom: 10px;
 }
+
 p {
   letter-spacing: -0.003em;
   margin-bottom: 0.8em;
