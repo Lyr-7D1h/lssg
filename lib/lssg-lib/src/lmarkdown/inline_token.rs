@@ -186,40 +186,61 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
             }
             if indent == 0
                 && let Some('(') = reader.peek_char(i)?
-                && let Some(raw_href) = reader.peek_until_inclusive_from(i + 1, |c| c == ')')?
             {
-                reader.consume(1)?;
-                let text = reader.consume_string(i - 2)?;
-                reader.consume(2)?;
-                let mut href = reader.consume_string(raw_href.len() - 1)?;
-                reader.consume(1)?;
-                let text = sanitize_text(text);
-                let text = read_inline_tokens(&mut CharReader::new(text.as_bytes()))?;
+                // find the matching closing ')', counting nested parentheses so
+                // hrefs like `(url(with)parens)` don't get closed early
+                let mut paren_indent = 1;
+                let mut j = i + 1;
+                let mut raw_href = None;
+                while let Some(c) = reader.peek_char(j)? {
+                    match c {
+                        '(' => paren_indent += 1,
+                        ')' => {
+                            paren_indent -= 1;
+                            if paren_indent == 0 {
+                                raw_href = Some(reader.peek_string_from(i + 1, j - i)?);
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                    j += 1;
+                }
 
-                // https://spec.commonmark.org/0.30/#link-title
-                let title = if let Some(start_title) = href.find(" ") {
-                    let title = &href[start_title + 1..href.len()];
+                if let Some(raw_href) = raw_href {
+                    reader.consume(1)?;
+                    let text = reader.consume_string(i - 2)?;
+                    reader.consume(2)?;
+                    let mut href = reader.consume_string(raw_href.len() - 1)?;
+                    reader.consume(1)?;
+                    let text = sanitize_text(text);
+                    let text = read_inline_tokens(&mut CharReader::new(text.as_bytes()))?;
 
-                    if ((title.starts_with("\"") && title.ends_with("\""))
-                        || (title.starts_with("\'") && title.ends_with("\'")))
-                        && title.len() >= 2
-                    {
-                        let title = title[1..title.len() - 1].to_string();
-                        href = (&href[0..start_title]).into();
-                        Some(title)
+                    // https://spec.commonmark.org/0.30/#link-title
+                    let title = if let Some(start_title) = href.find(" ") {
+                        let title = &href[start_title + 1..href.len()];
+
+                        if ((title.starts_with("\"") && title.ends_with("\""))
+                            || (title.starts_with("\'") && title.ends_with("\'")))
+                            && title.len() >= 2
+                        {
+                            let title = title[1..title.len() - 1].to_string();
+                            href = (&href[0..start_title]).into();
+                            Some(title)
+                        } else {
+                            None
+                        }
                     } else {
                         None
-                    }
-                } else {
-                    None
-                };
+                    };
 
-                tokens.push(Token::Link {
-                    tokens: text,
-                    href,
-                    title,
-                });
-                continue;
+                    tokens.push(Token::Link {
+                        tokens: text,
+                        href,
+                        title,
+                    });
+                    continue;
+                }
             }
         }
 

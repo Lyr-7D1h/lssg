@@ -419,7 +419,7 @@ indented code block"
 
     #[test]
     fn test_hard_line_break() {
-        let input = r#"foo
+        let input = r#"foo  
 bar
 foo\
 baz"#;
@@ -723,6 +723,22 @@ Visit www.commonmark.org/a.b."#;
                     },
                 ],
                 src: "example.com/image".into(),
+                title: None,
+            }],
+        }];
+
+        let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+        assert_eq!(tokens, expected);
+    }
+
+    #[test]
+    fn test_parantheses_in_link_works() {
+        let input = "[Glob](https://en.wikipedia.org/wiki/Glob_(programming))";
+        let expected = vec![Token::Paragraph {
+            text: input.to_string(),
+            tokens: vec![Token::Link {
+                tokens: vec![text("Glob")],
+                href: "https://en.wikipedia.org/wiki/Glob_(programming)".to_string(),
                 title: None,
             }],
         }];
