@@ -1,4 +1,4 @@
-use std::collections::{HashMap, hash_map::Iter};
+use std::slice::Iter;
 
 use log::warn;
 
@@ -15,7 +15,7 @@ pub struct Page {
     tokens: Vec<Token>,
     input: Option<Input>,
     /// Map a link href or image src to an input
-    raw_path_map: HashMap<String, Vec<Input>>,
+    raw_path_map: Vec<(String, Vec<Input>)>,
 }
 
 impl fmt::Debug for Page {
@@ -32,7 +32,7 @@ impl Page {
         Page {
             tokens: vec![],
             input: None,
-            raw_path_map: HashMap::new(),
+            raw_path_map: vec![],
         }
     }
 
@@ -43,7 +43,7 @@ impl Page {
         let tokens = parse_lmarkdown(input.readable()?).map_err(|e| {
             LssgError::from(e).with_context(format!("Failed to parse markdown {input:?}"))
         })?;
-        let mut resource_map = HashMap::new();
+        let mut resource_map = vec![];
         let iter = TokenIterator {
             queue: tokens.iter().collect(),
         };
@@ -63,7 +63,11 @@ impl Page {
                     if inputs.is_empty() {
                         continue;
                     }
-                    resource_map.insert(href.to_string(), inputs);
+                    // skip if already exists
+                    if resource_map.iter().any(|(key, _)| key == href) {
+                        continue;
+                    }
+                    resource_map.push((href.to_string(), inputs));
                 }
                 Token::Image { src, .. } => {
                     let Ok(inputs) = input
@@ -75,7 +79,11 @@ impl Page {
                     if inputs.is_empty() {
                         continue;
                     }
-                    resource_map.insert(src.to_string(), inputs);
+                    // skip if already exists
+                    if resource_map.iter().any(|(key, _)| key == src) {
+                        continue;
+                    }
+                    resource_map.push((src.to_string(), inputs));
                 }
                 _ => {}
             }
@@ -91,7 +99,7 @@ impl Page {
         self.input.as_ref()
     }
 
-    pub fn raw_path_inputs(&self) -> Iter<'_, String, Vec<Input>> {
+    pub fn raw_path_inputs(&self) -> Iter<'_, (String, Vec<Input>)> {
         self.raw_path_map.iter()
     }
 
@@ -162,7 +170,7 @@ Another paragraph with **bold** and _emphasis_."#;
         let page = Page {
             tokens,
             input: None,
-            raw_path_map: HashMap::new(),
+            raw_path_map: vec![],
         };
 
         // Collect all tokens
@@ -191,7 +199,7 @@ Another paragraph with **bold** and _emphasis_."#;
         let page = Page {
             tokens,
             input: None,
-            raw_path_map: HashMap::new(),
+            raw_path_map: vec![],
         };
 
         let all_tokens: Vec<&Token> = page.tokens_iter().collect();
