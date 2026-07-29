@@ -8,6 +8,10 @@ Having a creative outlet keeps me sane and motivated. Anything I find worthwhile
     Lubna
 ](./art/lubna.md)
 [
+    ![](./art/space_invaders/3.png)
+    Space Invaders
+](./art/space_invaders.md)
+[
 	![](./art/gentree/1.png)
 	GenTree
 ](./art/gentree.md)
