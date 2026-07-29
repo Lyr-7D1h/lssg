@@ -321,7 +321,7 @@ li:last-child {
   vertical-align: middle;
 }
 
-video {
+video, img {
   max-width: 100%;
 }
 
