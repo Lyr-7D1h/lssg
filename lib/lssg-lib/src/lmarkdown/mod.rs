@@ -36,8 +36,6 @@ mod tests {
 
     use toml::{Table, Value};
 
-    use crate::lmarkdown::TableAlign;
-
     use super::{Token, parse_lmarkdown};
 
     /// Utility function to convert iteratables into attributes hashmap
@@ -419,7 +417,7 @@ indented code block"
 
     #[test]
     fn test_hard_line_break() {
-        let input = r#"foo  
+        let input = r#"foo
 bar
 foo\
 baz"#;
@@ -482,55 +480,8 @@ test='<test></test>'
         assert_eq!(tokens, expected);
     }
 
-    #[test]
-    fn test_table() {
-        let input = r#"| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `root` | Boolean | `false` | Disable parent inheritance |
-"#;
-        let expected = vec![Token::Table {
-            header: vec![
-                vec![Token::Text {
-                    text: "Option".into(),
-                }],
-                vec![Token::Text {
-                    text: "Type".into(),
-                }],
-                vec![Token::Text {
-                    text: "Default".into(),
-                }],
-                vec![Token::Text {
-                    text: "Description".into(),
-                }],
-            ],
-            align: vec![
-                TableAlign::None,
-                TableAlign::None,
-                TableAlign::None,
-                TableAlign::None,
-            ],
-            rows: vec![vec![
-                vec![Token::Code {
-                    text: "root".into(),
-                }],
-                vec![Token::Text {
-                    text: "Boolean".into(),
-                }],
-                vec![Token::Code {
-                    text: "false".into(),
-                }],
-                vec![Token::Text {
-                    text: "Disable parent inheritance".into(),
-                }],
-            ]],
-        }];
-        let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
-        assert_eq!(tokens, expected);
-    }
-
     // GFM Autolinks Extension Tests
     // https://github.github.com/gfm/#autolinks-extension-
-
     #[test]
     fn test_autolink_www() {
         // Example 622
@@ -665,50 +616,6 @@ Visit www.commonmark.org/a.b."#;
     }
 
     #[test]
-    fn test_bold_link_in_table() {
-        let input = "| title | | | | |
-|-------|---|---|---|---|
-| `[rss]` **[RSS](https://en.wikipedia.org/wiki/RSS) generation from posts** | | | | |
-";
-        let expected = vec![Token::Table {
-            header: vec![vec![text("title")], vec![], vec![], vec![], vec![]],
-            align: vec![
-                TableAlign::None,
-                TableAlign::None,
-                TableAlign::None,
-                TableAlign::None,
-                TableAlign::None,
-            ],
-            rows: vec![vec![
-                vec![
-                    Token::Code {
-                        text: "[rss]".into(),
-                    },
-                    text(" "),
-                    Token::Bold {
-                        text: "[RSS](https://en.wikipedia.org/wiki/RSS) generation from posts"
-                            .into(),
-                        tokens: vec![
-                            Token::Link {
-                                tokens: vec![text("RSS")],
-                                href: "https://en.wikipedia.org/wiki/RSS".into(),
-                                title: None,
-                            },
-                            text(" generation from posts"),
-                        ],
-                    },
-                ],
-                vec![],
-                vec![],
-                vec![],
-                vec![],
-            ]],
-        }];
-        let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
-        assert_eq!(tokens, expected);
-    }
-
-    #[test]
     fn test_link_in_image_text_works() {
         let input = "![My [website](https://example.com)](example.com/image)";
         let expected = vec![Token::Paragraph {
@@ -745,5 +652,232 @@ Visit www.commonmark.org/a.b."#;
 
         let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
         assert_eq!(tokens, expected);
+    }
+
+    mod table_tests {
+        use crate::lmarkdown::{TableAlign, Token, parse_lmarkdown};
+
+        fn text(text: &str) -> Token {
+            Token::Text { text: text.into() }
+        }
+
+        #[test]
+        fn test_table_simple() {
+            // GFM Example 198: Simple table
+            let input = "| foo | bar |\n| --- | --- |\n| baz | bim |\n";
+            let expected = vec![Token::Table {
+                header: vec![vec![text("foo")], vec![text("bar")]],
+                align: vec![TableAlign::None, TableAlign::None],
+                rows: vec![vec![vec![text("baz")], vec![text("bim")]]],
+            }];
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            assert_eq!(tokens, expected);
+        }
+
+        #[test]
+        fn test_table_alignment() {
+            // GFM Example 199: Table with left/right alignment
+            let input = "| abc | defghi |\n| :--- | ---: |\n| bar | baz |\n";
+            let expected = vec![Token::Table {
+                header: vec![vec![text("abc")], vec![text("defghi")]],
+                align: vec![TableAlign::Left, TableAlign::Right],
+                rows: vec![vec![vec![text("bar")], vec![text("baz")]]],
+            }];
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            assert_eq!(tokens, expected);
+        }
+
+        #[test]
+        fn test_table_center_alignment() {
+            let input = "| abc | def |\n| :---: | :---: |\n| bar | baz |\n";
+            let expected = vec![Token::Table {
+                header: vec![vec![text("abc")], vec![text("def")]],
+                align: vec![TableAlign::Center, TableAlign::Center],
+                rows: vec![vec![vec![text("bar")], vec![text("baz")]]],
+            }];
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            assert_eq!(tokens, expected);
+        }
+
+        #[test]
+        fn test_table_uneven_cells() {
+            // GFM Example 200: Rows with different cell counts
+            let input = "| abc | def |\n| --- | --- |\n| bar |\n| bar | baz | boo |\n";
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+
+            assert_eq!(tokens.len(), 1);
+            if let Token::Table {
+                header,
+                align,
+                rows,
+            } = &tokens[0]
+            {
+                assert_eq!(header.len(), 2);
+                assert_eq!(align.len(), 2);
+                assert_eq!(rows.len(), 2);
+                assert_eq!(rows[0].len(), 1); // first row has 1 cell
+                assert_eq!(rows[1].len(), 3); // second row has 3 cells
+            } else {
+                panic!("Expected table token");
+            }
+        }
+
+        #[test]
+        fn test_table_header_only() {
+            // GFM Example 202: Only header row, no data rows
+            let input = "| abc | def |\n| --- | --- |\n";
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+
+            assert_eq!(tokens.len(), 1);
+            if let Token::Table {
+                header,
+                align,
+                rows,
+            } = &tokens[0]
+            {
+                assert_eq!(header.len(), 2);
+                assert_eq!(align, &vec![TableAlign::None, TableAlign::None]);
+                assert!(rows.is_empty());
+            } else {
+                panic!("Expected table token");
+            }
+        }
+
+        #[test]
+        fn test_table_inline_formatting() {
+            // GFM Example 205: Emphasis and bold in cells
+            let input = "| abc | def |\n| --- | --- |\n| *bar* | **baz** |\n";
+            let expected = vec![Token::Table {
+                header: vec![vec![text("abc")], vec![text("def")]],
+                align: vec![TableAlign::None, TableAlign::None],
+                rows: vec![vec![
+                    vec![Token::Emphasis {
+                        text: "bar".into(),
+                        tokens: vec![text("bar")],
+                    }],
+                    vec![Token::Bold {
+                        text: "baz".into(),
+                        tokens: vec![text("baz")],
+                    }],
+                ]],
+            }];
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            assert_eq!(tokens, expected);
+        }
+
+        #[test]
+        fn test_table_code_spans() {
+            // Code spans inside table cells
+            let input = "| Command | Description |\n|---------|-------------|\n| `git add` | Stage changes |\n";
+            let expected = vec![Token::Table {
+                header: vec![vec![text("Command")], vec![text("Description")]],
+                align: vec![TableAlign::None, TableAlign::None],
+                rows: vec![vec![
+                    vec![Token::Code {
+                        text: "git add".into(),
+                    }],
+                    vec![text("Stage changes")],
+                ]],
+            }];
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            assert_eq!(tokens, expected);
+        }
+
+        #[test]
+        fn test_table_followed_by_blockquote() {
+            // GFM Example 206: Table followed by blockquote
+            let input = "| abc | def |\n| --- | --- |\n| bar | baz |\n> bar\n";
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+
+            assert_eq!(tokens.len(), 2);
+            assert!(
+                matches!(&tokens[0], Token::Table { .. }),
+                "Expected Table token as first token"
+            );
+            assert!(
+                matches!(&tokens[1], Token::BlockQuote { .. }),
+                "Expected BlockQuote token as second token"
+            );
+        }
+
+        #[test]
+        fn test_table_bold_link() {
+            // Bold text and links in table cells
+            let input = "| title | | | | |
+|-------|---|---|---|---|
+| `[rss]` **[RSS](https://en.wikipedia.org/wiki/RSS) generation from posts** | | | | |
+";
+            let expected = vec![Token::Table {
+                header: vec![vec![text("title")], vec![], vec![], vec![], vec![]],
+                align: vec![
+                    TableAlign::None,
+                    TableAlign::None,
+                    TableAlign::None,
+                    TableAlign::None,
+                    TableAlign::None,
+                ],
+                rows: vec![vec![
+                    vec![
+                        Token::Code {
+                            text: "[rss]".into(),
+                        },
+                        text(" "),
+                        Token::Bold {
+                            text: "[RSS](https://en.wikipedia.org/wiki/RSS) generation from posts"
+                                .into(),
+                            tokens: vec![
+                                Token::Link {
+                                    tokens: vec![text("RSS")],
+                                    href: "https://en.wikipedia.org/wiki/RSS".into(),
+                                    title: None,
+                                },
+                                text(" generation from posts"),
+                            ],
+                        },
+                    ],
+                    vec![],
+                    vec![],
+                    vec![],
+                    vec![],
+                ]],
+            }];
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            assert_eq!(tokens, expected);
+        }
+
+        #[test]
+        fn test_table_basic() {
+            // Existing table test: table with options
+            let input = r"| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `root` | Boolean | `false` | Disable parent inheritance |
+";
+            let expected = vec![Token::Table {
+                header: vec![
+                    vec![text("Option")],
+                    vec![text("Type")],
+                    vec![text("Default")],
+                    vec![text("Description")],
+                ],
+                align: vec![
+                    TableAlign::None,
+                    TableAlign::None,
+                    TableAlign::None,
+                    TableAlign::None,
+                ],
+                rows: vec![vec![
+                    vec![Token::Code {
+                        text: "root".into(),
+                    }],
+                    vec![text("Boolean")],
+                    vec![Token::Code {
+                        text: "false".into(),
+                    }],
+                    vec![text("Disable parent inheritance")],
+                ]],
+            }];
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            assert_eq!(tokens, expected);
+        }
     }
 }
