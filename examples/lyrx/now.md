@@ -10,7 +10,7 @@ modified_on="2026-9-12"
 
 ![First drawing made by the plotter](./projects/last_draw/first_draw.mp4)
 
-**Project:** I'm working on making [Red Dwarf](./projects/red_dwarf/red_dwarf.md) multiplayer.
+**Project:** I'm working on making [Red Dwarf](./projects/red_dwarf.md) multiplayer.
 
 ![First drawing made by the plotter](./projects/red_dwarf/1.png)
 
