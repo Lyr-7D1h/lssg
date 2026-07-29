@@ -3,6 +3,8 @@ name: Lyrx Deployment
 on:
   workflow_dispatch:
   push:
+    branches:
+      - master
 
 env:
   CARGO_TERM_COLOR: always
