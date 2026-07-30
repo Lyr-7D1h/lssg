@@ -1,12 +1,11 @@
 use std::io::Read;
 
+use lssg_char_reader::CharReader;
 use virtual_dom::Html;
 
-use crate::{char_reader::CharReader, parse_error::ParseError};
+use super::{Result, Token, html::html_comment, html::html_element, sanitize_text};
 
-use super::{Token, html::html_comment, html::html_element, sanitize_text};
-
-pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token>, ParseError> {
+pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token>> {
     let mut tokens = vec![];
     'outer: while let Some(c) = reader.peek_char(0)? {
         // html
@@ -359,7 +358,7 @@ fn strip_trailing_punctuation(url: &str) -> String {
     result
 }
 
-fn peek_until_whitespace_or_eof(reader: &mut CharReader<impl Read>) -> Result<String, ParseError> {
+fn peek_until_whitespace_or_eof(reader: &mut CharReader<impl Read>) -> Result<String> {
     if let Some(text) =
         reader.peek_until_exclusive_from(0, |c| c.is_whitespace() || c == '<' || c == '>')?
     {
@@ -378,12 +377,12 @@ fn consume_and_create_autolink(
     reader: &mut CharReader<impl Read>,
     text: String,
     href: String,
-) -> Result<Token, ParseError> {
+) -> Result<Token> {
     reader.consume(text.len())?;
     Ok(Token::Autolink { href, text })
 }
 
-fn autolink(c: char, reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
+fn autolink(c: char, reader: &mut CharReader<impl Read>) -> Result<Option<Token>> {
     // www. autolinks
     if c == 'w' && "ww." == reader.peek_string_from(1, 3)? {
         let full_text = peek_until_whitespace_or_eof(reader)?;

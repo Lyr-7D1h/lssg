@@ -5,10 +5,10 @@ use serde_extensions::Overwrite;
 
 use crate::{
     LssgError,
-    lmarkdown::Token,
     renderer::InitContext,
     sitetree::{Page, SiteId, SiteTree},
 };
+use lmarkdown::Token;
 use virtual_dom::{Document, DomNode};
 
 mod code_module;
@@ -238,8 +238,8 @@ pub trait RendererModule {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lmarkdown::Token;
     use crate::sitetree::{Input, SiteNode, SiteNodeKind};
+    use lmarkdown::Token;
     use serde_extensions::Overwrite;
 
     #[derive(Debug, Default, PartialEq, Overwrite)]

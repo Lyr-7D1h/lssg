@@ -3,10 +3,8 @@ use std::collections::HashMap;
 use proc_virtual_dom::dom;
 use virtual_dom::{Document, DomNode};
 
-use crate::{
-    lmarkdown::Token,
-    renderer::{RenderContext, TokenRenderer, modules::util::tokens_to_text},
-};
+use crate::renderer::{RenderContext, TokenRenderer, modules::util::tokens_to_text};
+use lmarkdown::Token;
 
 fn first_non_empty_text(candidates: &[Option<String>]) -> Option<String> {
     candidates

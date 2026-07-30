@@ -1,19 +1,17 @@
 use std::io::Read;
 
-use log::warn;
+use lssg_char_reader::CharReader;
 use virtual_dom::Html;
 
-use crate::{char_reader::CharReader, parse_error::ParseError};
-
-use super::{
-    Token,
+use crate::{
+    Result, Token,
     html::{html_comment, html_element},
     sanitize_text,
 };
 
 // FIXME: first parse all block tokens then parse into Token
 /// https://spec.commonmark.org/0.30/#blocks-and-inlines
-pub fn read_block_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token>, ParseError> {
+pub fn read_block_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token>> {
     let mut tokens = vec![];
     loop {
         match reader.peek_char(0)? {
@@ -46,20 +44,16 @@ fn from_reader(
     blank_line: bool,
     reader: &mut CharReader<impl Read>,
     tokens: &mut Vec<Token>,
-) -> Result<Option<Token>, ParseError> {
+) -> Result<Option<Token>> {
     // if starts with comment in toml format it is an attribute
     if !reader.has_read()
         && let Some('<') = reader.peek_char(0)?
         && reader.peek_string(4)? == "<!--"
         && let Some(comment) = reader.peek_until_match_inclusive("-->")?
     {
-        match toml::from_str(&comment[4..comment.len() - 3]) {
-            Ok(toml::Value::Table(table)) => {
-                reader.consume(comment.len())?;
-                return Ok(Some(Token::Attributes { table }));
-            }
-            Ok(_) => warn!("Attributes is not a table"),
-            Err(e) => warn!("Not parsing possible Attributes: {e}"),
+        if let Ok(toml::Value::Table(table)) = toml::from_str(&comment[4..comment.len() - 3]) {
+            reader.consume(comment.len())?;
+            return Ok(Some(Token::Attributes { table }));
         }
     }
 
@@ -150,7 +144,7 @@ pub fn indented_code(
     reader: &mut CharReader<impl Read>,
     tokens: &[Token],
     blank_line: bool,
-) -> Result<Option<Token>, ParseError> {
+) -> Result<Option<Token>> {
     // can't interupt a paragraph if there wasn't a blank line
     if let Some(Token::Paragraph { .. }) = tokens.last()
         && !blank_line
@@ -171,7 +165,7 @@ pub fn indented_code(
 }
 
 /// https://spec.commonmark.org/0.30/#fenced-code-blocks
-pub fn fenced_code(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
+pub fn fenced_code(reader: &mut CharReader<impl Read>) -> Result<Option<Token>> {
     if let Some(indent) = detect_char_with_ident(reader, |c| c == '~' || c == '`')? {
         let fence_type = reader.peek_char(indent)?.unwrap();
         let mut count_backticks = 1;
@@ -251,7 +245,7 @@ pub fn fenced_code(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, 
 pub fn setext_heading(
     reader: &mut CharReader<impl Read>,
     tokens: &mut Vec<Token>,
-) -> Result<Option<Token>, ParseError> {
+) -> Result<Option<Token>> {
     if let Some(Token::Paragraph { text, .. }) = tokens.last() {
         if let Some(pos) = detect_char_with_ident(reader, |c| c == '=')? {
             let line = reader.peek_line_from(pos)?;
@@ -292,7 +286,7 @@ pub fn setext_heading(
     Ok(None)
 }
 
-pub fn thematic_break(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
+pub fn thematic_break(reader: &mut CharReader<impl Read>) -> Result<Option<Token>> {
     if let Some(pos) = detect_char_with_ident(reader, |c| c == '*' || c == '-' || c == '_')? {
         let line = reader.peek_line_from(pos)?;
         if let Some(pattern) = line.replace(" ", "").get(0..3)
@@ -305,10 +299,7 @@ pub fn thematic_break(reader: &mut CharReader<impl Read>) -> Result<Option<Token
     Ok(None)
 }
 
-fn list_item_text(
-    reader: &mut CharReader<impl Read>,
-    ident: usize,
-) -> Result<Vec<Token>, ParseError> {
+fn list_item_text(reader: &mut CharReader<impl Read>, ident: usize) -> Result<Vec<Token>> {
     // read the first line
     let line = reader.consume_until_inclusive(|c| c == '\n')?;
     let mut item_content = line[ident..line.len()].to_string();
@@ -335,7 +326,7 @@ fn list_item_text(
 }
 // TODO implement all specs (check for same usage of bullet enc.)
 /// https://spec.commonmark.org/0.30/#list-items
-pub fn bullet_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
+pub fn bullet_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>> {
     let mut items = vec![];
 
     while let Some(pos) = detect_char_with_ident(reader, |c| c == '-' || c == '+' || c == '*')? {
@@ -370,7 +361,7 @@ pub fn bullet_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, 
 }
 // TODO implement all specs (check for same usage of bullet enc.)
 /// https://spec.commonmark.org/0.30/#list-items
-pub fn ordered_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
+pub fn ordered_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>> {
     let mut items = vec![];
     let mut start = 0;
     while let Some(mut pos) = detect_char_with_ident(reader, |c| c.is_ascii_digit())? {
@@ -392,15 +383,15 @@ pub fn ordered_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>,
             }
         }
         if start == 0 {
-            start = if closing_char {
-                reader.peek_string(pos)?.parse::<u32>().map_err(|e| {
-                    ParseError::invalid(format!("Failed to parse start as number: {e}"))
-                })?
+            let start_str = if closing_char {
+                reader.peek_string(pos)?
             } else {
-                reader.peek_string(pos + 1)?.parse::<u32>().map_err(|e| {
-                    ParseError::invalid(format!("Failed to parse start as number: {e}"))
-                })?
+                reader.peek_string(pos + 1)?
             };
+            start = match start_str.parse::<u32>() {
+                Ok(s) => s,
+                Err(_) => break,
+            }
         }
 
         // by default n=1
@@ -431,7 +422,7 @@ pub fn ordered_list(reader: &mut CharReader<impl Read>) -> Result<Option<Token>,
 
 /// Parse a GitHub Flavored Markdown table
 /// https://github.github.com/gfm/#tables-extension-
-fn table(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
+fn table(reader: &mut CharReader<impl Read>) -> Result<Option<Token>> {
     use super::TableAlign;
 
     // Try to parse header row
@@ -555,7 +546,7 @@ fn table(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError
 pub fn detect_char_with_ident(
     reader: &mut CharReader<impl Read>,
     op: fn(c: char) -> bool,
-) -> Result<Option<usize>, ParseError> {
+) -> Result<Option<usize>> {
     for i in 0..4 {
         match reader.peek_char(i)? {
             Some(c) if op(c) => return Ok(Some(i)),
@@ -567,7 +558,7 @@ pub fn detect_char_with_ident(
 }
 
 /// Heading (#*{depth} {text})
-pub fn heading(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
+pub fn heading(reader: &mut CharReader<impl Read>) -> Result<Option<Token>> {
     if let Some(pos) = detect_char_with_ident(reader, |c| c == '#')? {
         let chars: Vec<char> = reader.peek_string_from(pos, 7)?.chars().collect();
         let mut depth: u8 = 0;
@@ -597,7 +588,7 @@ pub fn heading(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, Pars
 }
 
 // https://spec.commonmark.org/0.30/#block-quotes
-pub fn blockquote(reader: &mut CharReader<impl Read>) -> Result<Option<Token>, ParseError> {
+pub fn blockquote(reader: &mut CharReader<impl Read>) -> Result<Option<Token>> {
     let mut lines = vec![];
     'outer: loop {
         for i in 0..3 {
@@ -703,7 +694,7 @@ This should be text"),
             rows,
         } = &tokens[0]
         {
-            use crate::lmarkdown::TableAlign;
+            use crate::TableAlign;
             assert_eq!(header.len(), 3);
             assert_eq!(align[0], TableAlign::Left);
             assert_eq!(align[1], TableAlign::Center);

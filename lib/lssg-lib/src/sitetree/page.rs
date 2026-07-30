@@ -1,11 +1,8 @@
 use std::slice::Iter;
 
+use crate::lssg_error::LssgError;
+use lmarkdown::{Token, parse_lmarkdown};
 use log::warn;
-
-use crate::{
-    lmarkdown::{Token, parse_lmarkdown},
-    lssg_error::LssgError,
-};
 
 use super::Input;
 use std::fmt;

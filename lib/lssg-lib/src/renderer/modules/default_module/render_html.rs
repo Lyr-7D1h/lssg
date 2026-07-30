@@ -4,10 +4,10 @@ use proc_virtual_dom::dom;
 use virtual_dom::{Document, DomNode, to_attributes};
 
 use crate::{
-    lmarkdown::Token,
     renderer::{RenderContext, TokenRenderer},
     sitetree::SiteId,
 };
+use lmarkdown::Token;
 
 mod carousel;
 mod links;

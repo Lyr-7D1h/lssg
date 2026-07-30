@@ -3,13 +3,13 @@ use std::collections::HashMap;
 use proc_virtual_dom::dom;
 
 use crate::{
-    lmarkdown::Token,
     renderer::{
         InitContext, RenderContext,
         modules::post_module::{constants::POST_STYLESHEET, post_page::PostPage, rss::RssOptions},
     },
     sitetree::{Relation, SiteId, SiteNode, Stylesheet},
 };
+use lmarkdown::Token;
 use virtual_dom::{Document, DomNode};
 
 use super::{RendererModule, TokenRenderer};

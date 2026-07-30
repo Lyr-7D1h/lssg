@@ -13,7 +13,6 @@ use serde_extensions::Overwrite;
 
 use crate::renderer::{InitContext, RenderContext, TokenRenderer, modules::RendererModule};
 use crate::{
-    lmarkdown::Token,
     lssg_error::LssgError,
     renderer::{modules::default_module::nav::NavOptions, modules::util::OneOrManyOption},
     sitetree::{
@@ -22,6 +21,7 @@ use crate::{
     },
     tree::Dfs,
 };
+use lmarkdown::Token;
 use virtual_dom::{
     self, Document, DomNode, DomNodeKind, Html, parse_html, parse_html_from_string, to_attributes,
 };
@@ -486,7 +486,7 @@ impl RendererModule for DefaultModule {
         document: &mut Document,
         ctx: &super::RenderContext<'n>,
         parent: DomNode,
-        token: &crate::lmarkdown::Token,
+        token: &lmarkdown::Token,
         tr: &mut TokenRenderer,
     ) -> Option<DomNode> {
         match token {
@@ -724,7 +724,7 @@ impl RendererModule for DefaultModule {
                 align,
                 rows,
             } => {
-                use crate::lmarkdown::TableAlign;
+                use lmarkdown::TableAlign;
 
                 let table = document.create_element("table");
 

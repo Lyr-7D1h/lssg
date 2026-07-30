@@ -1,6 +1,4 @@
-use std::io::Read;
-
-use crate::{char_reader::CharReader, parse_error::ParseError};
+use std::io::{self, Read};
 
 mod block_token;
 mod html;
@@ -8,6 +6,9 @@ mod inline_token;
 mod lexer;
 mod tokenizer;
 pub use lexer::*;
+use lssg_char_reader::CharReader;
+
+pub type Result<T> = std::result::Result<T, io::Error>;
 
 /// Remove any tailing new line or starting and ending spaces
 fn sanitize_text(text: String) -> String {
@@ -25,7 +26,7 @@ fn sanitize_text(text: String) -> String {
 /// Parse LMarkdown using a recursive decent parser
 ///
 /// **NOTE: Current implementation is fairly wonky but fast**
-pub fn parse_lmarkdown(input: impl Read) -> Result<Vec<Token>, ParseError> {
+pub fn parse_lmarkdown(input: impl Read) -> Result<Vec<Token>> {
     let mut reader = CharReader::new(input);
     read_tokens(&mut reader)
 }
@@ -655,7 +656,7 @@ Visit www.commonmark.org/a.b."#;
     }
 
     mod table_tests {
-        use crate::lmarkdown::{TableAlign, Token, parse_lmarkdown};
+        use crate::{TableAlign, Token, parse_lmarkdown};
 
         fn text(text: &str) -> Token {
             Token::Text { text: text.into() }

@@ -23,6 +23,7 @@ toml = "0.9.8"
 serde = { version = "1.0.228", features = ["derive"] }
 serde-value = "0.7"
 
+lmarkdown = { path = "../lmarkdown", version = "^0.1.0" }
 serde-extensions = { path = "../serde-extensions", version = "^1.0" }
 proc-virtual-dom = { path = "../proc-virtual-dom", version = "^1.0" }
 virtual-dom = { path = "../virtual-dom", version = "^1.0" }
