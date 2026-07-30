@@ -1,0 +1,17 @@
+[package]
+name = "lmarkdown"
+version = "0.1.0"
+edition = "2024"
+authors = ["Lyr-7D1h <lyr-7d1h@pm.me>"]
+license = "MIT"
+description = "Lyr's Markdown format"
+repository = "https://github.com/Lyr-7D1h/lssg"
+keywords = ["markdown", "parser"]
+categories = ["web-programming"]
+
+[dependencies]
+lssg-char-reader = { path = "../lssg-char-reader", version = "^1.0" }
+toml = "0.9.8"
+serde = { version = "1.0.228", features = ["derive"] }
+serde-value = "0.7"
+virtual-dom = { path = "../virtual-dom", version = "^1.0" }

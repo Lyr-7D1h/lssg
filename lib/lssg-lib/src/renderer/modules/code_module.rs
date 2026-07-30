@@ -4,11 +4,11 @@ use log::{error, info, warn};
 use serde_extensions::Overwrite;
 
 use crate::{
-    lmarkdown::Token,
     lssg_error::LssgError,
     renderer::{InitContext, RenderContext, TokenRenderer, modules::RendererModule},
     sitetree::{Javascript, Relation, ScriptMode, SiteId, SiteNode, SiteTree, Stylesheet},
 };
+use lmarkdown::Token;
 use virtual_dom::{Document, DomNode};
 
 // https://highlightjs.org/download

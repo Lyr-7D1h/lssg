@@ -1,9 +1,9 @@
 use crate::{
-    lmarkdown::Token,
     renderer::{InitContext, modules::RendererModule},
     sitetree::{Javascript, Relation, Resource, SiteNode, SiteTree},
     tree::Node,
 };
+use lmarkdown::Token;
 
 const MODEL_VIEWER_JS: &[u8] = include_bytes!("./model_module/model-viewer-v4.min.js");
 

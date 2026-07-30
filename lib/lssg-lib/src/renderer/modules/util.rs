@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_extensions::Overwrite;
 use serde_value::Value;
 
-use crate::lmarkdown::Token;
+use lmarkdown::Token;
 
 pub fn tokens_to_text(tokens: &Vec<Token>) -> String {
     let mut result = String::new();

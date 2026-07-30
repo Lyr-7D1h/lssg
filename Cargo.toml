@@ -14,6 +14,7 @@ exclude = ["docs", "examples", "build"]
 [dependencies]
 env_logger = "0.11.6"
 clap = { version = "4.5.54", features = ["derive"] }
+lmarkdown = { path = "./lib/lmarkdown/", version = "0.1.0" }
 lssg-lib = { path = "./lib/lssg-lib/", version = "1.0.1" }
 log = "0.4.29"
 regex = "1.12.2"
@@ -24,6 +25,7 @@ reqwest = "0.13.2"
 
 [workspace]
 members = [
+  "lib/lmarkdown",
   "lib/lssg-char-reader",
   "lib/lssg-lib",
   "lib/proc-virtual-dom",

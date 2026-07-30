@@ -5,13 +5,11 @@ use log::{error, warn};
 use proc_virtual_dom::dom;
 use virtual_dom::{Document, DomNode};
 
-use crate::{
-    lmarkdown::Token,
-    renderer::{
-        RenderContext, TokenRenderer, modules::default_module::translate_href_to_sitetree_path,
-        modules::util::tokens_to_text,
-    },
+use crate::renderer::{
+    RenderContext, TokenRenderer, modules::default_module::translate_href_to_sitetree_path,
+    modules::util::tokens_to_text,
 };
+use lmarkdown::Token;
 
 fn links_grid(
     document: &mut Document,

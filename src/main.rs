@@ -3,9 +3,9 @@ use std::{path::PathBuf, thread};
 
 use clap::Parser;
 use env_logger::{Builder, WriteStyle};
+use lmarkdown::parse_lmarkdown;
 use lssg_lib::{
     Lssg,
-    lmarkdown::parse_lmarkdown,
     renderer::{
         Renderer,
         modules::{model_module::ModelModule, *},

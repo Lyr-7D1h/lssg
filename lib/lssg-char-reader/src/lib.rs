@@ -40,7 +40,6 @@ impl<R: Read> CharReader<R> {
         if min > self.buffer.len() {
             let mut bytes = vec![];
             while 0 != self.reader.read_until(b'\n', &mut bytes)? && min > self.buffer.len() {}
-            // println!("B {bytes:?}");
             self.buffer.extend(
                 String::from_utf8(bytes)
                     .map_err(|e| io::Error::other(format!("Failed to parse utf-8: {e}")))?
@@ -294,7 +293,7 @@ impl<R: Read> CharReader<R> {
             return Ok(result);
         }
         loop {
-            if &result[result.len() - pattern.len()..] == pattern {
+            if result.ends_with(pattern) {
                 break;
             }
             match self.consume_char()? {
@@ -393,5 +392,177 @@ Very important test"
             "some str".to_string()
         );
         assert_eq!(reader.consume_string(8).unwrap(), "ing".to_string());
+    }
+
+    #[test]
+    fn test_consume_until_match_inclusive_emoji_pattern() {
+        // Pattern: "-->" (3 ASCII chars, 3 bytes)
+        // Input contains emojis (4 bytes each) before the pattern
+        let input = "abc👋👋-->"; // 7 chars, 15 bytes
+        let mut reader = CharReader::new(input.as_bytes());
+        assert_eq!(
+            reader.consume_until_match_inclusive("-->").unwrap(),
+            "abc👋👋-->".to_owned()
+        );
+    }
+
+    #[test]
+    fn test_consume_until_match_inclusive_emoji_data() {
+        // Data contains emojis, pattern is ASCII
+        let input = "a👋👋b🦀🔥end"; // contains emojis, looking for "end"
+        let mut reader = CharReader::new(input.as_bytes());
+        assert_eq!(
+            reader.consume_until_match_inclusive("end").unwrap(),
+            "a👋👋b🦀🔥end".to_owned()
+        );
+    }
+
+    #[test]
+    fn test_consume_until_match_inclusive_emoji_both_sides() {
+        // Both data and pattern contain emojis
+        let input = "hello👋world🎉🎊";
+        let mut reader = CharReader::new(input.as_bytes());
+        assert_eq!(
+            reader.consume_until_match_inclusive("🎊").unwrap(),
+            "hello👋world🎉🎊".to_owned()
+        );
+    }
+
+    #[test]
+    fn test_consume_until_match_inclusive_emoji_no_match_eof() {
+        // Pattern not found, EOF reached with emoji data
+        let input = "hello👋world";
+        let mut reader = CharReader::new(input.as_bytes());
+        assert_eq!(
+            reader.consume_until_match_inclusive("end").unwrap(),
+            "hello👋world".to_owned()
+        );
+    }
+
+    #[test]
+    fn test_consume_until_exclusive_emoji() -> Result<(), io::Error> {
+        // consume_until_exclusive reads until `op` matches, excluding the match
+        // with emojis in the data
+        let input = "hello👋world\n";
+        let mut reader = CharReader::new(input.as_bytes());
+        assert_eq!(
+            reader.consume_until_exclusive(|c| c == '\n').unwrap(),
+            "hello👋world".to_owned()
+        );
+        // newline should still be in the buffer (exclusive)
+        assert_eq!(reader.peek_char(0)?, Some('\n'));
+        Ok(())
+    }
+
+    #[test]
+    fn test_consume_until_exclusive_emoji_pattern() -> Result<(), io::Error> {
+        // Emoji as the terminating character
+        let input = "hello👋world";
+        let mut reader = CharReader::new(input.as_bytes());
+        assert_eq!(
+            reader.consume_until_exclusive(|c| c == '👋').unwrap(),
+            "hello".to_owned()
+        );
+        // emoji should still be in the buffer (exclusive)
+        assert_eq!(reader.peek_char(0)?, Some('👋'));
+        Ok(())
+    }
+
+    #[test]
+    fn test_consume_until_inclusive_emoji() -> Result<(), io::Error> {
+        // consume_until_inclusive reads until `op` matches, including the match
+        let input = "hello👋world";
+        let mut reader = CharReader::new(input.as_bytes());
+        assert_eq!(
+            reader.consume_until_inclusive(|c| c == '👋').unwrap(),
+            "hello👋".to_owned()
+        );
+        // emoji should be consumed (inclusive)
+        assert_eq!(reader.peek_char(0)?, Some('w'));
+        Ok(())
+    }
+
+    #[test]
+    fn test_consume_string_emoji_count() {
+        // consume_string takes a char count, not byte count
+        // "👋" is 1 char but 4 bytes
+        let input = "hello👋👋world";
+        let mut reader = CharReader::new(input.as_bytes());
+        // consume 3 chars (not 3 bytes!)
+        assert_eq!(reader.consume_string(3).unwrap(), "hel".to_owned());
+        // remaining buffer: "lo👋👋world" (10 chars)
+        // peek_string(4) reads 4 chars: "lo👋👋"
+        assert_eq!(reader.peek_string(4).unwrap(), "lo👋👋".to_owned());
+    }
+
+    #[test]
+    fn test_consume_string_emoji_boundary() {
+        // Ensure we don't read partial multi-byte chars
+        let input = "a👋b";
+        let mut reader = CharReader::new(input.as_bytes());
+        // consume 2 chars: "a" + "👋"
+        assert_eq!(reader.consume_string(2).unwrap(), "a👋".to_owned());
+        assert_eq!(reader.consume_string(1).unwrap(), "b".to_owned());
+    }
+
+    #[test]
+    fn test_peek_until_match_exclusive_from_emoji_pattern() {
+        // Pattern matching with emoji as the pattern
+        let input = "abc👋def";
+        let mut reader = CharReader::new(input.as_bytes());
+        assert_eq!(
+            reader
+                .peek_until_match_exclusive_from(0, "👋")
+                .unwrap()
+                .unwrap(),
+            "abc".to_owned()
+        );
+    }
+
+    #[test]
+    fn test_peek_until_match_inclusive_from_emoji_pattern() {
+        // Inclusive match with emoji pattern
+        let input = "abc👋def";
+        let mut reader = CharReader::new(input.as_bytes());
+        assert_eq!(
+            reader
+                .peek_until_match_inclusive_from(0, "👋")
+                .unwrap()
+                .unwrap(),
+            "abc👋".to_owned()
+        );
+    }
+
+    #[test]
+    fn test_peek_until_match_inclusive_from_multi_emoji_pattern() {
+        // Pattern containing multiple emojis
+        let input = "start👋🎉middle";
+        let mut reader = CharReader::new(input.as_bytes());
+        assert_eq!(
+            reader
+                .peek_until_match_inclusive_from(0, "👋🎉")
+                .unwrap()
+                .unwrap(),
+            "start👋🎉".to_owned()
+        );
+    }
+
+    #[test]
+    fn test_consume_emoji_partial() {
+        // consume with a length that would be wrong if interpreted as bytes
+        // "👋" is 1 char, 4 bytes. consume(1) should consume 1 char.
+        let input = "👋hello";
+        let mut reader = CharReader::new(input.as_bytes());
+        assert_eq!(reader.consume(1).unwrap(), Some(()));
+        assert_eq!(reader.peek_string(5).unwrap(), "hello".to_owned());
+    }
+
+    #[test]
+    fn test_peek_string_from_emoji_offset() {
+        // peek_string_from(pos, len) should work with emoji characters
+        let input = "👋hello🎉";
+        let mut reader = CharReader::new(input.as_bytes());
+        // skip 1 emoji, read next 5 chars
+        assert_eq!(reader.peek_string_from(1, 5).unwrap(), "hello".to_owned());
     }
 }

@@ -1,11 +1,11 @@
+use crate::Result;
 use std::{collections::HashMap, io::Read};
 
+use lssg_char_reader::CharReader;
 use virtual_dom::Html;
 
-use crate::{char_reader::CharReader, parse_error::ParseError};
-
 /// from virtual_dom::html
-fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, ParseError> {
+fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>> {
     let chars: Vec<char> = start_tag_content.chars().collect();
     let mut attributes = HashMap::new();
     let mut key = String::new();
@@ -47,8 +47,7 @@ fn attributes(start_tag_content: &str) -> Result<HashMap<String, String>, ParseE
     Ok(attributes)
 }
 
-type HtmlElementResult =
-    Result<Option<(String, HashMap<String, String>, Option<String>)>, ParseError>;
+type HtmlElementResult = Result<Option<(String, HashMap<String, String>, Option<String>)>>;
 
 /// from virtual_dom::html
 pub fn html_element(reader: &mut CharReader<impl Read>) -> HtmlElementResult {
@@ -91,7 +90,7 @@ pub fn html_element(reader: &mut CharReader<impl Read>) -> HtmlElementResult {
 }
 
 /// from virtual_dom::html
-pub fn html_comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, ParseError> {
+pub fn html_comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>> {
     if "<!--" == reader.peek_string(4)?
         && let Some(text) = reader.peek_until_match_exclusive_from(4, "-->")?
     {
@@ -109,9 +108,9 @@ fn is_void_element(tag: &str) -> bool {
     match tag {
         // HTML void elements
         "base" | "img" | "br" | "col" | "embed" | "hr" | "area" | "input" | "link" | "meta"
-        | "param" | "source" | "track" | "wbr" 
+        | "param" | "source" | "track" | "wbr"
         // SVG void-like elements
-        | "circle" | "ellipse" | "line" | "path" | "polygon" | "polyline" | "rect" 
+        | "circle" | "ellipse" | "line" | "path" | "polygon" | "polyline" | "rect"
         | "stop" | "use" => true,
         _ => false,
     }

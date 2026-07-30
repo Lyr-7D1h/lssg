@@ -1,10 +1,8 @@
 use std::{collections::HashMap, io::Read};
 
-use crate::{
-    char_reader::CharReader,
-    lmarkdown::{block_token::read_block_tokens, inline_token::read_inline_tokens},
-    parse_error::ParseError,
-};
+use lssg_char_reader::CharReader;
+
+use crate::{Result, block_token::read_block_tokens, inline_token::read_inline_tokens};
 
 // official spec: https://spec.commonmark.org/0.30/
 // https://github.com/markedjs/marked/blob/master/src/Lexer.ts
@@ -14,7 +12,7 @@ use crate::{
 
 /// A function to get the next markdown token using recursive decent.
 /// Will first parse a block token (token for one or multiple lines) and then parse for any inline tokens when needed.
-pub fn read_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token>, ParseError> {
+pub fn read_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token>> {
     let mut block_tokens = read_block_tokens(reader)?;
 
     // parse text inside of block tokens to inline tokens
@@ -26,7 +24,7 @@ pub fn read_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Token>, Par
 }
 
 /// parse text inside of block tokens to inline tokens
-fn parse_block_token_text(block_token: &mut Token) -> Result<(), ParseError> {
+fn parse_block_token_text(block_token: &mut Token) -> Result<()> {
     match block_token {
         // Html is special because it can contains any kind of token
         Token::Html { tokens, .. } => {
@@ -42,7 +40,7 @@ fn parse_block_token_text(block_token: &mut Token) -> Result<(), ParseError> {
                         Ok(vec![t.clone()])
                     }
                 })
-                .collect::<Result<Vec<Vec<Token>>, ParseError>>()?
+                .collect::<Result<Vec<Vec<Token>>>>()?
                 .into_iter()
                 .flatten()
                 .collect();
@@ -100,11 +98,7 @@ fn parse_block_token_text(block_token: &mut Token) -> Result<(), ParseError> {
             }
         }
         Token::CodeBlock { .. } | Token::Attributes { .. } | Token::Comment { .. } => {}
-        _ => {
-            return Err(ParseError::invalid(
-                "inline token found when parsing block tokens",
-            ));
-        }
+        _ => {}
     };
 
     Ok(())

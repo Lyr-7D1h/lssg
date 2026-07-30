@@ -59,7 +59,7 @@ impl Contents {
     /// Extract title and description from page tokens
     fn from_page(page: &crate::sitetree::Page) -> Self {
         let title = page.tokens().iter().find_map(|t| {
-            if let crate::lmarkdown::Token::Heading { text, depth, .. } = t
+            if let lmarkdown::Token::Heading { text, depth, .. } = t
                 && *depth == 1
             {
                 return Some(text.clone());
