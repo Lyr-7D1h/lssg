@@ -39,7 +39,7 @@ const SUPPORTED_VIDEO_FORMATS: [&str; 6] = ["mp4", "webm", "ogg", "ogv", "mov", 
 struct FooterOptions {
     /// Every item you want to include in your footer
     items: Vec<String>,
-    /// Overwrite footer with custom html element
+    /// Overwrite footer with custom lmarkdown
     custom: Option<String>,
 }
 impl Default for FooterOptions {
@@ -425,7 +425,12 @@ impl RendererModule for DefaultModule {
         Ok(())
     }
 
-    fn after_render<'n>(&mut self, document: &mut Document, ctx: &RenderContext<'n>) {
+    fn after_render<'n>(
+        &mut self,
+        document: &mut Document,
+        ctx: &RenderContext<'n>,
+        tr: &mut TokenRenderer,
+    ) {
         let site_id = ctx.site_id;
         let opts = self
             .options_map
@@ -447,15 +452,20 @@ impl RendererModule for DefaultModule {
         }
         body.append_child(content);
 
-        if let Some(footer) = options.footer.custom.as_ref() {
-            if let Ok(html) = virtual_dom::parse_html_from_string(footer) {
-                body.append_child(html);
+        let mut footer = DomNode::create_element("footer");
+        footer.set_attribute("id", "default__footer");
+
+        if let Some(custom_footer) = options.footer.custom.as_ref() {
+            // render the custom footer through the same module chain as the page body
+            match lmarkdown::parse_lmarkdown(custom_footer.as_bytes()) {
+                Ok(tokens) => {
+                    tr.render(document, ctx, footer.clone(), &tokens);
+                    document.body.append_child(footer);
+                }
+                Err(e) => warn!("Failed to parse custom footer: {e}"),
             }
         } else {
             let items = options.footer.items.clone();
-
-            let mut footer = DomNode::create_element("footer");
-            footer.set_attribute("id", "default__footer");
             let mut items = items.into_iter().peekable();
             while let Some(item) = items.next() {
                 if let Ok(item) = virtual_dom::parse_html_from_string(&item) {
@@ -465,7 +475,7 @@ impl RendererModule for DefaultModule {
                     footer.append_child(" | ");
                 }
             }
-            body.append_child(footer);
+            document.body.append_child(footer);
         }
 
         // Add language to html tag
@@ -771,6 +781,26 @@ impl RendererModule for DefaultModule {
                 }
 
                 parent.append_child(table);
+            }
+            Token::TaskList { items } => {
+                let ul = document.create_element("ul");
+                for (checked, item_tokens) in items {
+                    let li = document.create_element("li");
+
+                    // Add checkbox
+                    let mut input = document.create_element("input");
+                    input.set_attribute("type", "checkbox");
+                    if *checked {
+                        input.set_attribute("checked", "checked");
+                    }
+                    li.append_child(input);
+
+                    // Render item content
+                    tr.render(document, ctx, li.clone(), item_tokens);
+
+                    ul.append_child(li);
+                }
+                parent.append_child(ul);
             }
         };
         // always renders
