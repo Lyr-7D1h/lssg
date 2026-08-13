@@ -57,6 +57,13 @@ fn parse_block_token_text(block_token: &mut Token) -> Result<()> {
                 }
             }
         }
+        Token::TaskList { items } => {
+            for (_, item_tokens) in items.iter_mut() {
+                for t in item_tokens.iter_mut() {
+                    parse_block_token_text(t)?;
+                }
+            }
+        }
         Token::Heading { text, tokens, .. } | Token::Paragraph { text, tokens, .. } => {
             let mut reader = CharReader::new(text.as_bytes());
             *tokens = read_inline_tokens(&mut reader)?;
@@ -193,6 +200,12 @@ pub enum Token {
     HardBreak,
     /// Indicating of a space between paragraphs
     SoftBreak,
+    /// GFM task list items extension
+    /// https://github.github.com/gfm/#task-list-items-extension
+    /// Each tuple is (checked, item_tokens) where checked is true for [x]/[X]
+    TaskList {
+        items: Vec<(bool, Vec<Token>)>,
+    },
 }
 
 impl Token {
@@ -208,6 +221,7 @@ impl Token {
             Token::BulletList { items, .. } | Token::OrderedList { items, .. } => {
                 Some(items.iter_mut().collect())
             }
+            Token::TaskList { items } => Some(items.iter_mut().map(|(_, tokens)| tokens).collect()),
             Token::Table { header, rows, .. } => {
                 let mut tokens = vec![];
                 for cell in header {
@@ -236,6 +250,7 @@ impl Token {
             Token::BulletList { items, .. } | Token::OrderedList { items, .. } => {
                 Some(items.iter().collect())
             }
+            Token::TaskList { items } => Some(items.iter().map(|(_, tokens)| tokens).collect()),
             Token::Table { header, rows, .. } => {
                 let mut tokens = vec![];
                 for cell in header {
@@ -280,6 +295,7 @@ impl Token {
             Token::Attributes { .. }
                 | Token::BulletList { .. }
                 | Token::OrderedList { .. }
+                | Token::TaskList { .. }
                 | Token::Heading { .. }
                 | Token::Html { .. }
                 | Token::Paragraph { .. }

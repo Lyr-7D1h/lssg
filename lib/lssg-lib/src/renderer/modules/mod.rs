@@ -73,7 +73,16 @@ pub trait RendererModule {
     }
 
     /// Gets called after body has been rendered, can be used for final changes to the dom
-    fn after_render<'n>(&mut self, document: &mut Document, ctx: &RenderContext<'n>) {}
+    ///
+    /// `tr` is the same token renderer used to render the page body, so it can be used
+    /// to render additional lmarkdown tokens through the same module chain
+    fn after_render<'n>(
+        &mut self,
+        document: &mut Document,
+        ctx: &RenderContext<'n>,
+        tr: &mut TokenRenderer,
+    ) {
+    }
 
     /// Parse options of `page_site_id` page without using default values or allowing it to be overwritten
     fn page_option<'de, D>(

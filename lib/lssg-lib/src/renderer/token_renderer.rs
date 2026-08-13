@@ -5,7 +5,7 @@ use crate::renderer::modules::RendererModule;
 use lmarkdown::Token;
 use virtual_dom::{Document, DomNode};
 
-/// used for recursively rendering
+/// Used for recursively rendering
 pub struct TokenRenderer {
     modules: *mut Vec<Box<dyn RendererModule>>,
 }
@@ -17,7 +17,7 @@ impl<'a> TokenRenderer {
         TokenRenderer { modules }
     }
 
-    /// Render using other modules
+    /// Render using other modules down the rendering chain
     pub fn render_down(
         &mut self,
         current_module: &dyn RendererModule,
@@ -69,8 +69,8 @@ impl<'a> TokenRenderer {
         parent
     }
 
-    /// consume self and return a parsed domtree
-    pub fn start_render(mut self, document: &mut Document, ctx: &RenderContext) {
+    /// Render the tokens of the current page into `document`'s body
+    pub fn start_render(&mut self, document: &mut Document, ctx: &RenderContext) {
         let tokens = ctx.page.tokens();
         self.render(document, ctx, document.body.clone(), tokens);
     }

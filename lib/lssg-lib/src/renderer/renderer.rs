@@ -9,7 +9,7 @@ use virtual_dom::Document;
 use super::modules::RendererModule;
 use super::{InitContext, RenderContext, TokenRenderer};
 
-/// HtmlRenderer is responsible for the process of converting the site tree into the final HTML output.
+/// Renderer is responsible for the process of converting the site tree into the final HTML output.
 /// It does this by managing a queue of tokens to be rendered and delegating the rendering process to different modules.
 #[derive(Default)]
 pub struct Renderer {
@@ -104,12 +104,12 @@ impl Renderer {
         }
 
         debug!("running render_body on modules");
-        let token_renderer = TokenRenderer::new(&mut self.modules);
+        let mut token_renderer = TokenRenderer::new(&mut self.modules);
         token_renderer.start_render(&mut dom, &context);
 
         for module in &mut self.modules {
             debug!("running after_render on {}", module.id());
-            module.after_render(&mut dom, &context);
+            module.after_render(&mut dom, &context, &mut token_renderer);
         }
 
         // sanitize html

@@ -147,6 +147,26 @@ li:last-child {
   margin-bottom: 0;
 }
 
+/* Task list items render as a checkbox with text next to it, following
+   the same rhythm as regular lists */
+.default__task-list {
+  margin: 0 0 var(--lssg-space-block);
+}
+.default__task-list-item {
+  display: block;
+  text-align: left;
+  font-size: var(--lssg-font-size-base);
+  line-height: var(--lssg-line-height-base);
+  margin-bottom: 0.5em;
+}
+.default__task-list-item:last-child {
+  margin-bottom: 0;
+}
+.default__task-list-item > input[type="checkbox"] {
+  margin-right: 0.5em;
+  vertical-align: middle;
+}
+
 video {
   max-width: 100%;
 }
@@ -173,6 +193,7 @@ video {
 #default__content .code-toolbar,
 #default__content ul,
 #default__content ol,
+#default__content .default__task-list,
 #default__content h1,
 #default__content h2,
 #default__content h3,
@@ -203,6 +224,7 @@ video {
   #default__content .code-toolbar,
   #default__content ul,
   #default__content ol,
+  #default__content .default__task-list,
   #default__content h1,
   #default__content h2,
   #default__content h3,
