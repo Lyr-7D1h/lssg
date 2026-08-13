@@ -418,10 +418,8 @@ indented code block"
 
     #[test]
     fn test_hard_line_break() {
-        let input = r#"foo
-bar
-foo\
-baz"#;
+        let input = "foo  \nbar\nfoo\\\nbaz".to_string();
+
         let expected = vec![Token::Paragraph {
             text: "foo  \nbar\nfoo\\\nbaz".into(),
             tokens: vec![
