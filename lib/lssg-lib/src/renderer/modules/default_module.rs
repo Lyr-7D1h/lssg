@@ -39,7 +39,7 @@ const SUPPORTED_VIDEO_FORMATS: [&str; 6] = ["mp4", "webm", "ogg", "ogv", "mov", 
 struct FooterOptions {
     /// Every item you want to include in your footer
     items: Vec<String>,
-    /// Overwrite footer with custom html element
+    /// Overwrite footer with custom lmarkdown
     custom: Option<String>,
 }
 impl Default for FooterOptions {
@@ -447,9 +447,13 @@ impl RendererModule for DefaultModule {
         }
         body.append_child(content);
 
-        if let Some(footer) = options.footer.custom.as_ref() {
-            if let Ok(html) = virtual_dom::parse_html_from_string(footer) {
-                body.append_child(html);
+        if let Some(custom_footer) = options.footer.custom.as_ref() {
+            match TokenRenderer::parse_lmarkdown(custom_footer.as_bytes(), ctx) {
+                Ok(d) => {
+                    println!("{d:?}");
+                    body.append_child(d)
+                }
+                Err(e) => warn!("Failed to parse custom footer: {e}"),
             }
         } else {
             let items = options.footer.items.clone();
@@ -771,6 +775,26 @@ impl RendererModule for DefaultModule {
                 }
 
                 parent.append_child(table);
+            }
+            Token::TaskList { items } => {
+                let ul = document.create_element("ul");
+                for (checked, item_tokens) in items {
+                    let li = document.create_element("li");
+
+                    // Add checkbox
+                    let mut input = document.create_element("input");
+                    input.set_attribute("type", "checkbox");
+                    if *checked {
+                        input.set_attribute("checked", "checked");
+                    }
+                    li.append_child(input);
+
+                    // Render item content
+                    tr.render(document, ctx, li.clone(), item_tokens);
+
+                    ul.append_child(li);
+                }
+                parent.append_child(ul);
             }
         };
         // always renders
