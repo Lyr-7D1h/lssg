@@ -178,6 +178,7 @@ pub fn create_renderer(no_media_optimization: bool) -> Renderer {
     let mut renderer = Renderer::default();
     renderer.add_module(ModelModule::default());
     renderer.add_module(ExternalModule::default());
+    renderer.add_module(SitemapModule::default());
     renderer.add_module(PostModule::default());
     if !no_media_optimization {
         renderer.add_module(MediaModule::default());

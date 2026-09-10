@@ -104,6 +104,154 @@ blockquote p {
   margin: 0 0 0.6em;
 }
 
+/* Obsidian-style callouts: `<details>`/`<summary>` so folding works without JS */
+.default__callout {
+  /* Types below override these for their accent color and icon; unknown/custom
+  types fall back to the muted "note" look, like Obsidian. Icons are Lucide
+  (ISC, lucide.dev) rendered as masks so they can take the accent color. */
+  --default__callout-color: var(--lssg-color-text-muted);
+  --default__callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7.9 20A9 9 0 1 0 4 16.1L2 22Z'/%3E%3C/svg%3E");
+  --default__callout-padding-block: 0.5em;
+  position: relative;
+  border-left: 0.25em solid var(--default__callout-color);
+  background-color: color-mix(
+    in srgb,
+    var(--default__callout-color) 6%,
+    transparent
+  );
+  border-radius: 0 6px 6px 0;
+  margin: 0 0 var(--lssg-space-block);
+  /* Even top/bottom padding so the title is centered when collapsed */
+  padding: var(--default__callout-padding-block) 1em;
+}
+/* Fold indicator, aligned with the title line; passes clicks through so
+  clicking the chevron still toggles the callout. Only collapsible callouts
+  (those with a `+`/`-` fold marker) get one. */
+details.default__callout::before {
+  content: "\25B8"; /* ▸ */
+  position: absolute;
+  left: 1em;
+  top: var(--default__callout-padding-block);
+  color: var(--default__callout-color);
+  pointer-events: none;
+  transition: transform 150ms ease;
+}
+details.default__callout[open]::before {
+  transform: rotate(90deg);
+}
+.default__callout .default__callout-title {
+  font-weight: 600;
+  color: var(--default__callout-color);
+  /* Modest gap between title and content */
+  margin: 0 0 0.5em;
+}
+/* Title-only callouts, and collapsed ones (hidden content keeps its last-child
+  slot in the DOM), keep their even padding */
+.default__callout > .default__callout-title:last-child,
+details.default__callout:not([open]) > .default__callout-title {
+  margin-bottom: 0;
+}
+details.default__callout summary.default__callout-title {
+  /* Clear the fold indicator */
+  padding-left: 1.2em;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+/* Hide the browser's default marker; the type icon is the visual hook. */
+details.default__callout summary.default__callout-title::-webkit-details-marker {
+  display: none;
+}
+/* Type icon, tinted with the callout's accent color; unknown/custom types
+  keep the note icon. */
+.default__callout .default__callout-title::before {
+  content: "";
+  display: inline-block;
+  width: 1.25em;
+  height: 1.25em;
+  margin-right: 0.5em;
+  background-color: var(--default__callout-color);
+  -webkit-mask: var(--default__callout-icon) center / contain no-repeat;
+  mask: var(--default__callout-icon) center / contain no-repeat;
+  vertical-align: -0.3em;
+}
+.default__callout > *:first-child {
+  margin-top: 0;
+}
+.default__callout > *:last-child {
+  margin-bottom: 0;
+}
+/* Accent colors, loosely following the GitHub/Obsidian callout palettes. */
+.default__callout--note,
+.default__callout--info {
+  --default__callout-color: #0969da;
+}
+.default__callout--tip,
+.default__callout--success {
+  --default__callout-color: #1a7f37;
+}
+.default__callout--question,
+.default__callout--example,
+.default__callout--important {
+  --default__callout-color: #8250df;
+}
+.default__callout--warning {
+  --default__callout-color: #bc4c00;
+}
+.default__callout--failure,
+.default__callout--danger,
+.default__callout--caution {
+  --default__callout-color: #cf222e;
+}
+.default__callout--bug {
+  --default__callout-color: #bf3989;
+}
+/* Type icons, following the Obsidian/GitHub defaults (Lucide icons). */
+.default__callout--info {
+  /* info */
+  --default__callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E");
+}
+.default__callout--tip {
+  /* lightbulb */
+  --default__callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5'/%3E%3Cpath d='M9 18h6'/%3E%3Cpath d='M10 22h4'/%3E%3C/svg%3E");
+}
+.default__callout--success {
+  /* circle-check */
+  --default__callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E");
+}
+.default__callout--question {
+  /* circle-question-mark */
+  --default__callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3'/%3E%3Cpath d='M12 17h.01'/%3E%3C/svg%3E");
+}
+.default__callout--warning {
+  /* triangle-alert */
+  --default__callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3'/%3E%3Cpath d='M12 9v4'/%3E%3Cpath d='M12 17h.01'/%3E%3C/svg%3E");
+}
+.default__callout--caution,
+.default__callout--danger {
+  /* siren */
+  --default__callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 18v-6a5 5 0 1 1 10 0v6'/%3E%3Cpath d='M5 21a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2z'/%3E%3Cpath d='M21 12h1'/%3E%3Cpath d='M18.5 4.5 18 5'/%3E%3Cpath d='M2 12h1'/%3E%3Cpath d='M12 2v1'/%3E%3Cpath d='m4.929 4.929.707.707'/%3E%3Cpath d='M12 12v6'/%3E%3C/svg%3E");
+}
+.default__callout--failure {
+  /* circle-x */
+  --default__callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m15 9-6 6'/%3E%3Cpath d='m9 9 6 6'/%3E%3C/svg%3E");
+}
+.default__callout--bug {
+  /* bug */
+  --default__callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m8 2 1.88 1.88'/%3E%3Cpath d='M14.12 3.88 16 2'/%3E%3Cpath d='M9 7.13v-1a3.003 3.003 0 1 1 6 0v1'/%3E%3Cpath d='M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6'/%3E%3Cpath d='M12 20v-9'/%3E%3Cpath d='M6.53 9C4.6 8.8 3 7.1 3 5'/%3E%3Cpath d='M6 13H2'/%3E%3Cpath d='M3 21c0-2.1 1.7-3.9 3.8-4'/%3E%3Cpath d='M20.97 5c0 2.1-1.6 3.8-3.5 4'/%3E%3Cpath d='M22 13h-4'/%3E%3Cpath d='M17.2 17c2.1.1 3.8 1.9 3.8 4'/%3E%3C/svg%3E");
+}
+.default__callout--example {
+  /* notebook-pen */
+  --default__callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4'/%3E%3Cpath d='M2 6h4'/%3E%3Cpath d='M2 10h4'/%3E%3Cpath d='M2 14h4'/%3E%3Cpath d='M2 18h4'/%3E%3Cpath d='M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z'/%3E%3C/svg%3E");
+}
+.default__callout--quote {
+  /* quote */
+  --default__callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z'/%3E%3Cpath d='M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z'/%3E%3C/svg%3E");
+}
+.default__callout--important {
+  /* pin */
+  --default__callout-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 17v5'/%3E%3Cpath d='M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z'/%3E%3C/svg%3E");
+}
 code {
   /* Dont wrap spaces */
   white-space: pre-wrap;
@@ -201,7 +349,8 @@ video {
 #default__content h5,
 #default__content h6,
 #default__content p,
-#default__content blockquote {
+#default__content blockquote,
+#default__content .default__callout {
   max-width: 680px;
   margin-left: auto;
   margin-right: auto;
@@ -232,7 +381,8 @@ video {
   #default__content h5,
   #default__content h6,
   #default__content p,
-  #default__content blockquote {
+  #default__content blockquote,
+  #default__content .default__callout {
     margin-left: 10px;
     margin-right: 10px;
   }

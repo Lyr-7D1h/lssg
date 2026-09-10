@@ -4,7 +4,7 @@ use lssg_char_reader::CharReader;
 use virtual_dom::Html;
 
 use crate::{
-    Result, Token,
+    CalloutType, Result, Token,
     html::{html_comment, html_element},
     sanitize_text,
 };
@@ -49,10 +49,10 @@ fn from_reader(
     if !reader.has_read()
         && let Some('<') = reader.peek_char(0)?
         && reader.peek_string(4)? == "<!--"
-        && let Some(comment) = reader.peek_until_match_inclusive("-->")?
+        && let Some((comment, comment_chars)) = reader.peek_until_match_inclusive("-->")?
     {
         if let Ok(toml::Value::Table(table)) = toml::from_str(&comment[4..comment.len() - 3]) {
-            reader.consume(comment.len())?;
+            reader.consume(comment_chars)?;
             return Ok(Some(Token::Attributes { table }));
         }
     }
@@ -187,7 +187,7 @@ pub fn fenced_code(reader: &mut CharReader<impl Read>) -> Result<Option<Token>> 
             return Ok(None);
         }
 
-        let Some(info) =
+        let Some((info, info_chars)) =
             reader.peek_until_inclusive_from(indent + count_backticks, |c| c == '\n')?
         else {
             return Ok(None);
@@ -197,7 +197,8 @@ pub fn fenced_code(reader: &mut CharReader<impl Read>) -> Result<Option<Token>> 
         if info.contains(fence_type) {
             return Ok(None);
         }
-        reader.consume(indent + count_backticks + info.len() + 1)?;
+        // info_chars includes the trailing newline, so no extra +1 is needed
+        reader.consume(indent + count_backticks + info_chars)?;
 
         let mut text = String::new();
         // add all content
@@ -254,14 +255,14 @@ pub fn setext_heading(
 ) -> Result<Option<Token>> {
     if let Some(Token::Paragraph { text, .. }) = tokens.last() {
         if let Some(pos) = detect_char_with_ident(reader, |c| c == '=')? {
-            let line = reader.peek_line_from(pos)?;
-            if line.len() >= 3 {
+            let (line, line_chars) = reader.peek_line_from(pos)?;
+            if line_chars >= 3 {
                 for c in line.chars() {
                     if c != '=' {
                         return Ok(None);
                     }
                 }
-                reader.consume_string(pos + line.len())?;
+                reader.consume_string(pos + line_chars)?;
                 let heading = Token::Heading {
                     text: text.clone(),
                     tokens: vec![],
@@ -271,14 +272,14 @@ pub fn setext_heading(
                 return Ok(Some(heading));
             }
         } else if let Some(pos) = detect_char_with_ident(reader, |c| c == '-')? {
-            let line = reader.peek_line_from(pos)?;
-            if line.len() >= 3 {
+            let (line, line_chars) = reader.peek_line_from(pos)?;
+            if line_chars >= 3 {
                 for c in line.chars() {
                     if c != '-' {
                         return Ok(None);
                     }
                 }
-                reader.consume_string(pos + line.len())?;
+                reader.consume_string(pos + line_chars)?;
                 let heading = Token::Heading {
                     text: text.clone(),
                     tokens: vec![],
@@ -294,11 +295,11 @@ pub fn setext_heading(
 
 pub fn thematic_break(reader: &mut CharReader<impl Read>) -> Result<Option<Token>> {
     if let Some(pos) = detect_char_with_ident(reader, |c| c == '*' || c == '-' || c == '_')? {
-        let line = reader.peek_line_from(pos)?;
+        let (line, line_chars) = reader.peek_line_from(pos)?;
         if let Some(pattern) = line.replace(" ", "").get(0..3)
             && (pattern == "***" || pattern == "---" || pattern == "___")
         {
-            reader.consume_string(pos + line.len())?;
+            reader.consume_string(pos + line_chars)?;
             return Ok(Some(Token::ThematicBreak));
         }
     }
@@ -310,17 +311,17 @@ fn list_item_text(reader: &mut CharReader<impl Read>, ident: usize) -> Result<Ve
     let line = reader.consume_until_inclusive(|c| c == '\n')?;
     let mut item_content = line[ident..line.len()].to_string();
     loop {
-        let line = reader.peek_line()?;
+        let (line, line_chars) = reader.peek_line()?;
 
         if line.is_empty() {
-            let line = reader.consume_string(line.len() + 1)?;
+            let line = reader.consume_string(line_chars + 1)?;
             // end
             if line.is_empty() {
                 break;
             }
             item_content.push_str(&line);
         } else if line.starts_with(&" ".repeat(ident)) {
-            let line = reader.consume_string(line.len() + 1)?;
+            let line = reader.consume_string(line_chars + 1)?;
             item_content.push_str(&line[ident..line.len()]);
         } else {
             break;
@@ -531,7 +532,7 @@ fn table(reader: &mut CharReader<impl Read>) -> Result<Option<Token>> {
     use super::TableAlign;
 
     // Try to parse header row
-    let Some(header_line) = reader.peek_until_inclusive(|c| c == '\n')? else {
+    let Some((header_line, header_chars)) = reader.peek_until_inclusive(|c| c == '\n')? else {
         return Ok(None);
     };
 
@@ -541,8 +542,8 @@ fn table(reader: &mut CharReader<impl Read>) -> Result<Option<Token>> {
     }
 
     // Try to parse delimiter row
-    let Some(delimiter_line) =
-        reader.peek_until_inclusive_from(header_line.len(), |c| c == '\n')?
+    let Some((delimiter_line, delimiter_chars)) =
+        reader.peek_until_inclusive_from(header_chars, |c| c == '\n')?
     else {
         return Ok(None);
     };
@@ -597,7 +598,7 @@ fn table(reader: &mut CharReader<impl Read>) -> Result<Option<Token>> {
     }
 
     // Consume header and delimiter
-    reader.consume(header_line.len() + delimiter_line.len())?;
+    reader.consume(header_chars + delimiter_chars)?;
 
     // Parse header tokens
     let header: Vec<Vec<Token>> = header_cells
@@ -611,7 +612,7 @@ fn table(reader: &mut CharReader<impl Read>) -> Result<Option<Token>> {
 
     // Parse data rows
     let mut rows = vec![];
-    while let Some(row_line) = reader.peek_until_inclusive(|c| c == '\n')? {
+    while let Some((row_line, row_chars)) = reader.peek_until_inclusive(|c| c == '\n')? {
         let row_trimmed = row_line.trim();
 
         // Stop if not a table row
@@ -637,7 +638,7 @@ fn table(reader: &mut CharReader<impl Read>) -> Result<Option<Token>> {
             .collect();
 
         rows.push(row);
-        reader.consume(row_line.len())?;
+        reader.consume(row_chars)?;
     }
 
     Ok(Some(Token::Table {
@@ -715,11 +716,95 @@ pub fn blockquote(reader: &mut CharReader<impl Read>) -> Result<Option<Token>> {
         return Ok(None);
     }
 
+    // Check if this is a Callout
+    // The first line should match the pattern `[!TYPE]`, where TYPE is a callout type
+    // (e.g. `note`, `tip`, `info`, `warning`, ...), optionally followed by a fold marker
+    // (`+` starts expanded, `-` starts collapsed) and a custom title
+    // https://obsidian.md/help/callouts
+    if let Some(callout) = detect_callout(&lines[0]) {
+        // Remove the callout marker line from the content
+        let text = lines[1..].join("\n");
+        let mut reader = CharReader::new(text.as_bytes());
+        let tokens = read_block_tokens(&mut reader)?;
+
+        return Ok(Some(Token::Callout {
+            tokens,
+            callout_type: callout.callout_type,
+            title: callout.title,
+            fold: callout.fold,
+        }));
+    }
+
     let text = lines.join("\n");
     let mut reader = CharReader::new(text.as_bytes());
     let tokens = read_block_tokens(&mut reader)?;
 
     Ok(Some(Token::BlockQuote { tokens }))
+}
+
+/// The parsed parts of a callout marker line
+struct CalloutMarker {
+    callout_type: CalloutType,
+    title: Option<String>,
+    fold: Option<bool>,
+}
+
+/// Detect if a line starts with a Callout marker like `[!note]`, `[!tip]-`, `[!bug] My bug`, etc.
+///
+/// https://obsidian.md/help/callouts
+/// https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts
+fn detect_callout(line: &str) -> Option<CalloutMarker> {
+    let rest = line.trim_start().strip_prefix("[!")?;
+    let end_bracket = rest.find(']')?;
+    let callout_type = parse_callout_type(&rest[..end_bracket])?;
+    let rest = rest[end_bracket + 1..].trim_start();
+
+    // Optional fold marker: `-` starts collapsed, `+` starts expanded;
+    // without one the callout is not collapsible
+    let (fold, rest) = match rest.as_bytes().first() {
+        Some(b'-') => (Some(true), &rest[1..]),
+        Some(b'+') => (Some(false), &rest[1..]),
+        _ => (None, rest),
+    };
+
+    // Optional custom title, e.g. `[!note] My title`
+    let title = rest.trim();
+
+    Some(CalloutMarker {
+        callout_type,
+        title: (!title.is_empty()).then(|| title.to_string()),
+        fold,
+    })
+}
+
+/// Parse a callout type name, e.g. `note`, `my-custom-type`, etc.
+///
+/// Known types (case-insensitive) map to their variants, anything else becomes a custom type.
+fn parse_callout_type(type_name: &str) -> Option<CalloutType> {
+    if type_name.is_empty()
+        || !type_name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        return None;
+    }
+    Some(match type_name.to_lowercase().as_str() {
+        "note" => CalloutType::Note,
+        "info" => CalloutType::Info,
+        "tip" => CalloutType::Tip,
+        "success" => CalloutType::Success,
+        "question" => CalloutType::Question,
+        "warning" => CalloutType::Warning,
+        "failure" => CalloutType::Failure,
+        "danger" => CalloutType::Danger,
+        "bug" => CalloutType::Bug,
+        "example" => CalloutType::Example,
+        "quote" => CalloutType::Quote,
+        // GFM alert types
+        "important" => CalloutType::Important,
+        "caution" => CalloutType::Caution,
+        _ => CalloutType::Custom(type_name.to_lowercase()),
+    })
 }
 
 #[cfg(test)]

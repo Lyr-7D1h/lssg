@@ -34,7 +34,7 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
             }
 
             // https://spec.commonmark.org/0.30/#autolinks
-            if let Some(link) = reader.peek_until_exclusive_from(1, |c| c == '>')? {
+            if let Some((link, link_chars)) = reader.peek_until_exclusive_from(1, |c| c == '>')? {
                 let mut valid = false;
                 for c in link.chars() {
                     match c {
@@ -51,7 +51,7 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
                 }
                 if valid {
                     reader.consume(1)?;
-                    let text = reader.consume_string(link.len())?;
+                    let text = reader.consume_string(link_chars)?;
                     reader.consume(1)?;
                     tokens.push(Token::Link {
                         tokens: vec![Token::Text { text }],
@@ -126,12 +126,13 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
 
             if indent == 0
                 && let Some('(') = reader.peek_char(i)?
-                && let Some(raw_href) = reader.peek_until_inclusive_from(i + 1, |c| c == ')')?
+                && let Some((_, raw_href_chars)) =
+                    reader.peek_until_inclusive_from(i + 1, |c| c == ')')?
             {
                 reader.consume(2)?;
                 let text = reader.consume_string(i - 3)?;
                 reader.consume(2)?;
-                let src = reader.consume_string(raw_href.len() - 1)?;
+                let src = reader.consume_string(raw_href_chars - 1)?;
                 let src = sanitize_text(src);
 
                 // https://spec.commonmark.org/0.30/#link-title
@@ -197,7 +198,7 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
                         ')' => {
                             paren_indent -= 1;
                             if paren_indent == 0 {
-                                raw_href = Some(reader.peek_string_from(i + 1, j - i)?);
+                                raw_href = Some((reader.peek_string_from(i + 1, j - i)?, j - i));
                                 break;
                             }
                         }
@@ -206,11 +207,11 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
                     j += 1;
                 }
 
-                if let Some(raw_href) = raw_href {
+                if let Some((_, raw_href_chars)) = raw_href {
                     reader.consume(1)?;
                     let text = reader.consume_string(i - 2)?;
                     reader.consume(2)?;
-                    let mut href = reader.consume_string(raw_href.len() - 1)?;
+                    let mut href = reader.consume_string(raw_href_chars - 1)?;
                     reader.consume(1)?;
                     let text = sanitize_text(text);
                     let text = read_inline_tokens(&mut CharReader::new(text.as_bytes()))?;
@@ -246,10 +247,10 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
         // emphasis: https://spec.commonmark.org/0.30/#emphasis-and-strong-emphasis
         if c == '*' {
             if let Some('*') = reader.peek_char(1)?
-                && let Some(text) = reader.peek_until_match_inclusive_from(2, "**")?
+                && let Some((_, text_chars)) = reader.peek_until_match_inclusive_from(2, "**")?
             {
                 reader.consume(2)?;
-                let text = reader.consume_string(text.len() - 2)?;
+                let text = reader.consume_string(text_chars - 2)?;
                 reader.consume(2)?;
                 let text_sanitized = sanitize_text(text.clone());
                 let inner_tokens =
@@ -260,9 +261,9 @@ pub fn read_inline_tokens(reader: &mut CharReader<impl Read>) -> Result<Vec<Toke
                 });
                 continue;
             }
-            if let Some(text) = reader.peek_until_inclusive_from(1, |c| c == '*')? {
+            if let Some((_, text_chars)) = reader.peek_until_inclusive_from(1, |c| c == '*')? {
                 reader.consume(1)?;
-                let text = reader.consume_string(text.len() - 1)?;
+                let text = reader.consume_string(text_chars - 1)?;
                 reader.consume(1)?;
                 let text_sanitized = sanitize_text(text.clone());
                 let inner_tokens =
@@ -359,7 +360,7 @@ fn strip_trailing_punctuation(url: &str) -> String {
 }
 
 fn peek_until_whitespace_or_eof(reader: &mut CharReader<impl Read>) -> Result<String> {
-    if let Some(text) =
+    if let Some((text, _)) =
         reader.peek_until_exclusive_from(0, |c| c.is_whitespace() || c == '<' || c == '>')?
     {
         Ok(text)
@@ -378,7 +379,7 @@ fn consume_and_create_autolink(
     text: String,
     href: String,
 ) -> Result<Token> {
-    reader.consume(text.len())?;
+    reader.consume(text.chars().count())?;
     Ok(Token::Autolink { href, text })
 }
 

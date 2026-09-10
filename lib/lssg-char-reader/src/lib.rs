@@ -64,7 +64,7 @@ impl<R: Read> CharReader<R> {
     // zero bytes in utf-8 strings so needs to be converted. Possible fix by implementing a utf-8
     // reader storing only bytes and iterating over it.
     //
-    /// Try to fill string with `length` bytes
+    /// Try to fill string with `length` characters
     pub fn peek_string_from(&mut self, pos: usize, length: usize) -> Result<String, io::Error> {
         self.try_fill(pos + length)?;
         let stop = (pos + length).min(self.buffer.len());
@@ -79,13 +79,13 @@ impl<R: Read> CharReader<R> {
         Ok(string)
     }
 
-    /// peek until \n or eof is reached
-    pub fn peek_line(&mut self) -> Result<String, io::Error> {
+    /// peek until \n or eof is reached, returns (line, char count)
+    pub fn peek_line(&mut self) -> Result<(String, usize), io::Error> {
         self.peek_line_from(0)
     }
 
-    /// peek until \n or eof is reached
-    pub fn peek_line_from(&mut self, pos: usize) -> Result<String, io::Error> {
+    /// peek until \n or eof is reached, returns (line, char count)
+    pub fn peek_line_from(&mut self, pos: usize) -> Result<(String, usize), io::Error> {
         let mut i = pos;
         let mut result = String::new();
         while let Some(c) = self.peek_char(i)? {
@@ -95,14 +95,15 @@ impl<R: Read> CharReader<R> {
             result.push(c);
             i += 1;
         }
-        Ok(result)
+        Ok((result, i - pos))
     }
-    /// returns None if EOF is reached, to prevent false positives
+    /// returns the peeked (string, char count), or None if EOF is reached,
+    /// to prevent false positives
     pub fn peek_until_exclusive_from<F>(
         &mut self,
         pos: usize,
         op: F,
-    ) -> Result<Option<String>, io::Error>
+    ) -> Result<Option<(String, usize)>, io::Error>
     where
         F: Fn(char) -> bool,
     {
@@ -119,24 +120,27 @@ impl<R: Read> CharReader<R> {
             i += 1;
         }
 
-        let string = self.peek_string_from(pos, i - pos)?;
-        Ok(Some(string))
+        let length = i - pos;
+        let string = self.peek_string_from(pos, length)?;
+        Ok(Some((string, length)))
     }
 
-    /// returns None if EOF is reached, to prevent false positives
-    pub fn peek_until_inclusive<F>(&mut self, op: F) -> Result<Option<String>, io::Error>
+    /// returns the peeked (string, char count), or None if EOF is reached,
+    /// to prevent false positives
+    pub fn peek_until_inclusive<F>(&mut self, op: F) -> Result<Option<(String, usize)>, io::Error>
     where
         F: Fn(char) -> bool,
     {
         self.peek_until_inclusive_from(0, op)
     }
 
-    /// returns None if EOF is reached, to prevent false positives
+    /// returns the peeked (string, char count), or None if EOF is reached,
+    /// to prevent false positives
     pub fn peek_until_inclusive_from<F>(
         &mut self,
         pos: usize,
         op: F,
-    ) -> Result<Option<String>, io::Error>
+    ) -> Result<Option<(String, usize)>, io::Error>
     where
         F: Fn(char) -> bool,
     {
@@ -153,15 +157,18 @@ impl<R: Read> CharReader<R> {
             i += 1;
         }
 
-        let string = self.peek_string_from(pos, i - pos + 1)?;
-        Ok(Some(string))
+        let length = i - pos + 1;
+        let string = self.peek_string_from(pos, length)?;
+        Ok(Some((string, length)))
     }
 
+    /// returns the peeked (string, char count), or None if EOF is reached,
+    /// to prevent false positives
     pub fn peek_until_match_exclusive_from(
         &mut self,
         pos: usize,
         pattern: &str,
-    ) -> Result<Option<String>, io::Error> {
+    ) -> Result<Option<(String, usize)>, io::Error> {
         let chars: Vec<char> = pattern.chars().collect();
 
         let mut i = pos;
@@ -182,23 +189,26 @@ impl<R: Read> CharReader<R> {
             break;
         }
 
-        let string = self.peek_string_from(pos, i - pos)?;
-        Ok(Some(string))
+        let length = i - pos;
+        let string = self.peek_string_from(pos, length)?;
+        Ok(Some((string, length)))
     }
 
     /// Peek until matches or return None when not found
     pub fn peek_until_match_inclusive(
         &mut self,
         pattern: &str,
-    ) -> Result<Option<String>, io::Error> {
+    ) -> Result<Option<(String, usize)>, io::Error> {
         self.peek_until_match_inclusive_from(0, pattern)
     }
 
+    /// returns the peeked (string, char count), or None if EOF is reached,
+    /// to prevent false positives
     pub fn peek_until_match_inclusive_from(
         &mut self,
         pos: usize,
         pattern: &str,
-    ) -> Result<Option<String>, io::Error> {
+    ) -> Result<Option<(String, usize)>, io::Error> {
         let chars: Vec<char> = pattern.chars().collect();
 
         let mut i = pos;
@@ -220,10 +230,12 @@ impl<R: Read> CharReader<R> {
             break;
         }
 
-        let string = self.peek_string_from(pos, i - pos)?;
-        Ok(Some(string))
+        let length = i - pos;
+        let string = self.peek_string_from(pos, length)?;
+        Ok(Some((string, length)))
     }
 
+    /// Consume `length` characters
     pub fn consume(&mut self, length: usize) -> Result<Option<()>, io::Error> {
         self.has_read = true;
         self.try_fill(length)?;
@@ -244,7 +256,9 @@ impl<R: Read> CharReader<R> {
         }
     }
 
-    /// Read {length} bytes returning a smaller string on EOF
+    /// Consume `{length}` characters
+    ///
+    /// NOTE: returning a smaller string on EOF
     pub fn consume_string(&mut self, length: usize) -> Result<String, io::Error> {
         self.has_read = true;
         self.try_fill(length)?;
@@ -288,8 +302,9 @@ impl<R: Read> CharReader<R> {
 
     /// stop consuming by pattern, if eof returns whatever is captured
     pub fn consume_until_match_inclusive(&mut self, pattern: &str) -> Result<String, io::Error> {
-        let mut result = self.consume_string(pattern.len())?;
-        if result.len() < pattern.len() {
+        let pattern_chars = pattern.chars().count();
+        let mut result = self.consume_string(pattern_chars)?;
+        if result.chars().count() < pattern_chars {
             return Ok(result);
         }
         loop {
@@ -347,31 +362,31 @@ Very important test"
         let mut reader = CharReader::new(input.as_bytes());
         assert_eq!(
             reader.peek_until_match_inclusive("-->").unwrap(),
-            Some(input.to_owned())
+            Some((input.to_owned(), 7))
         );
         assert_eq!(
             reader
                 .peek_until_match_exclusive_from(0, "-->")
                 .unwrap()
                 .unwrap(),
-            "<!--".to_string()
+            ("<!--".to_string(), 4)
         );
         assert_eq!(
             reader
                 .peek_until_match_exclusive_from(4, "-->")
                 .unwrap()
                 .unwrap(),
-            "".to_string()
+            ("".to_string(), 0)
         );
 
         let input = "   **";
         let mut reader = CharReader::new(input.as_bytes());
         assert_eq!(
-            "*".to_string(),
             reader
                 .peek_until_match_inclusive_from(3, "*")
                 .unwrap()
                 .unwrap(),
+            ("*".to_string(), 1)
         );
     }
 
@@ -515,7 +530,7 @@ Very important test"
                 .peek_until_match_exclusive_from(0, "👋")
                 .unwrap()
                 .unwrap(),
-            "abc".to_owned()
+            ("abc".to_owned(), 3)
         );
     }
 
@@ -529,7 +544,7 @@ Very important test"
                 .peek_until_match_inclusive_from(0, "👋")
                 .unwrap()
                 .unwrap(),
-            "abc👋".to_owned()
+            ("abc👋".to_owned(), 4)
         );
     }
 
@@ -543,7 +558,7 @@ Very important test"
                 .peek_until_match_inclusive_from(0, "👋🎉")
                 .unwrap()
                 .unwrap(),
-            "start👋🎉".to_owned()
+            ("start👋🎉".to_owned(), 7)
         );
     }
 

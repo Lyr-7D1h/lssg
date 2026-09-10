@@ -239,9 +239,9 @@ fn element(reader: &mut CharReader<impl Read>) -> Result<Option<Element>, io::Er
 
 fn comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io::Error> {
     if "<!--" == reader.peek_string(4)? {
-        if let Some(text) = reader.peek_until_match_exclusive_from(4, "-->")? {
+        if let Some((_, text_chars)) = reader.peek_until_match_exclusive_from(4, "-->")? {
             reader.consume(4)?; // skip start
-            let text = reader.consume_string(text.len())?;
+            let text = reader.consume_string(text_chars)?;
             reader.consume(3)?; // skip end
             return Ok(Some(Html::Comment { text }));
         }
@@ -254,9 +254,9 @@ fn comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>, io::Error
 pub fn is_void_element(tag: &str) -> bool {
     match tag {
         "base" | "img" | "br" | "col" | "embed" | "hr" | "area" | "input" | "link" | "meta"
-        | "param" | "source" | "track" | "wbr" 
+        | "param" | "source" | "track" | "wbr"
         // SVG void-like elements
-        | "circle" | "ellipse" | "line" | "path" | "polygon" | "polyline" | "rect" 
+        | "circle" | "ellipse" | "line" | "path" | "polygon" | "polyline" | "rect"
         | "stop" | "use" => true,
         _ => false,
     }
@@ -398,14 +398,14 @@ mod tests {
     #[test]
     fn test_text_looks_like_html() {
         let input = r#"<Lots of people say Rust > c++. even though it might be
-< then c++. Who knows? 
+< then c++. Who knows?
 <>
 <nonclosing>
 This should be text
 "#;
         let expected = vec![Html::Text {
             text: "<Lots of people say Rust > c++. even though it might be
-< then c++. Who knows? 
+< then c++. Who knows?
 <>
 <nonclosing>
 This should be text

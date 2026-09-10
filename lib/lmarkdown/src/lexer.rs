@@ -45,7 +45,7 @@ fn parse_block_token_text(block_token: &mut Token) -> Result<()> {
                 .flatten()
                 .collect();
         }
-        Token::BlockQuote { tokens, .. } => {
+        Token::BlockQuote { tokens, .. } | Token::Callout { tokens, .. } => {
             for t in tokens.iter_mut() {
                 parse_block_token_text(t)?;
             }
@@ -195,7 +195,19 @@ pub enum Token {
     Comment {
         raw: String,
     },
-    // https://spec.commonmark.org/0.30/#thematic-breaks
+    /// Callout extension
+    /// https://obsidian.md/help/callouts
+    Callout {
+        tokens: Vec<Token>,
+        callout_type: CalloutType,
+        /// Custom title provided in the callout marker, e.g. `[!note] My title`
+        title: Option<String>,
+        /// Initial fold state when the marker has a fold symbol: `Some(true)` for
+        /// `-` (starts collapsed, e.g. `[!note]-`), `Some(false)` for `+` (starts
+        /// expanded). `None` means the callout is not collapsible.
+        fold: Option<bool>,
+    },
+    /// https://spec.commonmark.org/0.30/#thematic-breaks
     ThematicBreak,
     HardBreak,
     /// Indicating of a space between paragraphs
@@ -208,6 +220,49 @@ pub enum Token {
     },
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub enum CalloutType {
+    Note,
+    Info,
+    Tip,
+    Success,
+    Question,
+    Warning,
+    Failure,
+    Danger,
+    Bug,
+    Example,
+    Quote,
+    /// GFM alert type, kept for compatibility
+    Important,
+    /// GFM alert type, kept for compatibility
+    Caution,
+    /// Any other callout type name, e.g. `[!my-type]`
+    Custom(String),
+}
+
+impl CalloutType {
+    /// The type name as used in the callout marker (lowercase), e.g. `note`
+    pub fn as_str(&self) -> &str {
+        match self {
+            CalloutType::Note => "note",
+            CalloutType::Info => "info",
+            CalloutType::Tip => "tip",
+            CalloutType::Success => "success",
+            CalloutType::Question => "question",
+            CalloutType::Warning => "warning",
+            CalloutType::Failure => "failure",
+            CalloutType::Danger => "danger",
+            CalloutType::Bug => "bug",
+            CalloutType::Example => "example",
+            CalloutType::Quote => "quote",
+            CalloutType::Important => "important",
+            CalloutType::Caution => "caution",
+            CalloutType::Custom(name) => name,
+        }
+    }
+}
+
 impl Token {
     pub fn get_tokens_mut(&mut self) -> Option<Vec<&mut Vec<Token>>> {
         match self {
@@ -217,7 +272,8 @@ impl Token {
             | Token::Image { tokens, .. }
             | Token::Html { tokens, .. }
             | Token::Bold { tokens, .. }
-            | Token::Emphasis { tokens, .. } => Some(vec![tokens]),
+            | Token::Emphasis { tokens, .. }
+            | Token::Callout { tokens, .. } => Some(vec![tokens]),
             Token::BulletList { items, .. } | Token::OrderedList { items, .. } => {
                 Some(items.iter_mut().collect())
             }
@@ -246,7 +302,8 @@ impl Token {
             | Token::Image { tokens, .. }
             | Token::Html { tokens, .. }
             | Token::Bold { tokens, .. }
-            | Token::Emphasis { tokens, .. } => Some(vec![tokens]),
+            | Token::Emphasis { tokens, .. }
+            | Token::Callout { tokens, .. } => Some(vec![tokens]),
             Token::BulletList { items, .. } | Token::OrderedList { items, .. } => {
                 Some(items.iter().collect())
             }
@@ -300,6 +357,7 @@ impl Token {
                 | Token::Html { .. }
                 | Token::Paragraph { .. }
                 | Token::BlockQuote { .. }
+                | Token::Callout { .. }
                 | Token::Table { .. }
                 | Token::CodeBlock { .. }
         )

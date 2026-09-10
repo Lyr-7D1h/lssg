@@ -21,7 +21,7 @@ use crate::{
     },
     tree::Dfs,
 };
-use lmarkdown::Token;
+use lmarkdown::{CalloutType, Token};
 use virtual_dom::{
     self, Document, DomNode, DomNodeKind, Html, parse_html, parse_html_from_string, to_attributes,
 };
@@ -658,6 +658,38 @@ impl RendererModule for DefaultModule {
                 tr.render(document, ctx, blockquote.clone(), tokens);
                 parent.append_child(blockquote);
             }
+            Token::Callout {
+                tokens,
+                callout_type,
+                title,
+                fold,
+            } => {
+                // Only callouts with a `+`/`-` fold marker are collapsible
+                let (tag, title_tag) = match fold {
+                    Some(_) => ("details", "summary"),
+                    None => ("div", "p"),
+                };
+                let mut callout = document.create_element(tag);
+                callout.set_attribute(
+                    "class",
+                    &format!(
+                        "default__callout default__callout--{}",
+                        callout_type.as_str()
+                    ),
+                );
+                if let Some(false) = fold {
+                    callout.set_attribute("open", "");
+                }
+                let callout_title = title
+                    .clone()
+                    .unwrap_or_else(|| default_callout_title(callout_type));
+                let mut title_el = document.create_element(title_tag);
+                title_el.set_attribute("class", "default__callout-title");
+                title_el.append_child(document.create_text_node(&callout_title));
+                callout.append_child(title_el);
+                tr.render(document, ctx, callout.clone(), tokens);
+                parent.append_child(callout);
+            }
             Token::HardBreak => {
                 parent.append_child(document.create_element("br"));
             }
@@ -834,4 +866,20 @@ fn translate_href_to_sitetree_path(
         return vec![(href.clone(), None)];
     }
     hrefs
+}
+
+/// The default title for a callout type, e.g. `note` -> `Note`, `my-type` -> `My Type`
+fn default_callout_title(callout_type: &CalloutType) -> String {
+    callout_type
+        .as_str()
+        .split(['-', '_'])
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }

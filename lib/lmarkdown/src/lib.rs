@@ -35,7 +35,7 @@ mod tests {
 
     use toml::{Table, Value};
 
-    use super::{Token, parse_lmarkdown};
+    use super::{CalloutType, Token, parse_lmarkdown};
 
     /// Utility function to convert iteratables into attributes hashmap
     fn to_attributes<I: IntoIterator<Item = (impl Into<String>, impl Into<String>)>>(
@@ -875,6 +875,241 @@ Visit www.commonmark.org/a.b."#;
             }];
             let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
             assert_eq!(tokens, expected);
+        }
+    }
+
+    #[cfg(test)]
+    mod callout_tests {
+        use super::{CalloutType, Token, parse_lmarkdown};
+
+        #[test]
+        fn test_callout_note() {
+            let input = "> [!note]
+> Highlights information that users should take into account.";
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            assert_eq!(tokens.len(), 1);
+            match &tokens[0] {
+                Token::Callout {
+                    callout_type,
+                    title,
+                    fold,
+                    tokens: content,
+                    ..
+                } => {
+                    assert_eq!(*callout_type, CalloutType::Note);
+                    assert_eq!(title, &None);
+                    assert_eq!(fold, &None);
+                    assert_eq!(content.len(), 1);
+                    assert!(matches!(&content[0], Token::Paragraph { .. }));
+                }
+                _ => panic!("Expected Callout token, got {:?}", tokens[0]),
+            }
+        }
+
+        #[test]
+        fn test_callout_tip() {
+            let input = "> [!tip]
+> Alternative information or advice that helps.";
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            match &tokens[0] {
+                Token::Callout { callout_type, .. } => assert_eq!(*callout_type, CalloutType::Tip),
+                _ => panic!("Expected Callout token"),
+            }
+        }
+
+        #[test]
+        fn test_callout_important() {
+            let input = "> [!important]
+> Crucial information necessary for users to succeed.";
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            match &tokens[0] {
+                Token::Callout { callout_type, .. } => {
+                    assert_eq!(*callout_type, CalloutType::Important)
+                }
+                _ => panic!("Expected Callout token"),
+            }
+        }
+
+        #[test]
+        fn test_callout_warning() {
+            let input = "> [!warning]
+> Critical content demanding immediate user attention.";
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            match &tokens[0] {
+                Token::Callout { callout_type, .. } => {
+                    assert_eq!(*callout_type, CalloutType::Warning)
+                }
+                _ => panic!("Expected Callout token"),
+            }
+        }
+
+        #[test]
+        fn test_callout_caution() {
+            let input = "> [!caution]
+> Negative potential consequences of an action.";
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            match &tokens[0] {
+                Token::Callout { callout_type, .. } => {
+                    assert_eq!(*callout_type, CalloutType::Caution)
+                }
+                _ => panic!("Expected Callout token"),
+            }
+        }
+
+        #[test]
+        fn test_callout_obsidian_types() {
+            let inputs = [
+                ("> [!info]\n> Content.", CalloutType::Info),
+                ("> [!success]\n> Content.", CalloutType::Success),
+                ("> [!question]\n> Content.", CalloutType::Question),
+                ("> [!failure]\n> Content.", CalloutType::Failure),
+                ("> [!danger]\n> Content.", CalloutType::Danger),
+                ("> [!bug]\n> Content.", CalloutType::Bug),
+                ("> [!example]\n> Content.", CalloutType::Example),
+                ("> [!quote]\n> Content.", CalloutType::Quote),
+            ];
+            for (input, expected) in inputs {
+                let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+                match &tokens[0] {
+                    Token::Callout { callout_type, .. } => {
+                        assert_eq!(*callout_type, expected, "input: {input}")
+                    }
+                    _ => panic!(
+                        "Expected Callout token for input: {input}, got {:?}",
+                        tokens[0]
+                    ),
+                }
+            }
+        }
+
+        #[test]
+        fn test_callout_custom_type() {
+            let input = "> [!my-type]
+> Content with a custom callout type.";
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            match &tokens[0] {
+                Token::Callout { callout_type, .. } => {
+                    assert_eq!(*callout_type, CalloutType::Custom("my-type".into()))
+                }
+                _ => panic!("Expected Callout token"),
+            }
+        }
+
+        #[test]
+        fn test_callout_custom_title() {
+            let input = "> [!note] My custom title
+> Content with a custom title.";
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            match &tokens[0] {
+                Token::Callout {
+                    callout_type,
+                    title,
+                    ..
+                } => {
+                    assert_eq!(*callout_type, CalloutType::Note);
+                    assert_eq!(title, &Some("My custom title".into()));
+                }
+                _ => panic!("Expected Callout token"),
+            }
+        }
+
+        #[test]
+        fn test_callout_multiple_lines() {
+            let input = "> [!note]
+> First line of content.
+> Second line of content.";
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            assert_eq!(tokens.len(), 1);
+            match &tokens[0] {
+                Token::Callout {
+                    callout_type,
+                    tokens: content,
+                    ..
+                } => {
+                    assert_eq!(*callout_type, CalloutType::Note);
+                    assert_eq!(content.len(), 2);
+                }
+                _ => panic!("Expected Callout token"),
+            }
+        }
+
+        #[test]
+        fn test_callout_collapsed() {
+            let input = "> [!note]-
+> Content of a collapsed callout.";
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            match &tokens[0] {
+                Token::Callout {
+                    callout_type,
+                    title,
+                    fold,
+                    ..
+                } => {
+                    assert_eq!(*callout_type, CalloutType::Note);
+                    assert_eq!(title, &None);
+                    assert_eq!(fold, &Some(true));
+                }
+                _ => panic!("Expected Callout token"),
+            }
+        }
+
+        #[test]
+        fn test_callout_expanded() {
+            let input = "> [!note]+
+> Content of an explicitly expanded callout.";
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            match &tokens[0] {
+                Token::Callout { fold, .. } => assert_eq!(fold, &Some(false)),
+                _ => panic!("Expected Callout token"),
+            }
+        }
+
+        #[test]
+        fn test_callout_collapsed_with_title() {
+            let input = "> [!tip]- My tip
+> Content of a collapsed callout with a title.";
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            match &tokens[0] {
+                Token::Callout { title, fold, .. } => {
+                    assert_eq!(title, &Some("My tip".into()));
+                    assert_eq!(fold, &Some(true));
+                }
+                _ => panic!("Expected Callout token"),
+            }
+        }
+
+        #[test]
+        fn test_regular_blockquote_still_works() {
+            let input = "> This is a regular blockquote.
+> Not a callout.";
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            assert_eq!(tokens.len(), 1);
+            match &tokens[0] {
+                Token::BlockQuote { .. } => {} // expected
+                _ => panic!("Expected BlockQuote token, got {:?}", tokens[0]),
+            }
+        }
+
+        #[test]
+        fn test_callout_lowercase_type() {
+            let input = "> [!note]
+> Content with lowercase callout type.";
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            match &tokens[0] {
+                Token::Callout { callout_type, .. } => assert_eq!(*callout_type, CalloutType::Note),
+                _ => panic!("Expected Callout token"),
+            }
+        }
+
+        #[test]
+        fn test_callout_mixed_case_type() {
+            let input = "> [!Note]
+> Content with mixed case callout type.";
+            let tokens = parse_lmarkdown(input.as_bytes()).unwrap();
+            match &tokens[0] {
+                Token::Callout { callout_type, .. } => assert_eq!(*callout_type, CalloutType::Note),
+                _ => panic!("Expected Callout token"),
+            }
         }
     }
 }

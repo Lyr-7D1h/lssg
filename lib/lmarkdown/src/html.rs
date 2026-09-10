@@ -52,7 +52,8 @@ type HtmlElementResult = Result<Option<(String, HashMap<String, String>, Option<
 /// from virtual_dom::html
 pub fn html_element(reader: &mut CharReader<impl Read>) -> HtmlElementResult {
     if let Some('<') = reader.peek_char(0)?
-        && let Some(start_tag) = reader.peek_until_exclusive_from(1, |c| c == '>')?
+        && let Some((start_tag, start_tag_chars)) =
+            reader.peek_until_exclusive_from(1, |c| c == '>')?
     {
         // get html tag
         let mut tag = String::new();
@@ -66,22 +67,22 @@ pub fn html_element(reader: &mut CharReader<impl Read>) -> HtmlElementResult {
 
         if start_tag.ends_with("/") && is_void_element(&tag) {
             // <{start_tag}/>
-            reader.consume(start_tag.len() + 2)?;
+            reader.consume(start_tag_chars + 2)?;
             let attributes = attributes(&start_tag[tag.len()..start_tag.len() - 1])?;
             return Ok(Some((tag, attributes, None)));
         }
 
         let end_tag = format!("</{tag}>");
-        if let Some(html_block) =
-            reader.peek_until_match_exclusive_from(2 + start_tag.len(), &end_tag)?
+        if let Some((_, html_block_chars)) =
+            reader.peek_until_match_exclusive_from(2 + start_tag_chars, &end_tag)?
         {
             // <{start_tag}>
-            reader.consume(start_tag.len() + 2)?;
+            reader.consume(start_tag_chars + 2)?;
 
             let attributes = attributes(&start_tag[tag.len()..start_tag.len()])?;
 
-            let content = reader.consume_string(html_block.len())?;
-            reader.consume(end_tag.len())?;
+            let content = reader.consume_string(html_block_chars)?;
+            reader.consume(end_tag.chars().count())?;
 
             return Ok(Some((tag, attributes, Some(content))));
         }
@@ -92,10 +93,10 @@ pub fn html_element(reader: &mut CharReader<impl Read>) -> HtmlElementResult {
 /// from virtual_dom::html
 pub fn html_comment(reader: &mut CharReader<impl Read>) -> Result<Option<Html>> {
     if "<!--" == reader.peek_string(4)?
-        && let Some(text) = reader.peek_until_match_exclusive_from(4, "-->")?
+        && let Some((_, text_chars)) = reader.peek_until_match_exclusive_from(4, "-->")?
     {
         reader.consume(4)?; // skip start
-        let text = reader.consume_string(text.len())?;
+        let text = reader.consume_string(text_chars)?;
         reader.consume(3)?; // skip end
         return Ok(Some(Html::Comment { text }));
     }
