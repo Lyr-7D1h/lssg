@@ -83,7 +83,8 @@ impl Input {
         }
 
         let mut path = PathBuf::from(string);
-        path = fs::canonicalize(path)?;
+        path = fs::canonicalize(path)
+            .map_err(|e| LssgError::io(format!("Failed to resolve '{string}': {e}")))?;
 
         Ok(Input::Local { path })
     }
