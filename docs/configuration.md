@@ -65,6 +65,8 @@ All discovered resources are automatically included in the build output without 
 | `video_crf` | Integer (0-51) | `25` | Video quality (lower = better, 18-28 recommended) | Yes |
 | `[external]` **External Module** | | | | |
 | `href` | String (URL) | - | URL to ZIP file containing HTML site to import | No |
+| `[layout]` **Layout Module** | | | | |
+| `layout.path` | String | - | Path to a markdown [layout file](#layout), relative to the page that configures it | Yes |
 
 ## Configuration Inheritance
 
@@ -121,6 +123,58 @@ language = "en"  # Override: use English instead of inherited German
 ```
 
 This inheritance system eliminates repetition and makes site-wide changes easy—just update the parent configuration.
+
+## Layout
+
+The layout module renders pages inside a configurable layout file, inspired by [Quartz's layout system](https://quartz.jzhao.xyz/layout). Configure it with `layout.path`, pointing to a markdown file that describes the page frame:
+
+```markdown
+<!--
+[layout]
+path = "./layout.md"
+-->
+```
+
+The layout file contains one HTML element per layout position. The `head` position is a literal `<head>` tag, the other positions (`header`, `beforeBody`, `pageBody`, `afterBody`, `left`, `right` and `footer`) are elements identified by their `id` attribute:
+
+| Position | Description |
+|----------|-------------|
+| `head` | Children are moved into the document `<head>` (metadata, stylesheets, scripts) |
+| `header` | Rendered before the page content, laid out horizontally |
+| `beforeBody` | Rendered before the page content, laid out vertically |
+| `pageBody` | The page content is rendered inside this element (**required**) |
+| `afterBody` | Rendered after the page content, laid out vertically |
+| `left` | Left sidebar |
+| `right` | Right sidebar |
+| `footer` | Rendered after everything, laid out vertically |
+
+All other attributes (`class`, `style`, ...) are preserved, so each position can be styled freely:
+
+```html
+<!-- layout.md -->
+<head>
+<link rel="stylesheet" href="layout.css"/>
+</head>
+<header id="header" class="my-header">
+<p>My site</p>
+</header>
+<div id="beforeBody">
+<p>Current date</p>
+</div>
+<div id="left" class="my-sidebar"></div>
+<div id="pageBody"></div>
+<div id="right"></div>
+<footer id="footer">
+<p>© 2026</p>
+</footer>
+```
+
+Notes:
+- The `pageBody` position is required. Pages whose layout file has no element with `id="pageBody"` are rendered without a layout.
+- Content that already exists inside the `pageBody` element is kept, and the page content is appended after it.
+- A layout configured on a page is also applied to all of its children. A child can override it with its own `layout.path`, an empty `[layout]` table disables the layout for the child and its descendants, and `root = true` disables inheritance entirely.
+- Resources referenced in the layout file (markdown links, markdown images and `href`/`src` attributes) are copied to the output and their paths are translated in every page that uses the layout.
+- Void elements must be self-closed, eg. `<img src="logo.png"/>`.
 
 ## Example
 

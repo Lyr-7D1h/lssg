@@ -22,6 +22,8 @@ mod default_module;
 pub use default_module::*;
 mod media_module;
 pub use media_module::*;
+mod layout_module;
+pub use layout_module::*;
 pub mod util;
 
 use super::{RenderContext, TokenRenderer};
