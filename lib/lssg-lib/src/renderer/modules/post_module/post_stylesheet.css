@@ -31,11 +31,6 @@ p + p {
 }
 
 @media only screen and (max-width: 768px) {
-  .post__date {
-    margin-left: 24px;
-    margin-right: 24px;
-  }
-
   p {
     line-height: 22px;
   }

@@ -13,7 +13,7 @@ keywords="blog,art,portfolio,technology,projects,software"
 subject="technology"
 image="https://lyrx.dev/icon.png"
 
-[footer]
+[layout.footer]
 custom = """
 <span style="font-size: 1em">
 [<i class="fa-solid fa-rss"></i>RSS Feed](/feed.xml) |
@@ -53,10 +53,14 @@ path = "feed.xml"
 # LyrX
 </centered>
 
+
+<left style="padding: 6rem 2rem 2rem">
+  <sitetree ignore="404,controller,living_space">
+  </sitetree>
+</left>
+
 Hi! My name is Ivo. I go by Lyr online. Welcome to my online space! I like to think of myself as a creator, I love making things and I do this with a bag of tools, with some tools I'm better than others. This is where I share my projects, code, data, 3d models, art, ideas and anything else I find interesting. Feel free to have a look around :) 
 
-<sitetree ignore="404,controller,living_space">
-</sitetree>
 
 <br />
 

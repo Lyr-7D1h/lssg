@@ -184,8 +184,7 @@ pub fn create_renderer(no_media_optimization: bool) -> Renderer {
         renderer.add_module(MediaModule::default());
     }
     renderer.add_module(CodeModule::default());
-    renderer.add_module(DefaultModule::default());
-    // layout must be registered last so it wraps the fully rendered page
     renderer.add_module(LayoutModule::default());
+    renderer.add_module(DefaultModule::default());
     renderer
 }

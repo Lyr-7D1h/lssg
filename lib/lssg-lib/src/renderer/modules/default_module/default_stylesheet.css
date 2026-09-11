@@ -32,10 +32,16 @@
 
 * {
   font-family: var(--lssg-font-body);
+  box-sizing: border-box;
 }
 
-body,
 html {
+  min-height: 100svh;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
   min-height: 100svh;
   margin: 0;
   padding: 0;
@@ -319,82 +325,13 @@ video {
   max-width: 100%;
 }
 
-#default__content {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin: 0;
-  /* Firefox */
-  min-height: -moz-calc(100% - 100px);
-  /* WebKit */
-  min-height: -webkit-calc(100% - 100px);
-  /* Opera */
-  min-height: -o-calc(100% - 100px);
-  /* Standard */
-  min-height: calc(100vh - 100px);
-}
-
-/* Constrain content elements to max-width and center them */
-#default__content .default__sitetree,
-#default__content table,
-#default__content pre,
-#default__content pre[class*="language-"],
-#default__content .code-toolbar,
-#default__content ul,
-#default__content ol,
-#default__content .default__task-list,
-#default__content h1,
-#default__content h2,
-#default__content h3,
-#default__content h4,
-#default__content h5,
-#default__content h6,
-#default__content p,
-#default__content blockquote,
-#default__content .default__callout {
-  max-width: 680px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
 /* Avoid an oversized gap before the very first element, and a trailing */
 /* gap before the footer, since heading/paragraph margins are asymmetric. */
-#default__content > *:first-child {
+body > *:first-child {
   margin-top: 0;
 }
-#default__content > *:last-child {
+body > *:last-child {
   margin-bottom: 0;
-}
-
-@media only screen and (max-width: 768px) {
-  #default__content .default__sitetree,
-  #default__content table,
-  #default__content pre,
-  #default__content pre[class*="language-"],
-  #default__content .code-toolbar,
-  #default__content ul,
-  #default__content ol,
-  #default__content .default__task-list,
-  #default__content h1,
-  #default__content h2,
-  #default__content h3,
-  #default__content h4,
-  #default__content h5,
-  #default__content h6,
-  #default__content p,
-  #default__content blockquote,
-  #default__content .default__callout {
-    margin-left: 10px;
-    margin-right: 10px;
-  }
-}
-#default__footer {
-  font-size: 16px;
-  text-align: center;
-  height: 30px;
-  margin: 0;
-  padding-top: 70px;
-  clear: both;
-  width: 100%;
 }
 
 /* <centered> */
@@ -511,11 +448,6 @@ nav.default__links a {
   font-weight: bold;
 }
 
-/* Adjust content margin when side menu is present */
-body:has(.default__side-menu) #default__content {
-  margin-left: 270px;
-}
-
 @media only screen and (max-width: 975px) {
   .default__side-menu {
     position: relative;
@@ -524,10 +456,6 @@ body:has(.default__side-menu) #default__content {
     border-right: none;
     border-bottom: 1px solid #d0d7de;
   }
-
-  body:has(.default__side-menu) #default__content {
-    margin-left: 0;
-  }
 }
 
 .default__links_grid {
@@ -535,7 +463,6 @@ body:has(.default__side-menu) #default__content {
   flex-wrap: wrap;
   margin-left: auto;
   margin-right: auto;
-  max-width: 50%;
   margin-top: 50px;
   margin-bottom: 50px;
 }
@@ -595,8 +522,6 @@ body:has(.default__side-menu) #default__content {
 }
 
 .default__carousel {
-  width: 60vw;
-  margin: 2rem auto;
   position: relative;
 }
 /* Main viewport */

@@ -113,6 +113,7 @@ impl Page {
     }
 
     /// Return the list of top tokens in the page
+    ///
     /// NOTE: a token can contain more tokens use `iter()` to iterate over all tokens
     pub fn tokens(&self) -> &Vec<Token> {
         &self.tokens
