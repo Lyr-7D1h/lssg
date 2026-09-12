@@ -40,7 +40,6 @@ path = "feed.xml"
 <!-- add pages without showing text -->
 [](./404.md)
 [](./blog.md)
-[](./living_space.md)
 [](./art.md)
 [](./projects.md)
 [](./models.md)
@@ -55,7 +54,7 @@ path = "feed.xml"
 
 
 <left style="padding: 6rem 2rem 2rem">
-  <sitetree ignore="404,controller,living_space">
+  <sitetree ignore="404">
   </sitetree>
 </left>
 

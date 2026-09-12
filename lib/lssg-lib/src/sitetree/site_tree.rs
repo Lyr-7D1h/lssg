@@ -345,8 +345,9 @@ impl SiteTree {
         id
     }
 
-    /// add from Input, will figure out what node to add from input and will register input not to
-    /// be used for other nodes
+    /// Add a node from `Input`
+    ///
+    /// Will figure out what `SiteNode` to create based on `Input`.
     pub fn add_from_input(
         &mut self,
         input: Input,

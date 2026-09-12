@@ -6,7 +6,7 @@ use proc_virtual_dom::dom;
 use virtual_dom::{Document, DomNode};
 
 use crate::renderer::{
-    RenderContext, TokenRenderer, modules::default_module::translate_href_to_sitetree_path,
+    RenderContext, TokenRenderer, modules::default_module::resolve_href,
     modules::util::tokens_to_text,
 };
 use lmarkdown::Token;
@@ -23,41 +23,42 @@ fn links_grid(
         .iter()
         .filter_map(|t| {
             if let Token::Link { tokens, href, .. } = t {
-                let links: Vec<_> = translate_href_to_sitetree_path(
-                    href,
-                    ctx.site_tree,
-                    ctx.site_id,
-                )
-                .into_iter()
-                .map(|(href, _)| {
-                    let a = dom!(<a href="{href}"><div class="default__links_grid_card"></div></a>);
-                    let mut tokens = tokens.iter().peekable();
-                    // if link content starts with image use it as cover
-                    if let Some(first) = tokens.peek()
-                        && let Token::Image { .. } = first
-                    {
-                        let first = tokens.next().unwrap();
-                        let cover = dom!(<div class="default__links_grid_card_cover"></div>);
-                        let s =
-                            tr.render(document, ctx, cover.clone(), std::slice::from_ref(first));
-                        // if svg set viewbox to allow scaling
-                        match &mut *s.first_child().unwrap().kind_mut() {
-                            virtual_dom::DomNodeKind::Element { attributes, .. } => {
-                                attributes.insert("width".into(), "100%".into());
-                                attributes.insert("height".into(), "auto".into());
+                let links: Vec<_> = resolve_href(href, ctx.site_tree, ctx.site_id)
+                    .into_iter()
+                    .map(|(href, _)| {
+                        let a =
+                            dom!(<a href="{href}"><div class="default__links_grid_card"></div></a>);
+                        let mut tokens = tokens.iter().peekable();
+                        // if link content starts with image use it as cover
+                        if let Some(first) = tokens.peek()
+                            && let Token::Image { .. } = first
+                        {
+                            let first = tokens.next().unwrap();
+                            let cover = dom!(<div class="default__links_grid_card_cover"></div>);
+                            let s = tr.render(
+                                document,
+                                ctx,
+                                cover.clone(),
+                                std::slice::from_ref(first),
+                            );
+                            // if svg set viewbox to allow scaling
+                            match &mut *s.first_child().unwrap().kind_mut() {
+                                virtual_dom::DomNodeKind::Element { attributes, .. } => {
+                                    attributes.insert("width".into(), "100%".into());
+                                    attributes.insert("height".into(), "auto".into());
+                                }
+                                _ => error!("should be an element"),
                             }
-                            _ => error!("should be an element"),
+                            a.first_child().unwrap().append_child(cover);
                         }
-                        a.first_child().unwrap().append_child(cover);
-                    }
-                    let tokens = Vec::from_iter(tokens.cloned());
-                    let title = tokens_to_text(&tokens);
-                    a.first_child().unwrap().append_child(
-                        dom!(<h3 class="default__links_grid_card_title">{title}</h3>),
-                    );
-                    a
-                })
-                .collect();
+                        let tokens = Vec::from_iter(tokens.cloned());
+                        let title = tokens_to_text(&tokens);
+                        a.first_child().unwrap().append_child(
+                            dom!(<h3 class="default__links_grid_card_title">{title}</h3>),
+                        );
+                        a
+                    })
+                    .collect();
 
                 Some(links)
             } else {
@@ -87,7 +88,7 @@ fn links_boxes(
             title,
         } = t
         {
-            for (href, _) in translate_href_to_sitetree_path(href, ctx.site_tree, ctx.site_id) {
+            for (href, _) in resolve_href(href, ctx.site_tree, ctx.site_id) {
                 let a: DomNode = if let Some(title) = title {
                     dom!(<a href="{href}" title="{title}"><div class="default__links_box"></div></a>)
                 } else {

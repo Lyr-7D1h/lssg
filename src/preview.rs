@@ -8,7 +8,12 @@ pub fn start_preview_server(output: PathBuf, port: u16) {
     let server = Server::http(&addr).expect("Failed to create server");
 
     for request in server.incoming_requests() {
-        let url_path = request.url().to_string();
+        let url_path = request
+            .url()
+            .split(['?', '#'])
+            .next()
+            .unwrap_or("")
+            .to_string();
         let mut path = output.clone();
 
         // Handle root path

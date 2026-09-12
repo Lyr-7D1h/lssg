@@ -114,9 +114,30 @@ impl Input {
     }
 
     pub fn is_glob(input: &str) -> bool {
-        let has_wildcards = input.contains('*') || input.contains('?');
-        let has_char_class = input.contains('[') && input.contains(']');
-        Self::is_local(input) && (has_wildcards || has_char_class)
+        if !Self::is_local(input) {
+            return false;
+        }
+
+        // Walk the string looking for unescaped glob meta-characters, mirroring
+        // how the `glob` crate itself interprets patterns:
+        // - `*` and `?` are always wildcards
+        // - `[...]` is a character class, but only if it has a matching `]`
+        // - on non-Windows platforms `\` escapes the following character, so
+        //   e.g. `foo\*bar` is treated as a literal filename, not a wildcard
+        let escapes_supported = !cfg!(windows);
+        let mut chars = input.char_indices();
+        while let Some((i, c)) = chars.next() {
+            match c {
+                '\\' if escapes_supported => {
+                    // skip the escaped character
+                    chars.next();
+                }
+                '*' | '?' => return true,
+                '[' if input[i + 1..].contains(']') => return true,
+                _ => {}
+            }
+        }
+        false
     }
 
     /// check if string looks like a local relative path
@@ -124,12 +145,22 @@ impl Input {
         !input.starts_with("/") && Self::is_local(input)
     }
 
+    /// Split a local href/src into its path and query string, e.g.
+    /// `./test.md?test=asdf` becomes `("./test.md", Some("test=asdf"))`
+    pub fn split_query(input: &str) -> (&str, Option<&str>) {
+        match input.split_once('?') {
+            Some((path, query)) => (path, Some(query)),
+            None => (input, None),
+        }
+    }
+
     // only support relative links to markdown files for now
     // because this will allow absolute links to markdown files links to for
     // example https://github.com/Lyr-7D1h/airap/blob/master/README.md
     // will render a readme even though this might not be appropiate
     pub fn is_href_to_page(href: &str) -> bool {
-        href.ends_with(".md") && Self::is_relative(href)
+        let (path, _query) = Self::split_query(href);
+        path.ends_with(".md") && Self::is_relative(href)
     }
 
     pub fn join_single(
@@ -169,8 +200,8 @@ impl Input {
         } else {
             match self {
                 Input::Local { path } => {
-                    // relative local path
                     let path: &Path = if path.filename_from_path()?.contains(".") {
+                        // If path to local file use parent folder
                         path.parent().unwrap_or(path)
                     } else {
                         path
@@ -204,6 +235,14 @@ impl Input {
                     .map(|response| response.status().is_success())
                     .unwrap_or(false)
             }
+        }
+    }
+
+    /// Get the complete path of an Input
+    pub fn path(&self) -> PathBuf {
+        match self {
+            Input::Local { path } => path.clone(),
+            Input::External { url } => PathBuf::from(url.path()),
         }
     }
 
@@ -257,7 +296,11 @@ pub enum SiteNodeKind {
 }
 impl SiteNodeKind {
     pub fn input_is_page(input: &Input) -> bool {
-        input.to_string().ends_with(".md")
+        input
+            .path()
+            .extension()
+            .and_then(|e| e.to_str())
+            .is_some_and(|e| e.starts_with("md"))
     }
     pub fn input_is_stylesheet(input: &Input) -> bool {
         input.to_string().ends_with(".css")

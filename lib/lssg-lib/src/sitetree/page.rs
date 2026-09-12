@@ -51,8 +51,10 @@ impl Page {
                     // Ignore links to headers
                     !href.starts_with("#") =>
                 {
+                    // strip query params (e.g. `?test=asdf`) before resolving the path
+                    let (path, _query) = Input::split_query(href);
                     let Ok(inputs) = input
-                        .join(href, http_client)
+                        .join(path, http_client)
                         .inspect_err(|e| warn!("Failed to get joined {input} with {href}: {e}"))
                     else {
                         continue;

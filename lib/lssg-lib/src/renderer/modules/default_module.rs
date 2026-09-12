@@ -485,9 +485,7 @@ impl RendererModule for DefaultModule {
             }
             Token::Image { tokens, src, title } => {
                 // if local page return relative src
-                for (src, resource_id) in
-                    translate_href_to_sitetree_path(src, ctx.site_tree, ctx.site_id)
-                {
+                for (src, resource_id) in resolve_href(src, ctx.site_tree, ctx.site_id) {
                     // inject svg into html
                     if src.ends_with(".svg") {
                         let readable = if let Some(id) = resource_id {
@@ -674,7 +672,7 @@ impl RendererModule for DefaultModule {
                     return Some(parent);
                 }
 
-                for (href, _) in translate_href_to_sitetree_path(href, ctx.site_tree, ctx.site_id) {
+                for (href, _) in resolve_href(href, ctx.site_tree, ctx.site_id) {
                     let mut attributes = to_attributes([("href", href)]);
                     if let Some(title) = title {
                         attributes.insert("title".to_owned(), title.to_owned());
@@ -788,16 +786,24 @@ impl RendererModule for DefaultModule {
     }
 }
 
-/// Translate href to page path
-fn translate_href_to_sitetree_path(
+/// If href matches a link to a page use path to that page
+fn resolve_href(
     href: &String,
     site_tree: &SiteTree,
     site_id: SiteId,
 ) -> Vec<(String, Option<SiteId>)> {
+    let (_, query) = Input::split_query(href);
     let hrefs: Vec<_> = site_tree
         .resources_from_discovered_links(site_id, href)
         .into_iter()
-        .map(|id| (site_tree.path(id), Some(id)))
+        .map(|id| {
+            let path = site_tree.path(id);
+            let path = match query {
+                Some(query) => format!("{path}?{query}"),
+                None => path,
+            };
+            (path, Some(id))
+        })
         .collect();
     if hrefs.is_empty() {
         return vec![(href.clone(), None)];

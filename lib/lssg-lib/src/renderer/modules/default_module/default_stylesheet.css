@@ -975,11 +975,13 @@ nav.default__links a {
   font-size: var(--lssg-font-size-base);
   line-height: var(--lssg-line-height-tight);
 }
+.default__sitetree > * {
+  padding-bottom: 1rem;
+}
 .default__sitetree_folder {
   text-align: left;
   text-overflow: ellipsis;
   overflow: hidden;
-  padding-bottom: 1rem;
 }
 .default__sitetree_folder > a {
   font-weight: 600;

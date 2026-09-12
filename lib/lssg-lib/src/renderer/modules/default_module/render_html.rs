@@ -50,8 +50,8 @@ fn sitetree_recurs(
         let b_has_children = !map[*b].is_empty();
 
         // Sort by has_children first (true before false), then by name
-        b_has_children
-            .cmp(&a_has_children)
+        a_has_children
+            .cmp(&b_has_children)
             .then_with(|| a_name.cmp(b_name))
     });
     let children: Vec<DomNode> = children
